@@ -1,0 +1,102 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { Navigation, ArrowRight } from "lucide-react";
+import { apiGet } from "@/lib/api";
+
+interface DriverRow {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  email: string;
+  isActive: boolean;
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  "On Delivery": "text-amber-600 bg-amber-50 border-amber-200",
+  "Picking Up": "text-blue-600 bg-blue-50 border-blue-200",
+  "Quality Check": "text-purple-600 bg-purple-50 border-purple-200",
+  Idle: "text-emerald-600 bg-emerald-50 border-emerald-200",
+};
+
+interface DriversTableProps {
+  activeTab: string;
+  onTabChange: (tab: string) => void;
+}
+
+export function DriversTable({ activeTab, onTabChange }: DriversTableProps) {
+  const [drivers, setDrivers] = useState<DriverRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    apiGet<DriverRow[]>("/admin/dispatch/drivers")
+      .then(setDrivers)
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Failed to load drivers"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = drivers.filter((d) => {
+    if (activeTab === "all") return true;
+    if (activeTab === "active") return d.isActive;
+    if (activeTab === "idle") return !d.isActive;
+    return true;
+  });
+
+  return (
+    <div className="flex w-full shrink-0 flex-col rounded-xl border border-zinc-200 bg-white shadow-card lg:w-80 xl:w-96">
+      <div className="border-b border-zinc-200 p-4">
+        <div className="flex rounded-lg bg-zinc-50 p-1">
+          {["all", "active", "idle"].map((t) => (
+            <button
+              key={t}
+              onClick={() => onTabChange(t)}
+              className={cn(
+                "flex-1 rounded-md px-3 py-1.5 text-sm font-medium capitalize transition-colors",
+                activeTab === t ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700",
+              )}
+            >
+              {t === "all" ? "All Fleet" : t}
+            </button>
+          ))}
+        </div>
+      </div>
+      <ScrollArea className="flex-1">
+        <div className="space-y-3 p-4">
+          {loading && <div className="rounded-lg border border-zinc-100 p-3 text-sm text-zinc-500">Loading drivers...</div>}
+          {error && <div className="rounded-lg border border-red-100 bg-red-50 p-3 text-sm text-red-600">{error}</div>}
+          {!loading && !error && filtered.length === 0 && <div className="rounded-lg border border-zinc-100 p-3 text-sm text-zinc-500">No drivers found.</div>}
+          {filtered.map((d) => {
+            const name = `${d.firstName || ""} ${d.lastName || ""}`.trim() || d.email;
+            const status = d.isActive ? "Idle" : "Offline";
+            return (
+            <div
+              key={d.id}
+              className="cursor-pointer rounded-lg border border-zinc-100 p-3 transition-colors hover:bg-zinc-50"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-zinc-900">{name}</span>
+                <span className="text-[11px] text-zinc-400">{d.id.slice(0, 8)}</span>
+              </div>
+              <Badge
+                variant="outline"
+                className={cn("mt-1 rounded-full px-2 py-0.5 text-[11px] font-semibold", STATUS_COLORS[status] || "text-zinc-600 bg-zinc-50 border-zinc-200")}
+              >
+                {status}
+              </Badge>
+              <div className="mt-2 flex items-center gap-1.5 text-xs text-zinc-500">
+                <Navigation size={11} />
+                <span>Fleet pool</span>
+                <ArrowRight size={10} className="text-zinc-300" />
+                <span>Available jobs</span>
+              </div>
+            </div>
+          );})}
+        </div>
+      </ScrollArea>
+    </div>
+  );
+}
