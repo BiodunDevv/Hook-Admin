@@ -1,114 +1,159 @@
 "use client";
 
-import { useState } from "react";
-import { Download, Plus, SlidersHorizontal, ChevronDown, AlertCircle } from "lucide-react";
+import Link from "next/link";
+import { AlertCircle, Boxes, Download, PackageCheck, Plus, Tags } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { KpiCard } from "@/components/shared/KpiCard";
+import { ProductFilters } from "@/components/products/ProductFilters";
+import { ProductRow, ProductsTable } from "@/components/products/ProductsTable";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { SearchInput } from "@/components/shared/SearchInput";
-import { ProductsTable } from "@/components/products/ProductsTable";
-import { cn } from "@/lib/utils";
+import { PermissionGuard } from "@/components/auth/PermissionGuard";
+import { useApiQuery } from "@/lib/query";
+import { Page, number, queryString, useUrlFilters } from "@/lib/admin-utils";
+
+interface CategoryOption {
+  id: string;
+  name: string;
+}
+
+interface VendorOption {
+  id: string;
+  businessName: string;
+}
 
 export default function ProductsPage() {
-  const [view, setView] = useState("all");
+  const filters = useUrlFilters({
+    page: "1",
+    search: "",
+    status: "all",
+    categoryId: "all",
+    vendorId: "all",
+    stock: "all",
+  });
+
+  const page = Number(filters.get("page") || 1);
+  const search = filters.get("search") || "";
+  const status = filters.get("status") || "all";
+  const categoryId = filters.get("categoryId") || "all";
+  const vendorId = filters.get("vendorId") || "all";
+  const stock = filters.get("stock") || "all";
+  const listPath = `/admin/products${queryString({ page, limit: 12, search, status, categoryId, vendorId, stock })}`;
+  const queryKey = ["admin", "products", page, search, status, categoryId, vendorId, stock] as const;
+
+  const productsQuery = useApiQuery<Page<ProductRow>>(queryKey, listPath);
+  const vendorsQuery = useApiQuery<Page<VendorOption>>(["admin", "product-vendor-options"], "/admin/vendors?limit=100");
+  const categoriesQuery = useApiQuery<CategoryOption[]>(["admin", "product-category-options"], "/categories");
+
+  const stats = productsQuery.data?.stats || {};
+  const products = productsQuery.data?.data || [];
+  const categories = categoriesQuery.data || [];
+  const vendors = vendorsQuery.data?.data || [];
+
+  function setFilter(key: string, value: string) {
+    filters.set({ [key]: value, page: 1 });
+  }
+
+  function exportCsv() {
+    if (!products.length) {
+      toast.info("There are no products to export for this view.");
+      return;
+    }
+
+    const rows = [
+      ["Product", "Hook ID", "Category", "Vendor", "Price", "Stock", "Status"],
+      ...products.map((product) => [
+        product.title,
+        product.hookId || product.id,
+        product.category?.name || "Uncategorized",
+        product.vendor?.businessName || "No vendor",
+        String(product.sellingPrice || 0),
+        String(product.quantity || 0),
+        product.status,
+      ]),
+    ];
+    const csv = rows.map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `hook-products-page-${page}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success("Product export downloaded.");
+  }
 
   return (
-    <div className="px-4 py-4 sm:px-6 sm:py-6">
+    <div className="min-h-[calc(100vh-4rem)] overflow-y-auto p-2 pb-6 sm:p-4 sm:pb-8">
       <PageHeader
         title="Products"
         description="Manage inventory, pricing, and AI negotiation targets."
         actions={
           <>
-            <Button variant="outline" size="sm" className="flex items-center gap-1.5">
-              <Download size={15} /> <span className="hidden sm:inline">Export</span>
-            </Button>
-            <Button variant="ink" size="sm" className="flex items-center gap-1.5">
-              <Plus size={16} /> Add Product
-            </Button>
+            <PermissionGuard permission="products.view">
+              <Button type="button" variant="outline" size="sm" className="flex items-center gap-1.5" onClick={exportCsv}>
+                <Download size={15} /> <span className="hidden sm:inline">Export CSV</span>
+              </Button>
+            </PermissionGuard>
+            <PermissionGuard permission="products.edit">
+              <Button asChild variant="ink" size="sm" className="flex items-center gap-1.5">
+                <Link href="/dashboard/products/new">
+                  <Plus size={16} /> Add Product
+                </Link>
+              </Button>
+            </PermissionGuard>
           </>
         }
       />
 
-      {/* KPI Cards */}
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Card className="border-zinc-200 shadow-card">
-          <CardContent className="p-4 sm:p-5">
-            <p className="text-xs font-medium text-zinc-500">Total Products</p>
-            <h3 className="mt-1 text-xl font-bold text-zinc-900 sm:text-2xl">12,405</h3>
-            <p className="mt-2 text-xs text-zinc-400">+45 this week</p>
-          </CardContent>
-        </Card>
-        <Card className="border-zinc-200 shadow-card">
-          <CardContent className="p-4 sm:p-5">
-            <p className="text-xs font-medium text-zinc-500">Active Categories</p>
-            <h3 className="mt-1 text-xl font-bold text-zinc-900 sm:text-2xl">32</h3>
-            <p className="mt-2 text-xs text-zinc-400">Across 8 departments</p>
-          </CardContent>
-        </Card>
-        <Card className="border-zinc-200 shadow-card">
-          <CardContent className="p-4 sm:p-5">
-            <p className="text-xs font-medium text-zinc-500">Low Stock Alerts</p>
-            <h3 className="mt-1 text-xl font-bold text-zinc-900 sm:text-2xl">184</h3>
-            <p className="mt-2 flex items-center gap-1 text-xs text-amber-600">
-              <AlertCircle size={12} /> Needs attention
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="border-zinc-200 shadow-card">
-          <CardContent className="p-4 sm:p-5">
-            <p className="text-xs font-medium text-zinc-500">Top Vendors</p>
-            <h3 className="mt-1 text-xl font-bold text-zinc-900 sm:text-2xl">145</h3>
-            <p className="mt-2 text-xs text-zinc-400">Supplying 80% volume</p>
-          </CardContent>
-        </Card>
+      <div className="mb-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <KpiCard
+          label="Total Products"
+          value={number(stats.total)}
+          caption={`${number(stats.approved)} approved`}
+          icon={Boxes}
+          tone="blue"
+        />
+        <KpiCard
+          label="Pending Review"
+          value={number(stats.pendingApproval)}
+          caption="Awaiting catalog decision"
+          icon={PackageCheck}
+          tone="amber"
+        />
+        <KpiCard
+          label="Low Stock"
+          value={number(stats.lowStock)}
+          caption="Needs replenishment"
+          icon={AlertCircle}
+          tone="red"
+        />
+        <KpiCard
+          label="Sold Out"
+          value={number(stats.soldOut)}
+          caption="Unavailable products"
+          icon={Tags}
+          tone="zinc"
+        />
       </div>
 
-      {/* Table Card */}
-      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-card">
-        {/* Controls */}
-        <div className="flex flex-col gap-3 border-b border-zinc-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-3.5">
-          <div className="flex flex-wrap items-center gap-2">
-            <SearchInput placeholder="Search products, SKUs..." className="w-full sm:w-56 lg:w-64" />
-            <Button variant="outline" size="sm" className="flex items-center gap-1.5 text-zinc-600">
-              <SlidersHorizontal size={14} /> Categories <ChevronDown size={12} className="text-zinc-300" />
-            </Button>
-            <Button variant="outline" size="sm" className="hidden sm:flex items-center gap-1.5 text-zinc-600">
-              <SlidersHorizontal size={14} /> Vendors <ChevronDown size={12} className="text-zinc-300" />
-            </Button>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-zinc-400 hidden sm:inline">View:</span>
-            <div className="flex rounded-lg border border-zinc-200 bg-zinc-50 p-0.5">
-              <button
-                onClick={() => setView("all")}
-                className={cn(
-                  "rounded-md px-3 py-1 text-xs font-medium sm:text-sm",
-                  view === "all" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500",
-                )}
-              >
-                All
-              </button>
-              <button
-                onClick={() => setView("low")}
-                className={cn(
-                  "flex items-center gap-1 rounded-md px-3 py-1 text-xs font-medium sm:text-sm",
-                  view === "low" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500",
-                )}
-              >
-                <AlertCircle size={12} className="text-amber-500" /> Low Stock
-              </button>
-            </div>
-          </div>
-        </div>
+      <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-card">
+        <ProductFilters
+          search={search}
+          status={status}
+          categoryId={categoryId}
+          vendorId={vendorId}
+          stock={stock}
+          categories={categories}
+          vendors={vendors}
+          onSearchChange={(value) => setFilter("search", value)}
+          onStatusChange={(value) => setFilter("status", value)}
+          onCategoryChange={(value) => setFilter("categoryId", value)}
+          onVendorChange={(value) => setFilter("vendorId", value)}
+          onStockChange={(value) => setFilter("stock", value)}
+          onClear={() => filters.set({ search: "", status: "all", categoryId: "all", vendorId: "all", stock: "all", page: 1 })}
+        />
 
-        <div className="overflow-x-auto">
-          <ProductsTable />
-        </div>
-
-        {/* Pagination */}
-        <div className="flex items-center justify-between border-t border-zinc-200 px-4 py-3 text-xs text-zinc-500 sm:px-5 sm:text-sm">
-          <span>Showing 1 to 5 of 12,405 products</span>
-        </div>
+        <ProductsTable queryKey={queryKey} path={listPath} onPageChange={(nextPage) => filters.set({ page: nextPage })} />
       </div>
     </div>
   );

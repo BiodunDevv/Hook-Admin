@@ -28,8 +28,8 @@ export default function StatCard({ data }: { data: StatCardData }) {
       : "text-zinc-400";
 
   return (
-    <Card className="shadow-card border-zinc-200">
-      <CardContent className="pt-4">
+    <Card className="rounded-lg border-zinc-200 shadow-card py-0">
+      <CardContent className="p-4">
         <div className="flex items-start justify-between">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
             {label}
@@ -37,9 +37,9 @@ export default function StatCard({ data }: { data: StatCardData }) {
           <Sparkline values={sparkline} />
         </div>
 
-        <p className="mt-2 text-2xl font-semibold text-zinc-900">{value}</p>
+        <p className="mt-2 text-2xl font-semibold leading-none text-zinc-900">{value}</p>
 
-        <div className="mt-3 flex items-center gap-1.5 text-xs">
+        <div className="mt-3 flex items-center gap-1.5 text-xs leading-none">
           <span className="h-1.5 w-1.5 rounded-full border border-zinc-300" />
           <span className={cn("font-semibold", deltaColor)}>{delta}</span>
           <span className="text-zinc-400">{caption}</span>

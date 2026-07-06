@@ -1,6 +1,5 @@
  "use client";
 
-import { useEffect, useState } from "react";
 import { Store } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,7 +13,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { apiGet } from "@/lib/api";
+import { HookLoader } from "@/components/shared/HookLoader";
+import { useApiQuery } from "@/lib/query";
 
 const paymentColors: Record<string, string> = {
   PAID: "text-emerald-600",
@@ -35,18 +35,11 @@ interface ApiOrder {
 interface Page<T> { data: T[]; }
 
 export default function RecentOrders() {
-  const [orders, setOrders] = useState<ApiOrder[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    apiGet<Page<ApiOrder>>("/admin/orders?limit=5")
-      .then((result) => setOrders(result.data))
-      .catch(() => setOrders([]))
-      .finally(() => setLoading(false));
-  }, []);
+  const { data, isLoading } = useApiQuery<Page<ApiOrder>>(["admin", "recent-orders"], "/admin/orders?limit=5");
+  const orders = data?.data || [];
 
   return (
-    <Card className="shadow-card border-zinc-200">
+    <Card className="shadow-card border-zinc-200 py-0">
       <CardContent className="pt-5">
         <div className="flex items-center justify-between">
           <div>
@@ -79,8 +72,8 @@ export default function RecentOrders() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading && <TableRow><TableCell colSpan={4} className="py-8 text-center text-zinc-500">Loading orders...</TableCell></TableRow>}
-              {!loading && orders.length === 0 && <TableRow><TableCell colSpan={4} className="py-8 text-center text-zinc-500">No recent orders yet.</TableCell></TableRow>}
+              {isLoading && <TableRow><TableCell colSpan={4} className="py-8"><HookLoader label="Loading orders..." /></TableCell></TableRow>}
+              {!isLoading && orders.length === 0 && <TableRow><TableCell colSpan={4} className="py-8 text-center text-zinc-500">No recent orders yet.</TableCell></TableRow>}
               {orders.map((order) => {
                 const name = `${order.user?.firstName || ""} ${order.user?.lastName || ""}`.trim() || order.user?.email || "Customer";
                 const item = order.items?.[0];

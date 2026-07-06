@@ -6,16 +6,17 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import { apiPost } from "@/lib/api";
+import { useAdminLogin } from "@/lib/query";
+import { HookLoader } from "@/components/shared/HookLoader";
 
 interface LoginFormProps {
-  onSuccess: (accessToken: string) => void;
+  onSuccess: () => void;
 }
 
 export function LoginForm({ onSuccess }: LoginFormProps) {
   const [serverError, setServerError] = useState("");
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const login = useAdminLogin();
   const [values, setValues] = useState({
     email: "admin@gmail.com",
     password: "123456",
@@ -38,14 +39,12 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     setServerError("");
     if (!validate()) return;
 
-    setIsSubmitting(true);
     try {
-      const data = await apiPost<{ accessToken: string }>("/admin/auth/login", values);
-      onSuccess(data.accessToken);
+      await login.mutateAsync(values);
+      onSuccess();
     } catch (err: unknown) {
-      setServerError(err instanceof Error ? err.message : "Login failed");
-    } finally {
-      setIsSubmitting(false);
+      const message = err instanceof Error ? err.message.replace(/^\d+:\s*/, "") : "Login failed";
+      setServerError(message);
     }
   }
 
@@ -97,14 +96,11 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       <Button
         type="submit"
         variant="brand"
-        disabled={isSubmitting}
+        disabled={login.isPending}
         className="mt-2 w-full"
       >
-        {isSubmitting ? (
-          <>
-            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-900 border-t-transparent" />
-            Signing in…
-          </>
+        {login.isPending ? (
+          <HookLoader size="button" label="Signing in..." />
         ) : (
           "Sign In"
         )}

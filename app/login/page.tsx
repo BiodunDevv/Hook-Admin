@@ -1,16 +1,19 @@
 "use client";
 
+import { Suspense } from "react";
 import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { LoginForm } from "@/components/auth/LoginForm";
-import { setToken } from "@/lib/api";
+import { HookLoader } from "@/components/shared/HookLoader";
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  function handleSuccess(accessToken: string) {
-    setToken(accessToken);
-    router.push("/dashboard");
+  function handleSuccess() {
+    const next = searchParams.get("next");
+    router.replace(next && next.startsWith("/") ? next : "/dashboard");
   }
 
   return (
@@ -28,5 +31,19 @@ export default function LoginPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-canvas">
+          <HookLoader size="page" label="Loading login..." />
+        </div>
+      }
+    >
+      <LoginContent />
+    </Suspense>
   );
 }

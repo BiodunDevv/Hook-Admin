@@ -1,29 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { isAuthenticated } from "@/lib/api";
+import { useAdminSession } from "@/lib/query";
+import { HookLoader } from "@/components/shared/HookLoader";
 
 export function AdminGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [ready, setReady] = useState(false);
+  const session = useAdminSession();
 
   useEffect(() => {
-    if (!isAuthenticated()) {
+    if (session.isError || (session.isSuccess && !session.data)) {
       router.replace(`/login?next=${encodeURIComponent(pathname)}`);
-      return;
     }
-    setReady(true);
-  }, [pathname, router]);
+  }, [pathname, router, session.data, session.isError, session.isSuccess]);
 
-  if (!ready) {
+  if (session.isLoading || session.isPending) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background text-sm text-zinc-500">
-        Loading dashboard...
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <HookLoader size="page" label="Checking admin session..." />
       </div>
     );
   }
+
+  if (!session.data) return null;
 
   return children;
 }

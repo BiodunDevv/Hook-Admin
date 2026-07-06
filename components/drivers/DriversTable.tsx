@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Navigation, ArrowRight } from "lucide-react";
-import { apiGet } from "@/lib/api";
+import { useApiQuery } from "@/lib/query";
+import { HookLoader } from "@/components/shared/HookLoader";
 
 interface DriverRow {
   id: string;
@@ -13,6 +13,12 @@ interface DriverRow {
   lastName?: string;
   email: string;
   isActive: boolean;
+}
+
+interface DriversResponse {
+  data?: DriverRow[];
+  total?: number;
+  stats?: Record<string, number>;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -28,16 +34,9 @@ interface DriversTableProps {
 }
 
 export function DriversTable({ activeTab, onTabChange }: DriversTableProps) {
-  const [drivers, setDrivers] = useState<DriverRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    apiGet<DriverRow[]>("/admin/dispatch/drivers")
-      .then(setDrivers)
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Failed to load drivers"))
-      .finally(() => setLoading(false));
-  }, []);
+  const { data, isLoading, error } = useApiQuery<DriverRow[] | DriversResponse>(["admin", "drivers"], "/admin/dispatch/drivers");
+  const drivers = Array.isArray(data) ? data : data?.data || [];
+  const errorMessage = error instanceof Error ? error.message.replace(/^\d+:\s*/, "") : "";
 
   const filtered = drivers.filter((d) => {
     if (activeTab === "all") return true;
@@ -47,7 +46,7 @@ export function DriversTable({ activeTab, onTabChange }: DriversTableProps) {
   });
 
   return (
-    <div className="flex w-full shrink-0 flex-col rounded-xl border border-zinc-200 bg-white shadow-card lg:w-80 xl:w-96">
+    <div className="flex w-full shrink-0 flex-col rounded-lg border border-zinc-200 bg-white shadow-card lg:w-80 xl:w-96">
       <div className="border-b border-zinc-200 p-4">
         <div className="flex rounded-lg bg-zinc-50 p-1">
           {["all", "active", "idle"].map((t) => (
@@ -66,9 +65,9 @@ export function DriversTable({ activeTab, onTabChange }: DriversTableProps) {
       </div>
       <ScrollArea className="flex-1">
         <div className="space-y-3 p-4">
-          {loading && <div className="rounded-lg border border-zinc-100 p-3 text-sm text-zinc-500">Loading drivers...</div>}
-          {error && <div className="rounded-lg border border-red-100 bg-red-50 p-3 text-sm text-red-600">{error}</div>}
-          {!loading && !error && filtered.length === 0 && <div className="rounded-lg border border-zinc-100 p-3 text-sm text-zinc-500">No drivers found.</div>}
+          {isLoading && <div className="rounded-lg border border-zinc-100 p-3"><HookLoader label="Loading drivers..." /></div>}
+          {errorMessage && <div className="rounded-lg border border-red-100 bg-red-50 p-3 text-sm text-red-600">{errorMessage}</div>}
+          {!isLoading && !errorMessage && filtered.length === 0 && <div className="rounded-lg border border-zinc-100 p-3 text-sm text-zinc-500">No drivers found.</div>}
           {filtered.map((d) => {
             const name = `${d.firstName || ""} ${d.lastName || ""}`.trim() || d.email;
             const status = d.isActive ? "Idle" : "Offline";

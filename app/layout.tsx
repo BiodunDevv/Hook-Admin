@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { AppProviders } from "@/components/providers/AppProviders";
 
 export const metadata: Metadata = {
   title: "Hook | Admin Dashboard",
@@ -13,9 +13,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full font-sans antialiased">
+    <html lang="en" className="h-full font-sans antialiased" suppressHydrationWarning>
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        <TooltipProvider>{children}</TooltipProvider>
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   );

@@ -6,7 +6,6 @@ import {
   Clock,
   Filter,
   MoreVertical,
-  ArrowUpRight,
   PieChart,
   ShoppingBag,
   Users,
@@ -15,15 +14,25 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import { KpiCard } from "@/components/shared/KpiCard";
 import { ReportCard } from "@/components/reports/ReportCard";
 import type { Report } from "@/components/reports/ReportCard";
 import { apiGet } from "@/lib/api";
+import { useApiQuery } from "@/lib/query";
+import { money, number } from "@/lib/admin-utils";
 
 const tabs = ["Overview", "Sales", "Vendors", "Customers", "Logistics"];
 
 interface ApiReport { id: string; type?: string; createdAt?: string; status?: string; }
-interface Page<T> { data: T[]; }
+interface PageData<T> { data: T[]; total?: number; }
+
+interface DashboardMetric { value: number; change: number; caption: string; }
+interface DashboardSummary {
+  grossMerchandise: DashboardMetric;
+  activeOrders: DashboardMetric;
+  deliverySla: DashboardMetric;
+}
 
 const categories = [
   { name: "Sneakers", color: "bg-zinc-900", width: "w-[85%]" },
@@ -37,8 +46,16 @@ export default function ReportsPage() {
   const [activeTab, setActiveTab] = useState("Overview");
   const [reports, setReports] = useState<Report[]>([]);
 
+  const { data: dashData } = useApiQuery<DashboardSummary>(["admin", "dashboard"], "/admin/dashboard");
+  const { data: customersData } = useApiQuery<PageData<unknown>>(["admin", "customers", "total"], "/admin/customers?limit=1");
+
+  const gmv = dashData?.grossMerchandise?.value ?? null;
+  const totalOrders = dashData?.activeOrders?.value ?? null;
+  const deliverySla = dashData?.deliverySla?.value ?? null;
+  const totalBuyers = customersData?.total ?? null;
+
   useEffect(() => {
-    apiGet<Page<ApiReport>>("/admin/reports")
+    apiGet<PageData<ApiReport>>("/admin/reports")
       .then((result) => setReports(result.data.map((report, index) => ({
         id: index + 1,
         title: `${report.type || "Platform"} report`,
@@ -53,7 +70,7 @@ export default function ReportsPage() {
   }, []);
 
   return (
-    <div className="flex flex-col px-4 py-4 sm:px-6 sm:py-6">
+    <div className="flex flex-col p-2 sm:p-4">
       <PageHeader
         title="Advanced Reports"
         description="Analyze marketplace performance, generate custom insights, and export data."
@@ -70,7 +87,7 @@ export default function ReportsPage() {
       />
 
       {/* Tabs */}
-      <div className="mb-6 flex overflow-x-auto gap-4 border-b border-zinc-200 sm:gap-6">
+      <div className="mb-4 flex overflow-x-auto gap-4 border-b border-zinc-200 sm:gap-4">
         {tabs.map((tab) => (
           <button
             key={tab}
@@ -87,75 +104,42 @@ export default function ReportsPage() {
       </div>
 
       {/* KPIs */}
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Card className="border-zinc-200 shadow-card">
-          <CardContent className="flex items-center gap-3 p-4 sm:gap-4 sm:p-5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-brand-gold sm:h-12 sm:w-12">
-              <TrendingUp size={20} />
-            </div>
-            <div>
-              <h3 className="text-base font-bold leading-none text-zinc-900 sm:text-2xl">₦128.4M</h3>
-              <p className="mt-1 text-xs font-medium leading-tight text-zinc-500 sm:text-sm">
-                Gross Merchandise<br />Value
-              </p>
-              <span className="mt-1 flex items-center gap-0.5 text-[11px] font-bold text-emerald-500">
-                <ArrowUpRight size={12} /> +14.2% vs last period
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-zinc-200 shadow-card">
-          <CardContent className="flex items-center gap-3 p-4 sm:gap-4 sm:p-5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-500 sm:h-12 sm:w-12">
-              <Users size={20} />
-            </div>
-            <div>
-              <h3 className="text-base font-bold leading-none text-zinc-900 sm:text-2xl">45.2K</h3>
-              <p className="mt-1 text-xs font-medium leading-tight text-zinc-500 sm:text-sm">Active Buyers</p>
-              <span className="mt-1 flex items-center gap-0.5 text-[11px] font-bold text-emerald-500">
-                <ArrowUpRight size={12} /> +5.1% vs last period
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-zinc-200 shadow-card">
-          <CardContent className="flex items-center gap-3 p-4 sm:gap-4 sm:p-5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-500 sm:h-12 sm:w-12">
-              <ShoppingBag size={20} />
-            </div>
-            <div>
-              <h3 className="text-base font-bold leading-none text-zinc-900 sm:text-2xl">12,845</h3>
-              <p className="mt-1 text-xs font-medium leading-tight text-zinc-500 sm:text-sm">Total Orders</p>
-              <span className="mt-1 flex items-center gap-0.5 text-[11px] font-bold text-emerald-500">
-                <ArrowUpRight size={12} /> +8.4% vs last period
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-zinc-200 shadow-card">
-          <CardContent className="flex items-center gap-3 p-4 sm:gap-4 sm:p-5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-50 text-purple-500 sm:h-12 sm:w-12">
-              <Clock size={20} />
-            </div>
-            <div>
-              <h3 className="text-base font-bold leading-none text-zinc-900 sm:text-2xl">34m</h3>
-              <p className="mt-1 text-xs font-medium leading-tight text-zinc-500 sm:text-sm">Avg. Delivery Time</p>
-              <span className="mt-1 flex items-center gap-0.5 text-[11px] font-bold text-emerald-500">
-                <ArrowUpRight size={12} /> -2m vs last period
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <KpiCard
+          icon={TrendingUp}
+          tone="amber"
+          label="Gross Merchandise Value"
+          value={gmv !== null ? money(gmv) : "—"}
+          caption="Platform-wide sales volume"
+        />
+        <KpiCard
+          icon={Users}
+          tone="blue"
+          label="Total Customers"
+          value={totalBuyers !== null ? number(totalBuyers) : "—"}
+          caption="Registered shoppers"
+        />
+        <KpiCard
+          icon={ShoppingBag}
+          tone="green"
+          label="Active Orders"
+          value={totalOrders !== null ? number(totalOrders) : "—"}
+          caption="Orders in progress"
+        />
+        <KpiCard
+          icon={Clock}
+          tone="zinc"
+          label="Delivery SLA"
+          value={deliverySla !== null ? `${deliverySla.toFixed(1)}%` : "—"}
+          caption="On-time delivery rate"
+        />
       </div>
 
       {/* Charts Row */}
-      <div className="mb-6 flex flex-col gap-6 lg:flex-row lg:h-[380px]">
+      <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:h-95">
         {/* Left Chart: Area */}
         <Card className="flex flex-col border-zinc-200 p-4 shadow-card sm:p-6 lg:w-[65%]">
-          <div className="mb-4 flex items-start justify-between sm:mb-6">
+          <div className="mb-4 flex items-start justify-between sm:mb-4">
             <div>
               <h3 className="text-base font-bold text-zinc-900">GMV vs Orders Trend</h3>
               <p className="text-sm text-zinc-500">Platform-wide performance over the last 7 weeks</p>
@@ -165,7 +149,7 @@ export default function ReportsPage() {
             </button>
           </div>
 
-          <div className="relative flex min-h-[180px] flex-1 flex-col sm:min-h-0">
+          <div className="relative flex min-h-45 flex-1 flex-col sm:min-h-0">
             <div className="absolute inset-0 flex flex-col justify-between pb-6 text-[11px] font-medium text-zinc-400">
               {["₦38M", "₦29M", "₦19M", "₦10M", "₦0M"].map((val, i) => (
                 <div key={i} className="flex w-full items-center gap-3">
@@ -207,7 +191,7 @@ export default function ReportsPage() {
 
         {/* Right Chart: Horizontal Bars */}
         <Card className="flex flex-1 flex-col border-zinc-200 p-4 shadow-card sm:p-6">
-          <div className="mb-4 flex items-start justify-between sm:mb-6">
+          <div className="mb-4 flex items-start justify-between sm:mb-4">
             <div>
               <h3 className="text-base font-bold text-zinc-900">Sales by Category</h3>
               <p className="text-sm text-zinc-500">Top performing verticals</p>
@@ -232,7 +216,7 @@ export default function ReportsPage() {
 
       {/* Generated Reports Library */}
       <Card className="flex flex-col border-zinc-200 shadow-card">
-        <div className="flex items-center justify-between border-b border-zinc-100 p-4 sm:p-5">
+        <div className="flex items-center justify-between border-b border-zinc-100 p-4 sm:p-4">
           <div>
             <h3 className="text-base font-bold text-zinc-900">Generated Reports Library</h3>
             <p className="hidden text-sm text-zinc-500 sm:block">Access previously exported analytics and scheduled reports.</p>

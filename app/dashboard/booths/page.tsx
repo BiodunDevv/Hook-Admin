@@ -14,7 +14,8 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import { KpiCard } from "@/components/shared/KpiCard";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { BoothCard } from "@/components/booths/BoothCard";
 import type { BoothData } from "@/components/booths/BoothCard";
@@ -71,7 +72,7 @@ export default function BoothsPage() {
   }, []);
 
   return (
-    <div className="px-4 py-4 sm:px-6 sm:py-6">
+    <div className="p-2 sm:p-4">
       <PageHeader
         title="Physical Booths"
         description="Monitor walk-in kiosks, hardware status, and cash reconciliation."
@@ -83,69 +84,17 @@ export default function BoothsPage() {
       />
 
       {/* KPIs */}
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Card className="border-zinc-200 shadow-card">
-          <CardContent className="flex items-center gap-3 p-4 sm:gap-4 sm:p-5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-500 sm:h-12 sm:w-12">
-              <Store size={20} />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold leading-none text-zinc-900 sm:text-2xl">{analytics.active}</h3>
-              <p className="mt-1 text-xs font-medium leading-tight text-zinc-500 sm:text-sm">
-                Active Booths<br />
-                <span className="text-xs font-normal text-zinc-400">All Systems Go</span>
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-zinc-200 shadow-card">
-          <CardContent className="flex items-center gap-3 p-4 sm:gap-4 sm:p-5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-500 sm:h-12 sm:w-12">
-              <TrendingUp size={20} />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold leading-none text-zinc-900 sm:text-2xl">₦0</h3>
-              <p className="mt-1 text-xs font-medium leading-tight text-zinc-500 sm:text-sm">
-                Walk-in Revenue<br />
-                <span className="text-xs font-normal text-zinc-400">+15% vs yesterday</span>
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-zinc-200 shadow-card">
-          <CardContent className="flex items-center gap-3 p-4 sm:gap-4 sm:p-5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-brand-gold sm:h-12 sm:w-12">
-              <Clock size={20} />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold leading-none text-zinc-900 sm:text-2xl">0</h3>
-              <p className="mt-1 text-xs font-medium leading-tight text-zinc-500 sm:text-sm">
-                Pending Dispatches<br />
-                <span className="text-xs font-normal text-zinc-400">Customers waiting</span>
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-zinc-200 shadow-card">
-          <CardContent className="flex items-center gap-3 p-4 sm:gap-4 sm:p-5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-500 sm:h-12 sm:w-12">
-              <AlertTriangle size={20} />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold leading-none text-zinc-900 sm:text-2xl">{analytics.inactive}</h3>
-              <p className="mt-1 text-xs font-medium leading-tight text-zinc-500 sm:text-sm">
-                Hardware Alerts<br />
-                <span className="text-xs font-normal text-zinc-400">Network unstable</span>
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <KpiCard icon={Store} tone="blue" label="Active Booths" value={analytics.active} caption="All systems go" />
+        <KpiCard icon={TrendingUp} tone="green" label="Walk-in Revenue" value="₦0" caption="No revenue data yet" />
+        <KpiCard icon={Clock} tone="amber" label="Pending Dispatches" value={0} caption="Customers waiting" />
+        <KpiCard icon={AlertTriangle} tone="red" label="Offline Booths" value={analytics.inactive} caption="Need attention" />
       </div>
 
       {/* Main Layout Area */}
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
         {/* Booth Cards Grid */}
-        <div className="grid flex-1 grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
+        <div className="grid flex-1 grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4">
           {booths.length === 0 && (
             <div className="rounded-lg border border-zinc-200 bg-white p-8 text-center text-sm text-zinc-500">
               No booths provisioned yet.
@@ -158,7 +107,7 @@ export default function BoothsPage() {
 
         {/* Live Feed Sidebar */}
         <Card className="flex w-full flex-col border-zinc-200 shadow-card lg:w-80 lg:shrink-0 xl:w-[340px]">
-          <div className="flex items-center justify-between border-b border-zinc-100 p-4 sm:p-5">
+          <div className="flex items-center justify-between border-b border-zinc-100 p-4 sm:p-4">
             <div className="flex items-center gap-2">
               <Activity size={18} className="text-emerald-500" />
               <h3 className="font-bold text-zinc-900">Live Walk-ins Feed</h3>
@@ -167,7 +116,7 @@ export default function BoothsPage() {
           </div>
 
           <ScrollArea className="flex-1 max-h-[400px] lg:max-h-none">
-            <div className="space-y-6 p-4 sm:p-5">
+            <div className="space-y-6 p-4 sm:p-4">
               {(!analytics.feed || analytics.feed.length === 0) && (
                 <div className="rounded-lg border border-zinc-100 bg-zinc-50 p-4 text-sm text-zinc-500">
                   No booth activity yet.
@@ -194,7 +143,7 @@ export default function BoothsPage() {
           </ScrollArea>
 
           <div className="border-t border-zinc-100 p-4">
-            <Button variant="ghost" className="w-full rounded-xl bg-zinc-50 py-2.5 text-sm font-bold text-zinc-700 hover:bg-zinc-100">
+            <Button variant="ghost" className="w-full rounded-lg bg-zinc-50 py-2.5 text-sm font-bold text-zinc-700 hover:bg-zinc-100">
               View All History
             </Button>
           </div>

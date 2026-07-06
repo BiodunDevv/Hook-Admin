@@ -1,7 +1,8 @@
 import { FileText, FileSpreadsheet } from "lucide-react";
+import Link from "next/link";
 
 export interface Report {
-  id: number;
+  id: string | number;
   title: string;
   date: string;
   author: string;
@@ -17,7 +18,7 @@ interface ReportCardProps {
 
 export function ReportCard({ report }: ReportCardProps) {
   return (
-    <div className="flex cursor-pointer items-center justify-between p-4 transition-colors hover:bg-zinc-50">
+    <Link href={`/dashboard/reports/${report.id}`} className="flex cursor-pointer items-center justify-between p-4 transition-colors hover:bg-zinc-50">
       <div className="flex items-center gap-4">
         <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${report.iconBg} ${report.iconColor}`}>
           {report.type === "pdf" ? <FileText size={20} /> : <FileSpreadsheet size={20} />}
@@ -33,6 +34,6 @@ export function ReportCard({ report }: ReportCardProps) {
           </div>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }

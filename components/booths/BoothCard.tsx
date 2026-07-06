@@ -2,6 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DollarSign, MoreVertical, type LucideIcon } from "lucide-react";
+import Link from "next/link";
 
 interface HardwareItem {
   icon: LucideIcon;
@@ -46,12 +47,12 @@ export function BoothCard({ booth }: BoothCardProps) {
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
         <div className="relative z-10 flex items-end justify-between">
           <div>
-            <h3 className="mb-1.5 text-lg font-bold leading-tight text-white">{booth.name}</h3>
+            <Link href={`/dashboard/booths/${booth.id}`} className="mb-1.5 block text-lg font-bold leading-tight text-white hover:underline">{booth.name}</Link>
             <div
               className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide backdrop-blur-sm ${booth.statusBg}`}
             >
               <div className={`h-1.5 w-1.5 rounded-full ${booth.statusColor}`} />
-              {booth.id}
+              {booth.id.slice(0, 8)}
             </div>
           </div>
           <Button
@@ -65,7 +66,7 @@ export function BoothCard({ booth }: BoothCardProps) {
       </div>
 
       {/* Top Stats */}
-      <div className="grid grid-cols-3 gap-4 border-b border-zinc-100 p-5 text-center">
+      <div className="grid grid-cols-3 gap-4 border-b border-zinc-100 p-4 text-center">
         <div>
           <h4 className="text-2xl font-bold text-zinc-900">{booth.walkIns}</h4>
           <p className="mt-0.5 text-xs text-zinc-500">Walk-ins</p>
@@ -84,8 +85,8 @@ export function BoothCard({ booth }: BoothCardProps) {
       </div>
 
       {/* Staff & Hardware */}
-      <CardContent className="flex gap-4 border-b border-zinc-100 p-5">
-        <div className="flex flex-1 items-center gap-3 rounded-xl bg-zinc-50 p-3">
+      <CardContent className="flex gap-4 border-b border-zinc-100 p-4">
+        <div className="flex flex-1 items-center gap-3 rounded-lg bg-zinc-50 p-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-200 text-sm font-bold text-zinc-500">
             {booth.attendantImg ? (
               <img src={booth.attendantImg} alt="Attendant" className="h-full w-full object-cover" />
@@ -99,7 +100,7 @@ export function BoothCard({ booth }: BoothCardProps) {
           </div>
         </div>
 
-        <div className="flex flex-1 items-center rounded-xl bg-zinc-50 p-3">
+        <div className="flex flex-1 items-center rounded-lg bg-zinc-50 p-3">
           <div className="w-full text-center">
             <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-zinc-500">Hardware Health</p>
             <div className="flex justify-center gap-3">
@@ -112,7 +113,7 @@ export function BoothCard({ booth }: BoothCardProps) {
       </CardContent>
 
       {/* Reconciliation */}
-      <div className="p-5">
+      <div className="p-4">
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm font-semibold text-zinc-700">
             <DollarSign size={16} className="text-zinc-400" />

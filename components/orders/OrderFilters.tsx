@@ -2,46 +2,128 @@
 
 import { SearchInput } from "@/components/shared/SearchInput";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { SlidersHorizontal } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChevronDown, ListFilter, ReceiptText, X } from "lucide-react";
 
-const STATUS_TABS = ["All", "Active", "Completed"];
+const STATUS_OPTIONS = [
+  { label: "All orders", value: "all" },
+  { label: "Active orders", value: "active" },
+  { label: "Pending", value: "pending" },
+  { label: "Confirmed", value: "confirmed" },
+  { label: "Processing", value: "processing" },
+  { label: "Packed", value: "packed" },
+  { label: "Picked up", value: "picked_up" },
+  { label: "In transit", value: "in_transit" },
+  { label: "Delivered", value: "delivered" },
+  { label: "Cancelled", value: "cancelled" },
+];
+
+const PAYMENT_OPTIONS = [
+  { label: "All payments", value: "all" },
+  { label: "Unpaid", value: "unpaid" },
+  { label: "Pending", value: "pending" },
+  { label: "Successful", value: "successful" },
+  { label: "Failed", value: "failed" },
+  { label: "Refunded", value: "refunded" },
+];
 
 interface OrderFiltersProps {
-  tab: string;
-  onTabChange: (tab: string) => void;
+  search: string;
+  status: string;
+  paymentStatus: string;
+  onSearchChange: (value: string) => void;
+  onStatusChange: (value: string) => void;
+  onPaymentStatusChange: (value: string) => void;
+  onClear: () => void;
 }
 
-export function OrderFilters({ tab, onTabChange }: OrderFiltersProps) {
+export function OrderFilters({
+  search,
+  status,
+  paymentStatus,
+  onSearchChange,
+  onStatusChange,
+  onPaymentStatusChange,
+  onClear,
+}: OrderFiltersProps) {
+  const activeFilterCount = [search, status !== "all" ? status : "", paymentStatus !== "all" ? paymentStatus : ""].filter(Boolean).length;
+  const statusLabel = STATUS_OPTIONS.find((option) => option.value === status)?.label || "All orders";
+  const paymentLabel = PAYMENT_OPTIONS.find((option) => option.value === paymentStatus)?.label || "All payments";
+
   return (
-    <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-3.5">
-      <div className="flex items-center gap-3">
-        <SearchInput placeholder="Search by ID, customer..." className="w-52" />
-        <Button variant="outline" size="sm" className="flex items-center gap-1.5 text-zinc-600">
-          <SlidersHorizontal size={14} />
-          Filters
-          <span className="rounded-full bg-brand-gold px-1.5 py-0.5 text-[11px] font-semibold text-zinc-900">
-            2
-          </span>
+    <div className="flex flex-col gap-3 border-b border-zinc-200 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+        <SearchInput
+          placeholder="Search by ID, customer..."
+          className="w-full sm:w-64 lg:w-72"
+          value={search}
+          onChange={onSearchChange}
+        />
+        <div className="flex flex-wrap items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="outline" size="sm" className="justify-between gap-2 text-zinc-700">
+                <ListFilter size={14} />
+                <span>{statusLabel}</span>
+                {activeFilterCount > 0 && status !== "all" && (
+                  <span className="rounded-full bg-brand-gold px-1.5 py-0.5 text-[11px] font-semibold text-zinc-900">1</span>
+                )}
+                <ChevronDown size={13} className="text-zinc-400" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48">
+              <DropdownMenuLabel>Order status</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuRadioGroup value={status} onValueChange={onStatusChange}>
+                {STATUS_OPTIONS.map((option) => (
+                  <DropdownMenuRadioItem key={option.value} value={option.value}>
+                    {option.label}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="outline" size="sm" className="justify-between gap-2 text-zinc-700">
+                <ReceiptText size={14} />
+                <span>{paymentLabel}</span>
+                {paymentStatus !== "all" && (
+                  <span className="rounded-full bg-brand-gold px-1.5 py-0.5 text-[11px] font-semibold text-zinc-900">1</span>
+                )}
+                <ChevronDown size={13} className="text-zinc-400" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48">
+              <DropdownMenuLabel>Payment status</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuRadioGroup value={paymentStatus} onValueChange={onPaymentStatusChange}>
+                {PAYMENT_OPTIONS.map((option) => (
+                  <DropdownMenuRadioItem key={option.value} value={option.value}>
+                    {option.label}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      {activeFilterCount > 0 && (
+        <Button type="button" variant="ghost" size="sm" onClick={onClear} className="self-start text-zinc-500 lg:self-auto">
+          <X size={14} />
+          Clear
         </Button>
-      </div>
-      <div className="flex items-center gap-2 text-sm">
-        <span className="text-zinc-400">Status:</span>
-        {STATUS_TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => onTabChange(t)}
-            className={cn(
-              "rounded-md px-3 py-1 font-medium transition-colors",
-              tab === t
-                ? "border border-zinc-200 bg-white text-zinc-900 shadow-sm"
-                : "text-zinc-500 hover:text-zinc-700",
-            )}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
+      )}
     </div>
   );
 }

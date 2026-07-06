@@ -23,7 +23,7 @@ export interface NavItem {
 
 export const navItems: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutGrid },
-  { label: "Orders", href: "/dashboard/orders", icon: ShoppingCart, badge: "12" },
+  { label: "Orders", href: "/dashboard/orders", icon: ShoppingCart },
   { label: "Products", href: "/dashboard/products", icon: Package },
   { label: "Vendors", href: "/dashboard/vendors", icon: Store },
   { label: "Drivers", href: "/dashboard/drivers", icon: Truck, dot: true },

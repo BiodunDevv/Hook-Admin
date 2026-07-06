@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { LogOut, UserCog } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,21 +19,79 @@ import {
   SidebarRail,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
-import { clearToken } from "@/lib/api";
+import { useAdminSession, useApiQuery, useLogout } from "@/lib/query";
+import { hasPermission, type Permission } from "@/lib/permissions";
 import { navItems } from "./nav-items";
+
+interface DashboardSummary {
+  activeOrders?: { value: number };
+  activeDrivers?: { value: number };
+  orders?: { pending: number; active?: number };
+  logistics?: { activeDeliveries: number };
+}
+
+function initials(firstName?: string, lastName?: string, email?: string) {
+  const value = `${firstName?.[0] || ""}${lastName?.[0] || ""}`.trim();
+  return (value || email?.slice(0, 2) || "AD").toUpperCase();
+}
 
 export default function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const logout = useLogout();
+  const { data: admin } = useAdminSession();
+  const { data: summary } = useApiQuery<DashboardSummary>(["admin", "sidebar-summary"], "/admin/dashboard");
+  const adminName = `${admin?.firstName || ""} ${admin?.lastName || ""}`.trim() || admin?.email || "Admin";
+  const adminSubtitle = admin?.role ? admin.role.replaceAll("_", " ") : "hook.africa";
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
     return pathname.startsWith(href);
   };
 
+  // For support role: filter nav items based on their permissions
+  const navPermissionMap: Record<string, Permission> = {
+    "Orders": "orders.view",
+    "Products": "products.view",
+    "Vendors": "vendors.view",
+    "Customers": "customers.view",
+    "Drivers": "drivers.view",
+    "Field Agents": "field_agents.view",
+    "Booths": "booths.view",
+    "Financials": "financials.view",
+    "AI Negotiation": "ai_negotiation.view",
+    "Reports": "reports.view",
+    "Settings": "settings.view",
+  };
+
+  const visibleNavItems = navItems.filter((item) => {
+    const perm = navPermissionMap[item.label];
+    if (!perm) return true; // Dashboard — always visible
+    return hasPermission(admin ?? null, perm);
+  });
+
+  // Staff (super_admin only) — inserted after Customers to sit with people management
+  if (admin?.role === "super_admin") {
+    const staffItem = { label: "Staff", href: "/dashboard/staff", icon: UserCog };
+    const customersIndex = visibleNavItems.findIndex((item) => item.label === "Customers");
+    visibleNavItems.splice(customersIndex === -1 ? visibleNavItems.length : customersIndex + 1, 0, staffItem);
+  }
+
   function handleLogout() {
-    clearToken();
+    logout();
     router.push("/login");
+  }
+
+  function sidebarBadge(label: string) {
+    const orders = summary?.activeOrders?.value ?? summary?.orders?.active ?? summary?.orders?.pending ?? 0;
+    if (label === "Orders" && orders) return String(orders);
+    return null;
+  }
+
+  function sidebarDot(label: string) {
+    const activeDrivers = summary?.activeDrivers?.value ?? summary?.logistics?.activeDeliveries ?? 0;
+    if (label === "Drivers") return Boolean(activeDrivers);
+    return false;
   }
 
   return (
@@ -59,7 +117,7 @@ export default function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => {
+              {visibleNavItems.map((item) => {
                 const Icon = item.icon;
                 const active = isActive(item.href);
 
@@ -76,12 +134,12 @@ export default function AppSidebar() {
                         <span>{item.label}</span>
                       </Link>
                     </SidebarMenuButton>
-                    {item.badge && (
+                    {sidebarBadge(item.label) && (
                       <SidebarMenuBadge className="text-[11px]">
-                        {item.badge}
+                        {sidebarBadge(item.label)}
                       </SidebarMenuBadge>
                     )}
-                    {item.dot && (
+                    {sidebarDot(item.label) && (
                       <SidebarMenuBadge>
                         <span className="size-2 rounded-full bg-emerald-500" />
                       </SidebarMenuBadge>
@@ -99,14 +157,14 @@ export default function AppSidebar() {
         <div className="flex items-center gap-2 rounded-md px-2 py-2">
           <Avatar className="size-8 shrink-0">
             <AvatarFallback className="bg-amber-100 text-xs font-semibold text-amber-900">
-              AO
+              {initials(admin?.firstName, admin?.lastName, admin?.email)}
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-sidebar-foreground">
-              Admin Ops
+              {adminName}
             </p>
-            <p className="truncate text-xs text-muted-foreground">hook.africa</p>
+            <p className="truncate text-xs capitalize text-muted-foreground">{adminSubtitle}</p>
           </div>
           <Button
             variant="ghost"

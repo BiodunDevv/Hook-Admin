@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SettingsSection } from "@/components/settings/SettingsSection";
+import { SuperAdminGuard } from "@/components/auth/PermissionGuard";
 
 const settingsMenu = [
   { name: "General", icon: Building2 },
@@ -20,18 +21,20 @@ export default function SettingsPage() {
   const [activeSetting, setActiveSetting] = useState("General");
 
   return (
-    <div className="px-4 py-4 sm:px-6 sm:py-6">
+    <div className="p-2 sm:p-4">
       <PageHeader
         title="Platform Settings"
         description="Manage your enterprise account, security preferences, and team access."
         actions={
-          <Button variant="brand" size="sm" className="px-5">
-            Save Changes
-          </Button>
+          <SuperAdminGuard>
+            <Button variant="brand" size="sm" className="px-5">
+              Save Changes
+            </Button>
+          </SuperAdminGuard>
         }
       />
 
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-8">
         {/* Left Inner Navigation — horizontal scroll on mobile, vertical on lg */}
         <div className="flex overflow-x-auto gap-1 pb-1 lg:w-[220px] lg:flex-col lg:overflow-x-visible lg:pb-0 xl:w-[240px]">
           {settingsMenu.map((item) => (
@@ -39,7 +42,7 @@ export default function SettingsPage() {
               key={item.name}
               onClick={() => setActiveSetting(item.name)}
               className={cn(
-                "flex shrink-0 items-center gap-2 rounded-xl px-3 py-2.5 text-sm transition-colors lg:w-full lg:gap-3 lg:px-4 lg:py-3",
+                "flex shrink-0 items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors lg:w-full lg:gap-3 lg:px-4 lg:py-3",
                 activeSetting === item.name
                   ? "border border-zinc-100 bg-white font-semibold text-zinc-900 shadow-sm"
                   : "font-medium text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900",

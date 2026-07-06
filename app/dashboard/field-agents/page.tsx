@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { ShieldAlert, CheckCircle2, XCircle, Camera } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { Card, CardContent } from "@/components/ui/card";
+import { KpiCard } from "@/components/shared/KpiCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { AgentReviewCard } from "@/components/field-agents/AgentReviewCard";
@@ -57,7 +57,7 @@ export default function FieldAgentsPage() {
   }, []);
 
   return (
-    <div className="px-4 py-4 sm:px-6 sm:py-6">
+    <div className="p-2 sm:p-4">
       <PageHeader
         title="Field Agents & QA"
         description="Review catalog uploads from the field and manage mapping agents."
@@ -65,59 +65,16 @@ export default function FieldAgentsPage() {
       />
 
       {/* KPIs */}
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Card className="border-zinc-200 shadow-card">
-          <CardContent className="flex items-center gap-3 p-4 sm:gap-4 sm:p-5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-yellow-50 text-yellow-500 sm:h-12 sm:w-12">
-              <ShieldAlert size={20} />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold leading-none text-zinc-900 sm:text-2xl">{queueSize}</h3>
-              <p className="mt-1 text-xs font-medium text-zinc-500 sm:text-sm">Pending QA Review</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-zinc-200 shadow-card">
-          <CardContent className="flex items-center gap-3 p-4 sm:gap-4 sm:p-5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-500 sm:h-12 sm:w-12">
-              <CheckCircle2 size={20} />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold leading-none text-zinc-900 sm:text-2xl">0</h3>
-              <p className="mt-1 text-xs font-medium text-zinc-500 sm:text-sm">Approved Today</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-zinc-200 shadow-card">
-          <CardContent className="flex items-center gap-3 p-4 sm:gap-4 sm:p-5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-500 sm:h-12 sm:w-12">
-              <XCircle size={20} />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold leading-none text-zinc-900 sm:text-2xl">0</h3>
-              <p className="mt-1 text-xs font-medium text-zinc-500 sm:text-sm">Rejected Items</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-zinc-200 shadow-card">
-          <CardContent className="flex items-center gap-3 p-4 sm:gap-4 sm:p-5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-500 sm:h-12 sm:w-12">
-              <Camera size={20} />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold leading-none text-zinc-900 sm:text-2xl">{agentCount}</h3>
-              <p className="mt-1 text-xs font-medium text-zinc-500 sm:text-sm">Active Field Agents</p>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <KpiCard icon={ShieldAlert} tone="amber" label="Pending QA Review" value={queueSize} caption="Awaiting approval" />
+        <KpiCard icon={CheckCircle2} tone="green" label="Approved Today" value={0} caption="Items cleared" />
+        <KpiCard icon={XCircle} tone="red" label="Rejected Items" value={0} caption="Sent back to agent" />
+        <KpiCard icon={Camera} tone="blue" label="Active Field Agents" value={agentCount} caption="In the market" />
       </div>
 
       {/* Tabs */}
       <Tabs defaultValue="qa-queue">
-        <TabsList variant="line" className="mb-6 w-full justify-start border-b border-zinc-200 bg-transparent p-0">
+        <TabsList variant="line" className="mb-4 w-full justify-start border-b border-zinc-200 bg-transparent p-0">
           <TabsTrigger
             value="qa-queue"
             className="rounded-none border-b-2 border-transparent pb-3 font-medium text-zinc-500 data-active:border-brand-gold data-active:font-semibold data-active:text-zinc-900"
@@ -134,7 +91,7 @@ export default function FieldAgentsPage() {
         </TabsList>
 
         <TabsContent value="qa-queue">
-          <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
             {qaItems.length === 0 && (
               <div className="col-span-full rounded-lg border border-zinc-200 bg-white p-8 text-center text-sm text-zinc-500">
                 No field uploads waiting for QA.

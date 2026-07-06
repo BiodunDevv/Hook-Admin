@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Building2 } from "lucide-react";
-import { apiGet, apiPatch } from "@/lib/api";
+import { useApiPatch, useApiQuery } from "@/lib/query";
 
 export function SettingsSection() {
   const [settings, setSettings] = useState({
@@ -18,23 +18,29 @@ export function SettingsSection() {
     timezone: "Africa/Lagos",
   });
   const [status, setStatus] = useState("");
+  const settingsQuery = useApiQuery<Record<string, unknown>>(["admin", "settings"], "/admin/settings");
+  const saveSettingsMutation = useApiPatch<Record<string, unknown>, Record<string, unknown>>("/admin/settings", ["admin", "settings"]);
 
   useEffect(() => {
-    apiGet<Record<string, unknown>>("/admin/settings")
-      .then((data) => setSettings((current) => ({
+    if (settingsQuery.data) {
+      const data = settingsQuery.data;
+      setSettings((current) => ({
         ...current,
         platformName: String(data.platformName || "Hook"),
         supportEmail: String(data.supportEmail || "support@hook.local"),
         currency: String(data.currency || "NGN"),
         timezone: String(data.timezone || "Africa/Lagos"),
-      })))
-      .catch((err: unknown) => setStatus(err instanceof Error ? err.message : "Failed to load settings"));
-  }, []);
+      }));
+    }
+    if (settingsQuery.error) {
+      setStatus(settingsQuery.error instanceof Error ? settingsQuery.error.message.replace(/^\d+:\s*/, "") : "Failed to load settings");
+    }
+  }, [settingsQuery.data, settingsQuery.error]);
 
   async function saveSettings() {
     setStatus("Saving...");
     try {
-      const data = await apiPatch<Record<string, unknown>>("/admin/settings", settings);
+      const data = await saveSettingsMutation.mutateAsync(settings);
       setSettings((current) => ({ ...current, ...data }));
       setStatus("Saved");
     } catch (err) {
