@@ -1,75 +1,193 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ShieldAlert, CheckCircle2, XCircle, Camera } from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
+import { ShieldAlert, CheckCircle2, XCircle, Camera, MapPin, Phone, Power, Eye } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { KpiCard } from "@/components/shared/KpiCard";
+import { HookLoader } from "@/components/shared/HookLoader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { SearchInput } from "@/components/shared/SearchInput";
 import { AgentReviewCard } from "@/components/field-agents/AgentReviewCard";
-import type { QAItem } from "@/components/field-agents/AgentReviewCard";
-import { apiGet } from "@/lib/api";
+import type { QueueItem } from "@/components/field-agents/AgentReviewCard";
+import { useApiQuery } from "@/lib/query";
+import { apiPatch } from "@/lib/api";
+import { Search } from "lucide-react";
 
-interface ProductReviewRow {
-  id: string;
-  title: string;
-  createdAt: string;
-  costPrice: number;
-  sellingPrice: number;
-  quantity: number;
-  colors?: string[];
-  sizes?: string[];
-  images?: string[];
-  category?: { name?: string };
-  vendor?: { businessName?: string };
+interface QaStats {
+  pendingReview: number;
+  approvedToday: number;
+  rejected: number;
+  activeAgents: number;
 }
 
-interface Page<T> { data: T[]; total: number; queueSize?: number; }
+interface QueueResponse {
+  data: QueueItem[];
+  total: number;
+  queueSize?: number;
+}
+
+interface AgentRow {
+  id: string;
+  assignedMarket: string;
+  isActive: boolean;
+  agent?: { firstName?: string; lastName?: string; email?: string; phone?: string };
+  stats?: { productsUploaded: number; pendingApproval: number; approvedToday: number };
+}
+
+interface AgentsResponse {
+  data: AgentRow[];
+  total: number;
+}
+
+function agentName(row: AgentRow) {
+  return `${row.agent?.firstName || ""} ${row.agent?.lastName || ""}`.trim() || row.agent?.email || "Field agent";
+}
+
+function agentInitials(row: AgentRow) {
+  return agentName(row).split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase() || "?";
+}
+
+function AgentDirectoryCard({ row, onRefresh }: { row: AgentRow; onRefresh: () => void }) {
+  const [busy, setBusy] = useState(false);
+
+  async function handleToggle() {
+    setBusy(true);
+    try {
+      await apiPatch(`/admin/field-agents/${row.id}/toggle`);
+      toast.success(row.isActive ? "Agent deactivated" : "Agent activated");
+      onRefresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message.replace(/^\d+:\s*/, "") : "Failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card className="rounded-xl border-zinc-200 py-0 shadow-card">
+      <CardContent className="p-4">
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-sm font-bold text-blue-700">
+            {agentInitials(row)}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <p className="truncate font-semibold text-zinc-900">{agentName(row)}</p>
+              <span className={`size-2 shrink-0 rounded-full ${row.isActive ? "bg-emerald-500" : "bg-zinc-300"}`} />
+            </div>
+            <p className="flex items-center gap-1 truncate text-xs text-zinc-500">
+              <MapPin size={11} className="shrink-0 text-zinc-400" /> {row.assignedMarket}
+            </p>
+          </div>
+        </div>
+
+        {row.agent?.phone && (
+          <a href={`tel:${row.agent.phone}`} className="mt-2.5 flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-900">
+            <Phone size={11} /> {row.agent.phone}
+          </a>
+        )}
+
+        <div className="mt-3 grid grid-cols-3 gap-2 border-t border-dashed border-border pt-3 text-center">
+          <div>
+            <p className="text-lg font-bold text-zinc-900">{row.stats?.productsUploaded ?? 0}</p>
+            <p className="text-[10px] uppercase tracking-wide text-zinc-400">Uploaded</p>
+          </div>
+          <div>
+            <p className="text-lg font-bold text-amber-600">{row.stats?.pendingApproval ?? 0}</p>
+            <p className="text-[10px] uppercase tracking-wide text-zinc-400">Pending</p>
+          </div>
+          <div>
+            <p className="text-lg font-bold text-emerald-600">{row.stats?.approvedToday ?? 0}</p>
+            <p className="text-[10px] uppercase tracking-wide text-zinc-400">Today</p>
+          </div>
+        </div>
+
+        <div className="mt-3 flex items-center gap-2">
+          <Button asChild variant="outline" size="sm" className="flex-1 gap-1.5">
+            <Link href={`/dashboard/field-agents/${row.id}`}>
+              <Eye size={13} /> View
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" disabled={busy} onClick={handleToggle} className="gap-1.5">
+            <Power size={13} className={row.isActive ? "text-red-500" : "text-emerald-500"} />
+            {row.isActive ? "Deactivate" : "Activate"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function FieldAgentsPage() {
-  const [qaItems, setQaItems] = useState<QAItem[]>([]);
-  const [queueSize, setQueueSize] = useState(0);
-  const [agentCount, setAgentCount] = useState(0);
+  const [search, setSearch] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
 
-  useEffect(() => {
-    apiGet<Page<ProductReviewRow>>("/admin/products/review")
-      .then((result) => {
-        setQueueSize(result.queueSize || result.total || 0);
-        setQaItems(result.data.map((item, index) => ({
-          id: index + 1,
-          category: item.category?.name || "Uncategorized",
-          title: item.title,
-          time: new Date(item.createdAt).toLocaleString(),
-          location: "Field upload",
-          agent: item.vendor?.businessName || "Field team",
-          costPrice: `₦${Number(item.costPrice || 0).toLocaleString()}`,
-          markup: `+₦${Number((item.sellingPrice || 0) - (item.costPrice || 0)).toLocaleString()}`,
-          sellingPrice: `₦${Number(item.sellingPrice || 0).toLocaleString()}`,
-          details: `Qty: ${item.quantity || 0}`,
-          image: item.images?.[0] || "",
-          flagged: false,
-        })));
-      })
-      .catch(() => setQaItems([]));
-    apiGet<Page<unknown>>("/admin/field-agents")
-      .then((result) => setAgentCount(result.total || 0))
-      .catch(() => setAgentCount(0));
-  }, []);
+  const stats = useApiQuery<QaStats>(["admin", "field-agents", "stats"], "/admin/field-agents/stats");
+  const queue = useApiQuery<QueueResponse>(["admin", "field-agents", "queue"], "/admin/field-agents/queue?limit=50");
+  const agents = useApiQuery<AgentsResponse>(["admin", "field-agents"], "/admin/field-agents?limit=50");
+
+  const queueItems = (queue.data?.data ?? []).filter((item) =>
+    !search || [item.title, item.market, item.agentName, item.category].some((v) =>
+      v?.toLowerCase().includes(search.toLowerCase()),
+    ),
+  );
+
+  const agentRows = (agents.data?.data ?? []).filter((row) =>
+    !search || [agentName(row), row.assignedMarket, row.agent?.email].some((v) =>
+      v?.toLowerCase().includes(search.toLowerCase()),
+    ),
+  );
+
+  function refreshAll() {
+    stats.refetch();
+    queue.refetch();
+    agents.refetch();
+  }
+
+  async function review(id: string, status: "approved" | "rejected") {
+    setBusyId(id);
+    try {
+      await apiPatch(`/admin/products/${id}/review`, { status });
+      toast.success(status === "approved" ? "Listing approved and published" : "Listing rejected");
+      refreshAll();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message.replace(/^\d+:\s*/, "") : "Review action failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  const isLoading = stats.isLoading || queue.isLoading;
 
   return (
     <div className="p-2 sm:p-4">
       <PageHeader
         title="Field Agents & QA"
-        description="Review catalog uploads from the field and manage mapping agents."
-        actions={<SearchInput placeholder="Search items or agents..." className="hidden sm:block w-52 lg:w-72" />}
+        description="Review catalog uploads from the field and manage market-assigned agents."
+        actions={
+          <div className="relative hidden sm:block">
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+            <Input
+              placeholder="Search items or agents..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-9 w-52 pl-8 lg:w-72"
+            />
+          </div>
+        }
       />
 
       {/* KPIs */}
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <KpiCard icon={ShieldAlert} tone="amber" label="Pending QA Review" value={queueSize} caption="Awaiting approval" />
-        <KpiCard icon={CheckCircle2} tone="green" label="Approved Today" value={0} caption="Items cleared" />
-        <KpiCard icon={XCircle} tone="red" label="Rejected Items" value={0} caption="Sent back to agent" />
-        <KpiCard icon={Camera} tone="blue" label="Active Field Agents" value={agentCount} caption="In the market" />
+        <KpiCard icon={ShieldAlert} tone="amber" label="Pending QA Review" value={stats.data?.pendingReview ?? 0} caption="Awaiting approval" />
+        <KpiCard icon={CheckCircle2} tone="green" label="Approved Today" value={stats.data?.approvedToday ?? 0} caption="Field uploads cleared" />
+        <KpiCard icon={XCircle} tone="red" label="Rejected Items" value={stats.data?.rejected ?? 0} caption="Sent back for changes" />
+        <KpiCard icon={Camera} tone="blue" label="Active Field Agents" value={stats.data?.activeAgents ?? 0} caption="In the markets" />
       </div>
 
       {/* Tabs */}
@@ -80,35 +198,75 @@ export default function FieldAgentsPage() {
             className="rounded-none border-b-2 border-transparent pb-3 font-medium text-zinc-500 data-active:border-brand-gold data-active:font-semibold data-active:text-zinc-900"
           >
             QA Review Queue
-            <span className="ml-2 rounded-full bg-brand-gold px-2 py-0.5 text-[11px] font-bold text-zinc-900">{queueSize}</span>
+            <span className="ml-2 rounded-full bg-brand-gold px-2 py-0.5 text-[11px] font-bold text-zinc-900">
+              {queue.data?.queueSize ?? 0}
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="agents"
             className="rounded-none border-b-2 border-transparent pb-3 font-medium text-zinc-500 data-active:border-brand-gold data-active:font-semibold data-active:text-zinc-900"
           >
             Agents Directory
+            <span className="ml-2 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-bold text-zinc-600">
+              {agents.data?.total ?? 0}
+            </span>
           </TabsTrigger>
         </TabsList>
 
+        {/* ── QA queue ── */}
         <TabsContent value="qa-queue">
-          <div className="grid grid-cols-1 gap-4 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {qaItems.length === 0 && (
-              <div className="col-span-full rounded-lg border border-zinc-200 bg-white p-8 text-center text-sm text-zinc-500">
-                No field uploads waiting for QA.
-              </div>
-            )}
-            {qaItems.map((item) => (
-              <AgentReviewCard key={item.id} item={item} />
-            ))}
-          </div>
+          {isLoading && (
+            <div className="flex items-center justify-center py-16">
+              <HookLoader size="page" label="Loading review queue..." />
+            </div>
+          )}
+
+          {!isLoading && queueItems.length === 0 && (
+            <EmptyState
+              icon={CheckCircle2}
+              title={search ? "No matching uploads" : "Queue is clear"}
+              description={search ? `No pending uploads match "${search}".` : "No field uploads waiting for QA review."}
+            />
+          )}
+
+          {!isLoading && queueItems.length > 0 && (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {queueItems.map((item) => (
+                <AgentReviewCard
+                  key={item.id}
+                  item={item}
+                  busy={busyId === item.id}
+                  onApprove={(id) => review(id, "approved")}
+                  onReject={(id) => review(id, "rejected")}
+                />
+              ))}
+            </div>
+          )}
         </TabsContent>
 
+        {/* ── Agents directory ── */}
         <TabsContent value="agents">
-          <div className="py-12 text-center">
-            <Camera size={48} className="mx-auto text-zinc-300" />
-            <h3 className="mt-4 text-lg font-semibold text-zinc-700">Agent Directory</h3>
-            <p className="mt-1 text-sm text-zinc-400">Field agent directory and mapping coming soon.</p>
-          </div>
+          {agents.isLoading && (
+            <div className="flex items-center justify-center py-16">
+              <HookLoader size="page" label="Loading agents..." />
+            </div>
+          )}
+
+          {!agents.isLoading && agentRows.length === 0 && (
+            <EmptyState
+              icon={Camera}
+              title={search ? "No matching agents" : "No field agents yet"}
+              description={search ? `No agents match "${search}".` : "Field agents will appear here once onboarded."}
+            />
+          )}
+
+          {!agents.isLoading && agentRows.length > 0 && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {agentRows.map((row) => (
+                <AgentDirectoryCard key={row.id} row={row} onRefresh={refreshAll} />
+              ))}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>

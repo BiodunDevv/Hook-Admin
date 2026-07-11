@@ -61,7 +61,7 @@ export default function ProductsPage() {
     }
 
     const rows = [
-      ["Product", "Hook ID", "Category", "Vendor", "Price", "Stock", "Status"],
+      ["Product", "Hook ID", "Category", "Vendor", "Hook Price", "Stock", "Status"],
       ...products.map((product) => [
         product.title,
         product.hookId || product.id,
@@ -86,7 +86,7 @@ export default function ProductsPage() {
     <div className="min-h-[calc(100vh-4rem)] overflow-y-auto p-2 pb-6 sm:p-4 sm:pb-8">
       <PageHeader
         title="Products"
-        description="Manage inventory, pricing, and AI negotiation targets."
+        description="Manage inventory, market pricing, Hook pricing, and AI negotiation floors."
         actions={
           <>
             <PermissionGuard permission="products.view">

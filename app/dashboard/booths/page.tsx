@@ -1,154 +1,360 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import {
-  Store,
-  TrendingUp,
-  Clock,
-  AlertTriangle,
-  Activity,
-  MapPin,
-  Smartphone,
-  CreditCard,
-  Wifi,
-} from "lucide-react";
+import { useState } from "react";
+import { Store, Zap, Boxes, AlertTriangle, Plus, Search, ImagePlus, Upload, X } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { KpiCard } from "@/components/shared/KpiCard";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { BoothCard } from "@/components/booths/BoothCard";
-import type { BoothData } from "@/components/booths/BoothCard";
-import { apiGet } from "@/lib/api";
-
-interface ApiBooth {
-  id: string;
-  name: string;
-  isActive: boolean;
-  previewImageUrl?: string;
-  location?: { address?: string };
-  fieldAgent?: { agent?: { firstName?: string; lastName?: string; email?: string } };
-}
+import { HookLoader } from "@/components/shared/HookLoader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { BoothCard, type BoothRow } from "@/components/booths/BoothCard";
+import { PermissionGuard } from "@/components/auth/PermissionGuard";
+import { useApiQuery } from "@/lib/query";
+import { apiPost, apiRequest } from "@/lib/api";
 
 interface Page<T> { data: T[]; total: number; }
-interface BoothAnalytics { total: number; active: number; inactive: number; feed?: Array<{ id: string; product?: string; location?: string; status?: string; createdAt?: string }>; }
+
+interface BoothAnalytics {
+  total: number;
+  active: number;
+  inactive: number;
+  withAgent: number;
+  phygital: number;
+  microHub: number;
+}
+
+interface AgentOption {
+  id: string;
+  assignedMarket: string;
+  agent?: { firstName?: string; lastName?: string; email?: string };
+}
+
+function agentLabel(agent: AgentOption) {
+  const name = `${agent.agent?.firstName || ""} ${agent.agent?.lastName || ""}`.trim() || agent.agent?.email || "Agent";
+  return `${name} — ${agent.assignedMarket}`;
+}
+
+// ─── Provision Booth dialog ──────────────────────────────────────────────────
+
+function ProvisionBoothDialog({
+  open,
+  onClose,
+  onSuccess,
+  agents,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+  agents: AgentOption[];
+}) {
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [imageUrl, setImageUrl] = useState("");
+  const [boothType, setBoothType] = useState<"phygital" | "micro_hub">("phygital");
+  const [agentId, setAgentId] = useState<string>("none");
+
+  async function uploadImage(files: FileList | null) {
+    if (!files?.length) return;
+    const formData = new FormData();
+    formData.append("images", files[0]);
+    setUploading(true);
+    try {
+      const uploaded = await apiRequest<Array<{ url: string; secureUrl?: string }>>("/upload/images", {
+        method: "POST",
+        body: formData,
+      });
+      const url = uploaded[0]?.secureUrl || uploaded[0]?.url;
+      if (!url) throw new Error("Upload did not return an image URL");
+      setImageUrl(url);
+      toast.success("Booth image uploaded");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message.replace(/^\d+:\s*/, "") : "Image upload failed");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const name = String(form.get("name") || "").trim();
+    const address = String(form.get("address") || "").trim();
+    const description = String(form.get("description") || "").trim();
+    const lat = Number(form.get("lat") || 0);
+    const lng = Number(form.get("lng") || 0);
+
+    if (name.length < 2) {
+      toast.error("Booth name must be at least 2 characters");
+      return;
+    }
+    if (!address) {
+      toast.error("Address is required");
+      return;
+    }
+
+    const payload: Record<string, unknown> = {
+      name,
+      description: description || undefined,
+      boothType,
+      location: { address, lat, lng },
+      previewImageUrl: imageUrl || undefined,
+      isActive: true,
+    };
+    if (agentId !== "none") payload.fieldAgentId = agentId;
+
+    setLoading(true);
+    try {
+      await apiPost("/admin/booths", payload);
+      toast.success(`Booth "${name}" provisioned`);
+      setImageUrl("");
+      setAgentId("none");
+      onSuccess();
+      onClose();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message.replace(/^\d+:\s*/, "") : "Failed to provision booth");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Provision New Booth</DialogTitle>
+          <DialogDescription>
+            Register a new company-owned physical booth location.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="booth-name">Booth Name *</Label>
+            <Input id="booth-name" name="name" placeholder="e.g. Surulere Micro Hub" required minLength={2} />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="booth-description">Description</Label>
+            <Input id="booth-description" name="description" placeholder="What this booth is for" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Booth Type *</Label>
+              <Select value={boothType} onValueChange={(v) => setBoothType(v as "phygital" | "micro_hub")}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="phygital">Phygital — walk-in experience</SelectItem>
+                  <SelectItem value="micro_hub">Micro Hub — pickup & dispatch</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Attendant</Label>
+              <Select value={agentId} onValueChange={setAgentId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Assign an agent" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Unassigned</SelectItem>
+                  {agents.map((agent) => (
+                    <SelectItem key={agent.id} value={agent.id}>{agentLabel(agent)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="booth-address">Address *</Label>
+            <Input id="booth-address" name="address" placeholder="Street, area, city" required />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="booth-lat">Latitude</Label>
+              <Input id="booth-lat" name="lat" type="number" step="any" placeholder="6.4541" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="booth-lng">Longitude</Label>
+              <Input id="booth-lng" name="lng" type="number" step="any" placeholder="3.3894" />
+            </div>
+          </div>
+
+          {/* Booth image */}
+          <div className="space-y-1.5">
+            <Label className="flex items-center gap-1.5">
+              <ImagePlus size={14} /> Booth Image
+            </Label>
+            <div className="flex items-start gap-3 rounded-lg border border-border bg-zinc-50 p-3">
+              <div className="relative size-16 shrink-0 overflow-hidden rounded-lg border border-border bg-white">
+                {imageUrl ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={imageUrl} alt="Booth" className="size-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setImageUrl("")}
+                      className="absolute right-0.5 top-0.5 grid size-5 place-items-center rounded-full bg-white/95 text-zinc-600 shadow-sm"
+                      aria-label="Remove image"
+                    >
+                      <X size={11} />
+                    </button>
+                  </>
+                ) : (
+                  <div className="flex size-full items-center justify-center text-zinc-300">
+                    <Store size={20} />
+                  </div>
+                )}
+              </div>
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    id="booth-image-file"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => uploadImage(e.target.files)}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={uploading}
+                    onClick={() => document.getElementById("booth-image-file")?.click()}
+                  >
+                    {uploading ? <HookLoader size="button" label="Uploading..." /> : <><Upload size={13} /> Upload</>}
+                  </Button>
+                  <span className="text-xs text-zinc-400">or paste a link</span>
+                </div>
+                <Input
+                  type="url"
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="h-8 text-xs"
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="brand" disabled={loading}>
+              {loading ? <HookLoader size="button" label="Provisioning..." /> : "Provision Booth"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Main page ───────────────────────────────────────────────────────────────
 
 export default function BoothsPage() {
-  const [booths, setBooths] = useState<BoothData[]>([]);
-  const [analytics, setAnalytics] = useState<BoothAnalytics>({ total: 0, active: 0, inactive: 0, feed: [] });
+  const [createOpen, setCreateOpen] = useState(false);
+  const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    apiGet<Page<ApiBooth>>("/admin/booths")
-      .then((result) => setBooths(result.data.map((booth) => {
-        const attendant = booth.fieldAgent?.agent;
-        const attendantName = `${attendant?.firstName || ""} ${attendant?.lastName || ""}`.trim() || attendant?.email || "Unassigned";
-        return {
-          id: booth.id.slice(0, 8),
-          name: booth.name,
-          bgImage: booth.previewImageUrl || "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=600&q=80",
-          statusColor: booth.isActive ? "bg-emerald-500" : "bg-zinc-400",
-          statusBg: booth.isActive ? "bg-emerald-500/20 text-emerald-100" : "bg-zinc-500/20 text-zinc-100",
-          walkIns: 0,
-          revenue: "₦0",
-          waiting: 0,
-          waitingColor: "text-zinc-500",
-          attendantName,
-          attendantInitials: attendantName.slice(0, 2).toUpperCase(),
-          hardware: [
-            { icon: Smartphone, color: "text-emerald-500" },
-            { icon: CreditCard, color: "text-emerald-500" },
-            { icon: Wifi, color: "text-emerald-500" },
-          ],
-          reconStatus: booth.isActive ? "Active" : "Inactive",
-          reconColor: booth.isActive ? "text-emerald-700 bg-emerald-50" : "text-zinc-700 bg-zinc-50",
-          expected: "₦0",
-          actual: "₦0",
-        };
-      })))
-      .catch(() => setBooths([]));
-    apiGet<BoothAnalytics>("/admin/booths/analytics")
-      .then(setAnalytics)
-      .catch(() => setAnalytics({ total: 0, active: 0, inactive: 0, feed: [] }));
-  }, []);
+  const booths = useApiQuery<Page<BoothRow>>(["admin", "booths"], "/admin/booths?limit=50");
+  const analytics = useApiQuery<BoothAnalytics>(["admin", "booths", "analytics"], "/admin/booths/analytics");
+  const agents = useApiQuery<Page<AgentOption>>(["admin", "field-agents"], "/admin/field-agents?limit=50");
+
+  const rows = (booths.data?.data ?? []).filter((booth) =>
+    !search || [booth.name, booth.location?.address, booth.boothType].some((v) =>
+      v?.toLowerCase().includes(search.toLowerCase()),
+    ),
+  );
+
+  function refreshAll() {
+    booths.refetch();
+    analytics.refetch();
+  }
 
   return (
     <div className="p-2 sm:p-4">
       <PageHeader
         title="Physical Booths"
-        description="Monitor walk-in kiosks, hardware status, and cash reconciliation."
+        description="Company-owned walk-in booths and micro hubs across Lagos."
         actions={
-          <Button variant="brand" size="sm" className="flex items-center gap-2">
-            <Store size={18} /> Provision New Booth
-          </Button>
+          <>
+            <div className="relative hidden sm:block">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+              <Input
+                placeholder="Search booths..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-9 w-48 pl-8 lg:w-64"
+              />
+            </div>
+            <PermissionGuard permission="booths.edit">
+              <Button variant="brand" size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)}>
+                <Plus size={15} /> Provision New Booth
+              </Button>
+            </PermissionGuard>
+          </>
         }
       />
 
       {/* KPIs */}
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <KpiCard icon={Store} tone="blue" label="Active Booths" value={analytics.active} caption="All systems go" />
-        <KpiCard icon={TrendingUp} tone="green" label="Walk-in Revenue" value="₦0" caption="No revenue data yet" />
-        <KpiCard icon={Clock} tone="amber" label="Pending Dispatches" value={0} caption="Customers waiting" />
-        <KpiCard icon={AlertTriangle} tone="red" label="Offline Booths" value={analytics.inactive} caption="Need attention" />
+        <KpiCard icon={Store} tone="green" label="Active Booths" value={analytics.data?.active ?? 0} caption="Live locations" />
+        <KpiCard icon={Zap} tone="amber" label="Phygital" value={analytics.data?.phygital ?? 0} caption="Walk-in experience" />
+        <KpiCard icon={Boxes} tone="blue" label="Micro Hubs" value={analytics.data?.microHub ?? 0} caption="Pickup & dispatch" />
+        <KpiCard icon={AlertTriangle} tone="red" label="Offline" value={analytics.data?.inactive ?? 0} caption="Not operating" />
       </div>
 
-      {/* Main Layout Area */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-        {/* Booth Cards Grid */}
-        <div className="grid flex-1 grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4">
-          {booths.length === 0 && (
-            <div className="rounded-lg border border-zinc-200 bg-white p-8 text-center text-sm text-zinc-500">
-              No booths provisioned yet.
-            </div>
-          )}
-          {booths.map((booth) => (
-            <BoothCard key={booth.id} booth={booth} />
+      {/* Booth grid */}
+      {booths.isLoading && (
+        <div className="flex items-center justify-center py-16">
+          <HookLoader size="page" label="Loading booths..." />
+        </div>
+      )}
+
+      {!booths.isLoading && rows.length === 0 && (
+        <EmptyState
+          icon={Store}
+          title={search ? "No matching booths" : "No booths provisioned yet"}
+          description={search ? `No booths match "${search}".` : "Provision your first physical booth to get started."}
+        />
+      )}
+
+      {!booths.isLoading && rows.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {rows.map((booth) => (
+            <BoothCard key={booth.id} booth={booth} onRefresh={refreshAll} />
           ))}
         </div>
+      )}
 
-        {/* Live Feed Sidebar */}
-        <Card className="flex w-full flex-col border-zinc-200 shadow-card lg:w-80 lg:shrink-0 xl:w-[340px]">
-          <div className="flex items-center justify-between border-b border-zinc-100 p-4 sm:p-4">
-            <div className="flex items-center gap-2">
-              <Activity size={18} className="text-emerald-500" />
-              <h3 className="font-bold text-zinc-900">Live Walk-ins Feed</h3>
-            </div>
-            <div className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
-          </div>
-
-          <ScrollArea className="flex-1 max-h-[400px] lg:max-h-none">
-            <div className="space-y-6 p-4 sm:p-4">
-              {(!analytics.feed || analytics.feed.length === 0) && (
-                <div className="rounded-lg border border-zinc-100 bg-zinc-50 p-4 text-sm text-zinc-500">
-                  No booth activity yet.
-                </div>
-              )}
-              {(analytics.feed || []).map((item, idx) => (
-                <div key={item.id} className="relative pl-6">
-                  {idx !== (analytics.feed || []).length - 1 && (
-                    <div className="absolute left-[11px] top-4 h-full w-px bg-zinc-200" />
-                  )}
-                  <div className="absolute left-0 top-1 h-2.5 w-2.5 rounded-full bg-blue-500 ring-4 ring-white" />
-                  <div className="mb-1 flex items-start justify-between">
-                    <span className="text-xs font-bold text-zinc-900">{item.id}</span>
-                    <span className="text-[10px] text-zinc-400">{item.createdAt ? new Date(item.createdAt).toLocaleTimeString() : "Now"}</span>
-                  </div>
-                  <h4 className="mb-0.5 text-sm font-bold leading-tight text-zinc-900">{item.product || "Booth activity"}</h4>
-                  <p className="mb-1 flex items-center gap-1 text-xs text-zinc-500">
-                    <MapPin size={10} /> {item.location}
-                  </p>
-                  <p className="text-[11px] font-bold text-blue-600">{item.status || "Recorded"}</p>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-
-          <div className="border-t border-zinc-100 p-4">
-            <Button variant="ghost" className="w-full rounded-lg bg-zinc-50 py-2.5 text-sm font-bold text-zinc-700 hover:bg-zinc-100">
-              View All History
-            </Button>
-          </div>
-        </Card>
-      </div>
+      <ProvisionBoothDialog
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onSuccess={refreshAll}
+        agents={agents.data?.data ?? []}
+      />
     </div>
   );
 }

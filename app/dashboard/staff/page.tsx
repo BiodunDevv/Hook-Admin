@@ -17,6 +17,8 @@ import {
   ChevronDown,
   ChevronUp,
   Check,
+  Phone,
+  Tags,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,11 +68,23 @@ interface StaffMember {
   lastName: string;
   role: "support" | "admin" | "super_admin";
   permissions: string[];
+  assignedCategoryIds?: string[];
   isActive: boolean;
   isEmailVerified: boolean;
   createdAt: string;
   lastLoginAt?: string;
   phone?: string;
+}
+
+interface CategoryOption {
+  id: string;
+  name: string;
+  isActive?: boolean;
+}
+
+interface CategoriesResponse {
+  data: CategoryOption[];
+  total: number;
 }
 
 interface StaffListResponse {
@@ -196,17 +210,27 @@ function CreateStaffDialog({
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
+    const phone = String(form.get("phone") || "").trim();
     const payload = {
       email: String(form.get("email") || ""),
       password: String(form.get("password") || ""),
       firstName: String(form.get("firstName") || ""),
       lastName: String(form.get("lastName") || ""),
+      phone: phone || undefined,
       role,
       permissions: role === "support" ? Array.from(selectedPerms) : [],
     };
 
     if (!payload.email || !payload.password || !payload.firstName || !payload.lastName) {
       toast.error("Please fill in all required fields");
+      return;
+    }
+    if (role !== "super_admin" && !phone) {
+      toast.error("Phone number is required for admin and support staff");
+      return;
+    }
+    if (phone && !/^\+?[0-9\s-]{7,20}$/.test(phone)) {
+      toast.error("Enter a valid phone number (e.g. +234 801 234 5678)");
       return;
     }
 
@@ -256,6 +280,22 @@ function CreateStaffDialog({
             <Label htmlFor="password">Temporary Password *</Label>
             <Input id="password" name="password" type="password" placeholder="Min. 6 characters" required minLength={6} />
             <p className="text-xs text-zinc-400">Staff member should change this on first login.</p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="phone">
+              Phone Number {role !== "super_admin" ? "*" : <span className="font-normal text-zinc-400">(optional)</span>}
+            </Label>
+            <Input
+              id="phone"
+              name="phone"
+              type="tel"
+              placeholder="+234 801 234 5678"
+              required={role !== "super_admin"}
+            />
+            <p className="text-xs text-zinc-400">
+              Shown as the contact for categories this staff member manages.
+            </p>
           </div>
 
           <div className="space-y-1.5">
@@ -560,18 +600,121 @@ function PermissionsDialog({
   );
 }
 
+// ─── Assign Categories Dialog ──────────────────────────────────────────────
+
+function CategoriesDialog({
+  member,
+  categories,
+  open,
+  onClose,
+  onSuccess,
+}: {
+  member: StaffMember;
+  categories: CategoryOption[];
+  open: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(
+    new Set(member.assignedCategoryIds || []),
+  );
+
+  function toggleCategory(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  async function handleSave() {
+    setLoading(true);
+    try {
+      await apiPatch(`/admin/staff/${member.id}/categories`, {
+        categoryIds: Array.from(selected),
+      });
+      toast.success("Category assignments updated");
+      onSuccess();
+      onClose();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message.replace(/^\d+:\s*/, "") : "Failed to update");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Assign Categories</DialogTitle>
+          <DialogDescription>
+            Pick the categories {member.firstName} {member.lastName} is in charge of.
+            They will show as the contact person on every product in those categories.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-2">
+          <p className="text-sm text-zinc-500">
+            {selected.size} of {categories.length} selected
+          </p>
+          {categories.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-border p-4 text-center text-sm text-zinc-400">
+              No categories exist yet — create them on the Categories page first.
+            </p>
+          ) : (
+            <div className="rounded-lg border border-border divide-y divide-border overflow-hidden">
+              {categories.map((category) => (
+                <label
+                  key={category.id}
+                  className="flex cursor-pointer items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-muted/50"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selected.has(category.id)}
+                    onChange={() => toggleCategory(category.id)}
+                    className="size-4 accent-zinc-900"
+                  />
+                  <Tags size={13} className="shrink-0 text-zinc-400" />
+                  <span className="flex-1 font-medium text-zinc-800">{category.name}</span>
+                  {category.isActive === false && (
+                    <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-500">Inactive</span>
+                  )}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={loading}>
+            Cancel
+          </Button>
+          <Button variant="brand" onClick={handleSave} disabled={loading}>
+            {loading ? <HookLoader size="button" label="Saving..." /> : "Save Assignments"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Staff Card ────────────────────────────────────────────────────────────
 
 function StaffCard({
   member,
   onRefresh,
   currentUserId,
+  categories,
 }: {
   member: StaffMember;
   onRefresh: () => void;
   currentUserId?: string;
+  categories: CategoryOption[];
 }) {
   const [permOpen, setPermOpen] = useState(false);
+  const [catOpen, setCatOpen] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const isSelf = member.id === currentUserId;
@@ -640,6 +783,12 @@ function StaffCard({
                     Edit Permissions
                   </DropdownMenuItem>
                 )}
+                {member.role !== "super_admin" && (
+                  <DropdownMenuItem onClick={() => setCatOpen(true)}>
+                    <Tags size={14} />
+                    Assign Categories
+                  </DropdownMenuItem>
+                )}
                 {!isSelf && (
                   <DropdownMenuItem
                     onClick={handleToggle}
@@ -669,7 +818,40 @@ function StaffCard({
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <RoleBadge role={member.role} />
             <StatusDot isActive={member.isActive} />
+            {member.phone && (
+              <a
+                href={`tel:${member.phone}`}
+                className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-900"
+              >
+                <Phone size={11} />
+                {member.phone}
+              </a>
+            )}
           </div>
+
+          {/* Assigned categories — the areas this person is in charge of */}
+          {member.role !== "super_admin" && (member.assignedCategoryIds?.length ?? 0) > 0 && (
+            <div className="mt-3 border-t border-dashed border-border pt-3">
+              <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+                In Charge Of
+              </p>
+              <div className="flex flex-wrap gap-1">
+                {(member.assignedCategoryIds || []).map((categoryId) => {
+                  const category = categories.find((c) => c.id === categoryId);
+                  if (!category) return null;
+                  return (
+                    <span
+                      key={categoryId}
+                      className="flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800"
+                    >
+                      <Tags size={9} />
+                      {category.name}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {member.role === "support" && (
             <div className="mt-3 border-t border-dashed border-border pt-3">
@@ -715,6 +897,16 @@ function StaffCard({
           onSuccess={onRefresh}
         />
       )}
+
+      {catOpen && (
+        <CategoriesDialog
+          member={member}
+          categories={categories}
+          open={catOpen}
+          onClose={() => setCatOpen(false)}
+          onSuccess={onRefresh}
+        />
+      )}
     </>
   );
 }
@@ -747,6 +939,12 @@ export default function StaffPage() {
     ["admin", "staff", roleFilter],
     `/admin/staff${queryString ? `?${queryString}` : ""}`,
   );
+
+  const { data: categoriesData } = useApiQuery<CategoriesResponse>(
+    ["admin", "categories"],
+    "/admin/categories",
+  );
+  const categoryOptions = categoriesData?.data ?? [];
 
   const allMembers = data?.data ?? [];
   const filtered = search
@@ -878,6 +1076,7 @@ export default function StaffPage() {
                     member={m}
                     onRefresh={refetch}
                     currentUserId={session?.id}
+                    categories={categoryOptions}
                   />
                 ))}
               </div>
@@ -898,6 +1097,7 @@ export default function StaffPage() {
                     member={m}
                     onRefresh={refetch}
                     currentUserId={session?.id}
+                    categories={categoryOptions}
                   />
                 ))}
               </div>
@@ -918,6 +1118,7 @@ export default function StaffPage() {
                     member={m}
                     onRefresh={refetch}
                     currentUserId={session?.id}
+                    categories={categoryOptions}
                   />
                 ))}
               </div>

@@ -2,9 +2,20 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut, UserCog } from "lucide-react";
+import { LogOut, UserCog, Tags } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   Sidebar,
   SidebarContent,
@@ -21,6 +32,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useAdminSession, useApiQuery, useLogout } from "@/lib/query";
 import { hasPermission, type Permission } from "@/lib/permissions";
+import { HookLogo } from "@/components/shared/HookLogo";
 import { navItems } from "./nav-items";
 
 interface DashboardSummary {
@@ -70,16 +82,22 @@ export default function AppSidebar() {
     return hasPermission(admin ?? null, perm);
   });
 
-  // Staff (super_admin only) — inserted after Customers to sit with people management
+  // Super_admin-only items spliced into logical positions:
+  // Categories after Products (catalog cluster), Staff after Customers (people cluster)
   if (admin?.role === "super_admin") {
+    const categoriesItem = { label: "Categories", href: "/dashboard/categories", icon: Tags };
+    const productsIndex = visibleNavItems.findIndex((item) => item.label === "Products");
+    visibleNavItems.splice(productsIndex === -1 ? visibleNavItems.length : productsIndex + 1, 0, categoriesItem);
+
     const staffItem = { label: "Staff", href: "/dashboard/staff", icon: UserCog };
     const customersIndex = visibleNavItems.findIndex((item) => item.label === "Customers");
     visibleNavItems.splice(customersIndex === -1 ? visibleNavItems.length : customersIndex + 1, 0, staffItem);
   }
 
   function handleLogout() {
-    logout();
-    router.push("/login");
+    logout.mutate(undefined, {
+      onSettled: () => router.push("/login"),
+    });
   }
 
   function sidebarBadge(label: string) {
@@ -101,12 +119,7 @@ export default function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton asChild size="lg" tooltip="Hook">
               <Link href="/dashboard">
-                <span className="flex size-8 items-center justify-center rounded-md bg-brand-gold text-sm font-bold text-zinc-950">
-                  H
-                </span>
-                <span className="font-semibold text-sidebar-foreground">
-                  Hook
-                </span>
+                <HookLogo className="text-2xl text-sidebar-foreground" />
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -166,15 +179,36 @@ export default function AppSidebar() {
             </p>
             <p className="truncate text-xs capitalize text-muted-foreground">{adminSubtitle}</p>
           </div>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={handleLogout}
-            title="Sign out"
-            className="shrink-0 text-muted-foreground hover:text-destructive"
-          >
-            <LogOut />
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                title="Sign out"
+                className="shrink-0 text-muted-foreground hover:text-destructive"
+              >
+                <LogOut />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="max-w-sm">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Log out of Hook?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Your admin session will be ended on this device. You can sign in again whenever you need access.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleLogout}
+                  disabled={logout.isPending}
+                  className="bg-zinc-950 text-white hover:bg-zinc-800"
+                >
+                  {logout.isPending ? "Logging out..." : "Log out"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </SidebarFooter>
       <SidebarRail />

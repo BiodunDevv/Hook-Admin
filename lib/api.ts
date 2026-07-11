@@ -11,6 +11,7 @@ export interface AdminUser {
   lastName?: string;
   role: "support" | "admin" | "super_admin" | string;
   permissions?: string[];
+  assignedCategoryIds?: string[];
   avatarUrl?: string;
   isEmailVerified?: boolean;
   isActive?: boolean;
@@ -190,6 +191,45 @@ export async function loginAdmin(email: string, password: string) {
   }
   setSession(session);
   return session;
+}
+
+export async function logoutAdmin() {
+  const accessToken = getAccessToken();
+  const refreshToken = getRefreshToken();
+  if (!accessToken && !refreshToken) {
+    throw new Error("401: Authentication token required");
+  }
+  await apiRequest<{ message: string }>(
+    "/admin/auth/logout",
+    {
+      method: "POST",
+      body: JSON.stringify({ refreshToken: refreshToken || undefined }),
+    },
+    { auth: true, retryOnUnauthorized: false },
+  );
+  clearSession();
+}
+
+export async function requestAdminPasswordReset(email: string) {
+  return apiRequest<{ message: string }>(
+    "/admin/auth/password/forgot",
+    {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    },
+    { auth: false },
+  );
+}
+
+export async function resetAdminPassword(email: string, code: string, password: string) {
+  return apiRequest<{ message: string }>(
+    "/admin/auth/password/reset",
+    {
+      method: "POST",
+      body: JSON.stringify({ email, code, password }),
+    },
+    { auth: false },
+  );
 }
 
 export async function getCurrentAdmin() {

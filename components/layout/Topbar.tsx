@@ -15,6 +15,7 @@ import {
   Shield,
   ShieldCheck,
   Headset,
+  Tags,
 } from "lucide-react";
 import { HookLoader } from "@/components/shared/HookLoader";
 import { Button } from "@/components/ui/button";
@@ -538,16 +539,26 @@ export default function Topbar() {
                     </CommandItem>
                   );
                 })}
-                {/* Staff nav shortcut — super_admin only */}
+                {/* Super_admin-only nav shortcuts */}
                 {isSuperAdmin(admin) && (
-                  <CommandItem
-                    value="Staff Management"
-                    onSelect={() => navigate("/dashboard/staff")}
-                    className="gap-2"
-                  >
-                    <UserCog className="text-muted-foreground" size={16} />
-                    Staff
-                  </CommandItem>
+                  <>
+                    <CommandItem
+                      value="Categories Management"
+                      onSelect={() => navigate("/dashboard/categories")}
+                      className="gap-2"
+                    >
+                      <Tags className="text-muted-foreground" size={16} />
+                      Categories
+                    </CommandItem>
+                    <CommandItem
+                      value="Staff Management"
+                      onSelect={() => navigate("/dashboard/staff")}
+                      className="gap-2"
+                    >
+                      <UserCog className="text-muted-foreground" size={16} />
+                      Staff
+                    </CommandItem>
+                  </>
                 )}
               </CommandGroup>
               <CommandSeparator />

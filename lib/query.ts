@@ -7,6 +7,9 @@ import {
   clearSession,
   ensureAdminSession,
   loginAdmin,
+  logoutAdmin,
+  requestAdminPasswordReset,
+  resetAdminPassword,
   type AdminUser,
   type AuthSession,
 } from "@/lib/api";
@@ -85,9 +88,32 @@ export function useAdminLogin() {
 
 export function useLogout() {
   const queryClient = useQueryClient();
-  return () => {
-    clearSession();
-    queryClient.clear();
-    toast.success("Signed out successfully");
-  };
+  return useMutation({
+    mutationFn: logoutAdmin,
+    meta: {
+      successMessage: "Signed out successfully",
+    },
+    onSettled: () => {
+      clearSession();
+      queryClient.clear();
+    },
+  });
+}
+
+export function useForgotPassword() {
+  return useMutation<{ message: string }, Error, { email: string }>({
+    mutationFn: ({ email }) => requestAdminPasswordReset(email),
+    meta: {
+      successMessage: "If that admin email exists, an OTP has been sent",
+    },
+  });
+}
+
+export function useResetPassword() {
+  return useMutation<{ message: string }, Error, { email: string; code: string; password: string }>({
+    mutationFn: ({ email, code, password }) => resetAdminPassword(email, code, password),
+    meta: {
+      successMessage: "Password reset successfully",
+    },
+  });
 }

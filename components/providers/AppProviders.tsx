@@ -7,7 +7,13 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 
 function getToastMessage(error: unknown) {
-  if (error instanceof Error) return error.message.replace(/^\d+:\s*/, "");
+  if (error instanceof Error) {
+    const message = error.message.replace(/^\d+:\s*/, "");
+    if (/failed to fetch|load failed|networkerror/i.test(message)) {
+      return "Could not reach the Hook API. Please check that the backend is running and try again.";
+    }
+    return message;
+  }
   return "Something went wrong. Please try again.";
 }
 

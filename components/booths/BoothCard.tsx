@@ -1,139 +1,157 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { DollarSign, MoreVertical, type LucideIcon } from "lucide-react";
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
+import { Clock, Eye, MapPin, Power, Store, UserX } from "lucide-react";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { PermissionGuard } from "@/components/auth/PermissionGuard";
+import { apiPatch } from "@/lib/api";
 
-interface HardwareItem {
-  icon: LucideIcon;
-  color: string;
-}
-
-export interface BoothData {
+export interface BoothRow {
   id: string;
   name: string;
-  bgImage: string;
-  statusColor: string;
-  statusBg: string;
-  walkIns: number;
-  revenue: string;
-  waiting: number;
-  waitingColor: string;
-  waitingAlert?: boolean;
-  attendantImg?: string;
-  attendantInitials?: string;
-  attendantName: string;
-  hardware: HardwareItem[];
-  reconStatus: string;
-  reconColor: string;
-  expected: string;
-  actual: string;
+  description?: string;
+  boothType: "phygital" | "micro_hub" | string;
+  location?: { address?: string; lat?: number; lng?: number };
+  operatingHours?: { open?: string; close?: string; days?: string };
+  previewImageUrl?: string;
+  isActive: boolean;
+  fieldAgent?: {
+    id: string;
+    assignedMarket?: string;
+    agent?: { firstName?: string; lastName?: string; email?: string; phone?: string };
+  } | null;
 }
 
 interface BoothCardProps {
-  booth: BoothData;
+  booth: BoothRow;
+  onRefresh: () => void;
 }
 
-export function BoothCard({ booth }: BoothCardProps) {
+const TYPE_LABEL: Record<string, string> = {
+  phygital: "Phygital",
+  micro_hub: "Micro Hub",
+};
+
+function attendantName(booth: BoothRow) {
+  const user = booth.fieldAgent?.agent;
+  return `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || user?.email || "";
+}
+
+export function BoothCard({ booth, onRefresh }: BoothCardProps) {
+  const [busy, setBusy] = useState(false);
+  const attendant = attendantName(booth);
+
+  async function handleToggle() {
+    setBusy(true);
+    try {
+      await apiPatch(`/admin/booths/${booth.id}/status`);
+      toast.success(booth.isActive ? `"${booth.name}" taken offline` : `"${booth.name}" is now live`);
+      onRefresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message.replace(/^\d+:\s*/, "") : "Failed to update booth");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
-    <Card className="flex flex-col overflow-hidden rounded-2xl border-zinc-200 shadow-sm">
-      {/* Card Header Background */}
-      <div className="relative flex h-24 flex-col justify-end p-4">
-        <img
-          src={booth.bgImage}
-          alt={booth.name}
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
-        <div className="relative z-10 flex items-end justify-between">
-          <div>
-            <Link href={`/dashboard/booths/${booth.id}`} className="mb-1.5 block text-lg font-bold leading-tight text-white hover:underline">{booth.name}</Link>
-            <div
-              className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide backdrop-blur-sm ${booth.statusBg}`}
-            >
-              <div className={`h-1.5 w-1.5 rounded-full ${booth.statusColor}`} />
-              {booth.id.slice(0, 8)}
-            </div>
+    <Card className="flex flex-col overflow-hidden rounded-xl border-zinc-200 py-0 shadow-card">
+      {/* Image header */}
+      <div className="relative aspect-video bg-zinc-100">
+        {booth.previewImageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={booth.previewImageUrl} alt={booth.name} className="size-full object-cover" />
+        ) : (
+          <div className="flex size-full items-center justify-center text-zinc-300">
+            <Store size={32} />
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 p-0 text-white hover:bg-white/30"
-          >
-            <MoreVertical size={16} />
-          </Button>
+        )}
+        <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 to-transparent p-3">
+          <div className="flex items-end justify-between gap-2">
+            <div className="min-w-0">
+              <h3 className="truncate text-sm font-bold text-white">{booth.name}</h3>
+              <p className="flex items-center gap-1 truncate text-xs text-white/80">
+                <MapPin size={10} className="shrink-0" /> {booth.location?.address || "No address"}
+              </p>
+            </div>
+            <span className={`flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+              booth.isActive ? "bg-emerald-500/90 text-white" : "bg-zinc-500/90 text-white"
+            }`}>
+              <span className={`size-1.5 rounded-full ${booth.isActive ? "bg-white animate-pulse" : "bg-zinc-200"}`} />
+              {booth.isActive ? "Live" : "Offline"}
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Top Stats */}
-      <div className="grid grid-cols-3 gap-4 border-b border-zinc-100 p-4 text-center">
-        <div>
-          <h4 className="text-2xl font-bold text-zinc-900">{booth.walkIns}</h4>
-          <p className="mt-0.5 text-xs text-zinc-500">Walk-ins</p>
-        </div>
-        <div>
-          <h4 className="text-2xl font-bold text-zinc-900">{booth.revenue}</h4>
-          <p className="mt-0.5 text-xs text-zinc-500">Revenue</p>
-        </div>
-        <div className="relative">
-          <h4 className={`text-2xl font-bold ${booth.waitingColor}`}>{booth.waiting}</h4>
-          <p className="mt-0.5 text-xs text-zinc-500">Waiting</p>
-          {booth.waitingAlert && (
-            <div className="absolute right-3 top-1 h-2 w-2 rounded-full border border-white bg-red-500" />
+      <CardContent className="flex flex-1 flex-col gap-3 p-4">
+        <div className="flex items-center gap-2">
+          <Badge
+            variant="outline"
+            className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+              booth.boothType === "phygital"
+                ? "border-amber-200 bg-amber-50 text-amber-700"
+                : "border-blue-200 bg-blue-50 text-blue-700"
+            }`}
+          >
+            {TYPE_LABEL[booth.boothType] || booth.boothType}
+          </Badge>
+          {booth.operatingHours?.open && (
+            <span className="flex items-center gap-1 text-[11px] text-zinc-400">
+              <Clock size={10} />
+              {booth.operatingHours.open}–{booth.operatingHours.close}
+              {booth.operatingHours.days ? ` · ${booth.operatingHours.days}` : ""}
+            </span>
           )}
         </div>
-      </div>
 
-      {/* Staff & Hardware */}
-      <CardContent className="flex gap-4 border-b border-zinc-100 p-4">
-        <div className="flex flex-1 items-center gap-3 rounded-lg bg-zinc-50 p-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-200 text-sm font-bold text-zinc-500">
-            {booth.attendantImg ? (
-              <img src={booth.attendantImg} alt="Attendant" className="h-full w-full object-cover" />
-            ) : (
-              booth.attendantInitials
-            )}
-          </div>
-          <div>
-            <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wider text-zinc-500">Attendant on Duty</p>
-            <p className="text-sm font-semibold leading-tight text-zinc-900">{booth.attendantName}</p>
-          </div>
+        {booth.description && (
+          <p className="line-clamp-2 text-xs leading-5 text-zinc-500">{booth.description}</p>
+        )}
+
+        {/* Attendant */}
+        <div className="flex items-center gap-2.5 rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2">
+          {attendant ? (
+            <>
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[10px] font-bold text-blue-700">
+                {attendant.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase()}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-xs font-semibold text-zinc-800">{attendant}</p>
+                <p className="truncate text-[10px] text-zinc-400">
+                  Attendant{booth.fieldAgent?.assignedMarket ? ` · ${booth.fieldAgent.assignedMarket}` : ""}
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-zinc-400">
+                <UserX size={12} />
+              </span>
+              <p className="text-xs text-zinc-400">No attendant assigned</p>
+            </>
+          )}
         </div>
 
-        <div className="flex flex-1 items-center rounded-lg bg-zinc-50 p-3">
-          <div className="w-full text-center">
-            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-zinc-500">Hardware Health</p>
-            <div className="flex justify-center gap-3">
-              {booth.hardware.map((hw, i) => (
-                <hw.icon key={i} size={16} className={hw.color} />
-              ))}
-            </div>
-          </div>
+        {/* Actions */}
+        <div className="mt-auto flex items-center gap-2 pt-1">
+          <Button asChild variant="outline" size="sm" className="flex-1 gap-1.5">
+            <Link href={`/dashboard/booths/${booth.id}`}>
+              <Eye size={13} /> View Details
+            </Link>
+          </Button>
+          <PermissionGuard permission="booths.edit">
+            <Button variant="outline" size="sm" disabled={busy} onClick={handleToggle} className="gap-1.5">
+              <Power size={13} className={booth.isActive ? "text-red-500" : "text-emerald-500"} />
+              {booth.isActive ? "Take Offline" : "Go Live"}
+            </Button>
+          </PermissionGuard>
         </div>
       </CardContent>
-
-      {/* Reconciliation */}
-      <div className="p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm font-semibold text-zinc-700">
-            <DollarSign size={16} className="text-zinc-400" />
-            Cash Reconciliation
-          </div>
-          <Badge className={`rounded px-2.5 py-0.5 text-[11px] font-bold ${booth.reconColor}`}>
-            {booth.reconStatus}
-          </Badge>
-        </div>
-        <div className="flex divide-x divide-zinc-200 rounded-lg bg-zinc-50 p-3">
-          <div className="flex flex-1 items-center justify-between pr-4">
-            <span className="text-xs text-zinc-500">Expected</span>
-            <span className="text-sm font-bold text-zinc-900">{booth.expected}</span>
-          </div>
-          <div className="flex flex-1 items-center justify-between pl-4">
-            <span className="text-xs text-zinc-500">Actual Drawer</span>
-            <span className="text-sm font-bold text-zinc-900">{booth.actual}</span>
-          </div>
-        </div>
-      </div>
     </Card>
   );
 }

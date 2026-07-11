@@ -48,6 +48,14 @@ export interface ProductRow {
   quantity?: number;
   status: string;
   createdAt?: string;
+  managers?: Array<{
+    id: string;
+    firstName?: string;
+    lastName?: string;
+    email: string;
+    phone?: string | null;
+    role: string;
+  }>;
 }
 
 interface Page<T> {
@@ -117,8 +125,14 @@ export function ProductsTable({ queryKey, path, onPageChange }: ProductsTablePro
         <Table>
           <TableHeader>
             <TableRow className="border-b border-zinc-100 bg-zinc-50">
-              {["No", "Product", "Category", "Vendor", "Price", "Stock", "Status", "Created", ""].map((header) => (
-                <TableHead key={header} className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+              {["No", "Product", "Category", "Managed By", "Vendor", "Hook Price", "Stock", "Status", "Created", ""].map((header) => (
+                <TableHead
+                  key={header}
+                  className={cn(
+                    "px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-400",
+                    header === "Managed By" && "hidden lg:table-cell",
+                  )}
+                >
                   {header}
                 </TableHead>
               ))}
@@ -127,7 +141,7 @@ export function ProductsTable({ queryKey, path, onPageChange }: ProductsTablePro
           <TableBody>
             {isLoading && (
               <TableRow>
-                <TableCell colSpan={9} className="px-3 py-12 whitespace-normal sm:px-5">
+                <TableCell colSpan={10} className="px-3 py-12 whitespace-normal sm:px-5">
                   <div className="mx-auto flex max-w-sm items-center justify-center gap-3 rounded-lg border border-zinc-100 bg-zinc-50 p-4 text-sm text-zinc-500">
                     <HookLoader label="Loading products..." />
                   </div>
@@ -137,7 +151,7 @@ export function ProductsTable({ queryKey, path, onPageChange }: ProductsTablePro
 
             {errorMessage && (
               <TableRow>
-                <TableCell colSpan={9} className="px-3 py-12 whitespace-normal sm:px-5">
+                <TableCell colSpan={10} className="px-3 py-12 whitespace-normal sm:px-5">
                   <div className="mx-auto w-full max-w-xl rounded-lg border border-red-200 bg-red-50 p-5 text-center">
                     <div className="mx-auto mb-3 flex size-10 items-center justify-center rounded-full bg-white text-red-500">
                       <AlertTriangle size={20} />
@@ -154,7 +168,7 @@ export function ProductsTable({ queryKey, path, onPageChange }: ProductsTablePro
 
             {!isLoading && !errorMessage && products.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} className="px-3 py-14 whitespace-normal sm:px-5 sm:py-16">
+                <TableCell colSpan={10} className="px-3 py-14 whitespace-normal sm:px-5 sm:py-16">
                   <div className="mx-auto flex min-h-56 w-full max-w-2xl flex-col items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 px-5 py-8 text-center sm:px-8">
                     <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-white text-zinc-400 shadow-sm sm:size-16">
                       <PackageSearch size={26} />
@@ -194,6 +208,22 @@ export function ProductsTable({ queryKey, path, onPageChange }: ProductsTablePro
                     </div>
                   </TableCell>
                   <TableCell className="px-4 py-3 text-zinc-600">{product.category?.name || "Uncategorized"}</TableCell>
+                  <TableCell className="hidden px-4 py-3 lg:table-cell">
+                    {product.managers?.length ? (
+                      <span className="flex items-center gap-1.5">
+                        <span className="truncate text-sm text-zinc-600">
+                          {`${product.managers[0].firstName || ""} ${product.managers[0].lastName || ""}`.trim() || product.managers[0].email}
+                        </span>
+                        {product.managers.length > 1 && (
+                          <span className="shrink-0 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-500">
+                            +{product.managers.length - 1}
+                          </span>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="text-sm text-zinc-300">—</span>
+                    )}
+                  </TableCell>
                   <TableCell className="px-4 py-3 text-zinc-600">{product.vendor?.businessName || "No vendor"}</TableCell>
                   <TableCell className="px-4 py-3 font-semibold text-zinc-900">{money(product.sellingPrice || 0)}</TableCell>
                   <TableCell className="px-4 py-3">

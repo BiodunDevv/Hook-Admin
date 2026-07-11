@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Ban, Boxes, Check, Edit3, Eye, Layers, PackageCheck, WalletCards } from "lucide-react";
+import { ArrowLeft, Ban, Boxes, Check, Edit3, Eye, Info, Layers, Mail, PackageCheck, Phone, UserCheck, WalletCards } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { KpiCard } from "@/components/shared/KpiCard";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -12,8 +12,11 @@ import { MediaPicker } from "@/components/shared/MediaPicker";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useApiPatch, useApiQuery } from "@/lib/query";
 import { cleanError, money, number } from "@/lib/admin-utils";
 
@@ -36,6 +39,25 @@ interface ProductDetail {
   sizes?: string[];
   vendor?: { id?: string; businessName?: string };
   category?: { name?: string };
+  categoryManagers?: CategoryManager[];
+}
+
+interface CategoryManager {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  email: string;
+  phone?: string | null;
+  role: "support" | "admin";
+}
+
+function managerName(manager: CategoryManager) {
+  return `${manager.firstName || ""} ${manager.lastName || ""}`.trim() || manager.email;
+}
+
+function managerInitials(manager: CategoryManager) {
+  const name = managerName(manager);
+  return name.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase() || "?";
 }
 
 function absoluteImageUrl(url?: string) {
@@ -43,6 +65,22 @@ function absoluteImageUrl(url?: string) {
   if (url.startsWith("http")) return url;
   const base = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000/api/v1").replace(/\/api\/v1\/?$/, "");
   return `${base}${url}`;
+}
+
+function PriceLabel({ children, help }: { children: React.ReactNode; help: string }) {
+  return (
+    <FieldLabel className="items-center">
+      {children}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button type="button" className="text-zinc-400 hover:text-zinc-700" aria-label={`${children} information`}>
+            <Info size={13} />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top">{help}</TooltipContent>
+      </Tooltip>
+    </FieldLabel>
+  );
 }
 
 export default function ProductDetailPage() {
@@ -55,11 +93,15 @@ export default function ProductDetailPage() {
   const updateProduct = useApiPatch<ProductDetail, Record<string, unknown>>(`/admin/products/${id}`, ["admin", "products"], { successMessage: "Product updated" });
   const [editing, setEditing] = useState(false);
   const [editImages, setEditImages] = useState<string[]>([]);
+  const [editStatus, setEditStatus] = useState("pending_approval");
   const product = query.data;
   const heroImage = absoluteImageUrl(product?.images?.[0]);
 
   useEffect(() => {
-    if (product) setEditImages(product.images || []);
+    if (product) {
+      setEditImages(product.images || []);
+      setEditStatus(product.status);
+    }
   }, [product?.id]);
 
   return (
@@ -83,10 +125,10 @@ export default function ProductDetailPage() {
       {product && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <KpiCard icon={WalletCards} tone="blue" label="Selling Price" value={money(product.sellingPrice)} caption={product.discountedPrice ? `${money(product.discountedPrice)} promo` : "Current retail"} />
+            <KpiCard icon={WalletCards} tone="blue" label="Hook Price" value={money(product.sellingPrice)} caption="Customer-facing price" />
             <KpiCard icon={Boxes} tone={product.quantity < 10 ? "red" : "green"} label="Stock" value={number(product.quantity)} caption={`${number(product.reservedQuantity)} reserved`} />
             <KpiCard icon={PackageCheck} tone="amber" label="Orders" value={number(product.orderCount)} caption={`${number(product.viewCount)} views`} />
-            <KpiCard icon={Layers} tone="zinc" label="Floor Price" value={money(product.minAcceptablePrice)} caption="AI negotiation floor" />
+            <KpiCard icon={Layers} tone="zinc" label="Negotiation Floor" value={money(product.minAcceptablePrice)} caption="AI minimum accepted price" />
           </div>
 
           <div className="grid gap-4 lg:grid-cols-[360px_1fr]">
@@ -110,7 +152,7 @@ export default function ProductDetailPage() {
                     <span className="font-medium text-zinc-900">{product.hookId || product.id.slice(0, 8)}</span>
                   </div>
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-zinc-500">Cost</span>
+                    <span className="text-zinc-500">Market Price</span>
                     <span className="font-medium text-zinc-900">{money(product.costPrice)}</span>
                   </div>
                 </div>
@@ -157,6 +199,56 @@ export default function ProductDetailPage() {
                 </CardContent>
               </Card>
 
+              {/* Category managers — who to contact about this product */}
+              <Card className="rounded-lg border-zinc-200 py-0 shadow-card">
+                <CardContent className="p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-zinc-900">
+                      In Charge — {product.category?.name || "Category"}
+                    </h3>
+                    <UserCheck size={15} className="text-zinc-400" />
+                  </div>
+                  {!product.categoryManagers?.length ? (
+                    <p className="rounded-md border border-dashed border-zinc-200 bg-zinc-50 p-4 text-center text-sm text-zinc-400">
+                      No manager assigned to this category yet.
+                    </p>
+                  ) : (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {product.categoryManagers.map((manager) => (
+                        <div
+                          key={manager.id}
+                          className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3"
+                        >
+                          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-900">
+                            {managerInitials(manager)}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <p className="truncate text-sm font-semibold text-zinc-900">{managerName(manager)}</p>
+                              <span className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
+                                manager.role === "admin" ? "bg-blue-50 text-blue-700" : "bg-purple-50 text-purple-700"
+                              }`}>
+                                {manager.role}
+                              </span>
+                            </div>
+                            <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-zinc-500">
+                              {manager.phone && (
+                                <a href={`tel:${manager.phone}`} className="flex items-center gap-1 hover:text-zinc-900">
+                                  <Phone size={10} /> {manager.phone}
+                                </a>
+                              )}
+                              <a href={`mailto:${manager.email}`} className="flex min-w-0 items-center gap-1 hover:text-zinc-900">
+                                <Mail size={10} /> <span className="truncate">{manager.email}</span>
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
               <Card className="rounded-lg border-zinc-200 py-0 shadow-card">
                 <CardContent className="p-4">
                   <div className="mb-3 flex items-center justify-between">
@@ -181,8 +273,9 @@ export default function ProductDetailPage() {
           <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto rounded-lg">
             <DialogHeader>
               <DialogTitle>Edit product</DialogTitle>
-              <DialogDescription>Update pricing, stock, colors, and product copy.</DialogDescription>
+              <DialogDescription>Update market price, Hook price, negotiation floor, stock, colors, and product copy.</DialogDescription>
             </DialogHeader>
+            <TooltipProvider>
             <form
               className="grid gap-3 sm:grid-cols-2"
               onSubmit={async (event: FormEvent<HTMLFormElement>) => {
@@ -194,30 +287,26 @@ export default function ProductDetailPage() {
                   description: payload.description,
                   costPrice: Number(payload.costPrice || 0),
                   sellingPrice: Number(payload.sellingPrice || 0),
-                  discountedPrice: payload.discountedPrice ? Number(payload.discountedPrice) : undefined,
                   minAcceptablePrice: Number(payload.minAcceptablePrice || 0),
                   quantity: Number(payload.quantity || 0),
                   images: editImages,
                   colors: String(payload.colors || "").split(",").map((item) => item.trim()).filter(Boolean),
                   sizes: String(payload.sizes || "").split(",").map((item) => item.trim()).filter(Boolean),
-                  status: payload.status,
+                  status: editStatus,
                 });
                 query.refetch();
                 setEditing(false);
               }}
             >
-              <div className="space-y-1.5 sm:col-span-2"><Label>Title</Label><Input name="title" defaultValue={product.title} required /></div>
-              <div className="space-y-1.5 sm:col-span-2"><Label>Description</Label><textarea name="description" defaultValue={product.description} className="min-h-20 w-full rounded-md border bg-background p-2 text-sm" /></div>
-              {[
-                ["costPrice", "Cost", product.costPrice],
-                ["sellingPrice", "Selling", product.sellingPrice],
-                ["discountedPrice", "Discount", product.discountedPrice || ""],
-                ["minAcceptablePrice", "Floor", product.minAcceptablePrice],
-                ["quantity", "Stock", product.quantity],
-              ].map(([name, label, value]) => <div key={name} className="space-y-1.5"><Label>{label}</Label><Input name={String(name)} type="number" defaultValue={String(value)} /></div>)}
-              <div className="space-y-1.5"><Label>Status</Label><select name="status" defaultValue={product.status} className="h-9 w-full rounded-md border bg-background px-2 text-sm"><option value="draft">Draft</option><option value="pending_approval">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="disabled">Disabled</option></select></div>
-              <div className="space-y-1.5"><Label>Colors</Label><Input name="colors" defaultValue={(product.colors || []).join(", ")} /></div>
-              <div className="space-y-1.5"><Label>Sizes</Label><Input name="sizes" defaultValue={(product.sizes || []).join(", ")} /></div>
+              <Field className="sm:col-span-2"><FieldLabel>Title</FieldLabel><Input name="title" defaultValue={product.title} required /></Field>
+              <Field className="sm:col-span-2"><FieldLabel>Description</FieldLabel><Textarea name="description" defaultValue={product.description} className="min-h-20" /></Field>
+              <Field><PriceLabel help="What this item commonly sells for outside Hook.">Market Price</PriceLabel><Input name="costPrice" type="number" min="1" defaultValue={String(product.costPrice)} /></Field>
+              <Field><PriceLabel help="The customer-facing price on Hook.">Hook Platform Price</PriceLabel><Input name="sellingPrice" type="number" min="1" defaultValue={String(product.sellingPrice)} /></Field>
+              <Field><PriceLabel help="Lowest price AI negotiation can accept. It must not exceed the Hook platform price.">Negotiation Floor</PriceLabel><Input name="minAcceptablePrice" type="number" min="1" defaultValue={String(product.minAcceptablePrice)} /></Field>
+              <Field><FieldLabel>Stock</FieldLabel><Input name="quantity" type="number" min="0" defaultValue={String(product.quantity)} /></Field>
+              <Field><FieldLabel>Status</FieldLabel><Select value={editStatus} onValueChange={setEditStatus}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="draft">Draft</SelectItem><SelectItem value="pending_approval">Pending</SelectItem><SelectItem value="approved">Approved</SelectItem><SelectItem value="rejected">Rejected</SelectItem><SelectItem value="disabled">Disabled</SelectItem></SelectContent></Select></Field>
+              <Field><FieldLabel>Colors</FieldLabel><Input name="colors" defaultValue={(product.colors || []).join(", ")} /></Field>
+              <Field><FieldLabel>Sizes</FieldLabel><Input name="sizes" defaultValue={(product.sizes || []).join(", ")} /></Field>
               <div className="sm:col-span-2">
                 <MediaPicker
                   value={editImages}
@@ -228,6 +317,7 @@ export default function ProductDetailPage() {
               </div>
               <div className="flex justify-end sm:col-span-2"><Button type="submit" variant="brand" disabled={updateProduct.isPending}>{updateProduct.isPending ? <HookLoader size="button" label="Saving..." /> : "Save changes"}</Button></div>
             </form>
+            </TooltipProvider>
           </DialogContent>
         </Dialog>
       )}

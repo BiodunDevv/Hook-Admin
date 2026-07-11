@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { BarChart3, MoreHorizontal } from "lucide-react";
+import { BarChart3, CalendarDays, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,8 @@ const periods = ["Weekly", "Monthly", "Yearly"] as const;
 
 interface SalesTrendPoint {
   day: string;
+  label?: string;
+  rangeLabel?: string;
   newUser: number;
   existingUser: number;
   orders: number;
@@ -59,9 +61,14 @@ export default function SalesTrendChart() {
     <Card className="rounded-lg border-zinc-200 py-0 shadow-card">
       <CardContent className="p-4 sm:p-5">
         <div className="flex items-center justify-between">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
-            Sales Trend
-          </p>
+          <div className="flex items-center gap-2">
+            <span className="flex size-8 items-center justify-center rounded-md bg-amber-50 text-amber-600">
+              <CalendarDays size={16} />
+            </span>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+              Sales Trend
+            </p>
+          </div>
           <Button variant="ghost" size="icon" className="h-7 w-7 text-zinc-400">
             <MoreHorizontal size={18} />
           </Button>
@@ -137,7 +144,7 @@ export default function SalesTrendChart() {
               <BarChart data={trend} barGap={4} margin={{ top: 8, right: 8, bottom: 0, left: -8 }}>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#EDEDF0" />
                 <XAxis
-                  dataKey="day"
+                  dataKey="label"
                   axisLine={false}
                   tickLine={false}
                   tick={{ fill: "#A1A1AA", fontSize: 12 }}
@@ -152,6 +159,7 @@ export default function SalesTrendChart() {
                 <Tooltip
                   cursor={{ fill: "#F4F4F5" }}
                   formatter={(value, name) => [money(Number(value)), name === "newUser" ? "New customers" : "Existing customers"]}
+                  labelFormatter={(_, payload) => payload?.[0]?.payload?.rangeLabel || payload?.[0]?.payload?.label || ""}
                   labelStyle={{ color: "#18181B", fontWeight: 600 }}
                   contentStyle={{ borderRadius: 8, border: "1px solid #E4E4E7", fontSize: 12 }}
                 />
