@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Check, Edit3, Mail, Package, Phone, Power, Store, Wallet } from "lucide-react";
+import { ArrowLeft, Check, Edit3, Mail, MapPin, Package, Phone, Power, Store, Wallet } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { KpiCard } from "@/components/shared/KpiCard";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useApiPatch, useApiQuery } from "@/lib/query";
 import { cleanError, money, number } from "@/lib/admin-utils";
+import { StateChip, StateDropdown } from "@/components/operations/StateDropdown";
 
 interface VendorDetail {
   id: string;
@@ -22,6 +23,8 @@ interface VendorDetail {
   businessEmail?: string;
   businessPhone?: string;
   businessAddress?: string;
+  stateCode?: string;
+  stateName?: string;
   description?: string;
   tier: string;
   isApproved: boolean;
@@ -48,6 +51,7 @@ export default function VendorDetailPage() {
   const toggle = useApiPatch<{ id: string; isActive: boolean }, undefined>(`/admin/vendors/${id}/toggle`, ["admin", "vendors"], { successMessage: "Vendor status updated" });
   const updateVendor = useApiPatch<VendorDetail, Record<string, unknown>>(`/admin/vendors/${id}`, ["admin", "vendors"], { successMessage: "Vendor updated" });
   const [editing, setEditing] = useState(false);
+  const [editStateCode, setEditStateCode] = useState("LA");
   const vendor = query.data;
   const owner = `${vendor?.owner?.firstName || ""} ${vendor?.owner?.lastName || ""}`.trim() || vendor?.owner?.email || "Owner";
 
@@ -59,7 +63,7 @@ export default function VendorDetailPage() {
         actions={
           <>
             <Button variant="outline" size="sm" onClick={() => router.back()}><ArrowLeft size={15} /> Back</Button>
-            {vendor && <Button variant="outline" size="sm" onClick={() => setEditing(true)}><Edit3 size={15} /> Edit</Button>}
+            {vendor && <Button variant="outline" size="sm" onClick={() => { setEditStateCode(vendor.stateCode || "LA"); setEditing(true); }}><Edit3 size={15} /> Edit</Button>}
             {vendor && !vendor.isApproved && <Button size="sm" variant="brand" onClick={() => approve.mutate(undefined)}><Check size={15} /> Approve</Button>}
             {vendor && <Button size="sm" variant="outline" onClick={() => toggle.mutate(undefined)}><Power size={15} /> {vendor.isActive ? "Deactivate" : "Activate"}</Button>}
           </>
@@ -99,7 +103,8 @@ export default function VendorDetailPage() {
                   <p className="flex items-center gap-2 text-zinc-600"><Phone size={14} /> {vendor.businessPhone || "No phone"}</p>
                 </div>
                 <div>
-                  <p className="text-zinc-500">Address</p>
+                  <p className="flex items-center gap-1 text-zinc-500"><MapPin size={13} /> Address</p>
+                  <div className="mt-2"><StateChip name={vendor.stateName} /></div>
                   <p className="mt-1 leading-6 text-zinc-700">{vendor.businessAddress || "Not set"}</p>
                 </div>
                 <div>
@@ -151,6 +156,7 @@ export default function VendorDetailPage() {
                   businessEmail: payload.businessEmail || undefined,
                   businessPhone: payload.businessPhone || undefined,
                   businessAddress: payload.businessAddress || undefined,
+                  stateCode: editStateCode,
                   description: payload.description || undefined,
                   tier: payload.tier,
                   commissionPercentage: Number(payload.commissionPercentage || 15),
@@ -165,6 +171,10 @@ export default function VendorDetailPage() {
               <div className="space-y-1.5"><Label>Email</Label><Input name="businessEmail" type="email" defaultValue={vendor.businessEmail} /></div>
               <div className="space-y-1.5"><Label>Phone</Label><Input name="businessPhone" defaultValue={vendor.businessPhone} /></div>
               <div className="space-y-1.5 sm:col-span-2"><Label>Address</Label><Input name="businessAddress" defaultValue={vendor.businessAddress} /></div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label>Operating state</Label>
+                <StateDropdown mode="form" value={editStateCode} onChange={setEditStateCode} className="h-9 w-full justify-between gap-2 text-zinc-700" />
+              </div>
               <div className="space-y-1.5 sm:col-span-2"><Label>Description</Label><textarea name="description" defaultValue={vendor.description} className="min-h-20 w-full rounded-md border bg-background p-2 text-sm" /></div>
               <div className="space-y-1.5"><Label>Tier</Label><select name="tier" defaultValue={vendor.tier} className="h-9 w-full rounded-md border bg-background px-2 text-sm"><option value="tier_1">Tier 1</option><option value="tier_2">Tier 2</option><option value="tier_3">Tier 3</option></select></div>
               <div className="space-y-1.5"><Label>Commission %</Label><Input name="commissionPercentage" type="number" defaultValue={vendor.commissionPercentage} /></div>

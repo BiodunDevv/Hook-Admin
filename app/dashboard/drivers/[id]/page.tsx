@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useApiPatch, useApiQuery } from "@/lib/query";
 import { cleanError, number } from "@/lib/admin-utils";
+import { StateChip } from "@/components/operations/StateDropdown";
 
 interface DriverDetail {
   id: string;
@@ -18,6 +19,8 @@ interface DriverDetail {
   firstName?: string;
   lastName?: string;
   isActive: boolean;
+  operationalStateCode?: string;
+  operationalStateName?: string;
   jobs?: Array<{ id: string; status: string; order?: { orderCode?: string; total?: number } }>;
 }
 
@@ -45,9 +48,10 @@ export default function DriverDetailPage() {
           ]} />
           <Card className="rounded-lg shadow-none">
             <CardContent className="p-4">
-              <div className="mb-3 grid gap-2 text-sm sm:grid-cols-3">
+              <div className="mb-3 grid gap-2 text-sm sm:grid-cols-4">
                 <div><p className="text-muted-foreground">Email</p><p>{driver.email}</p></div>
                 <div><p className="text-muted-foreground">Phone</p><p>{driver.phone || "Not set"}</p></div>
+                <div><p className="text-muted-foreground">Operating state</p><div className="mt-1"><StateChip name={driver.operationalStateName} /></div></div>
                 <div><p className="text-muted-foreground">Status</p><StatusBadge status={driver.isActive ? "Active" : "Inactive"} /></div>
               </div>
               <h3 className="mb-2 text-sm font-semibold">Recent Jobs</h3>

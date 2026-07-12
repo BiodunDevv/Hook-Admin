@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { HookLoader } from "@/components/shared/HookLoader";
+import { StateChip } from "@/components/operations/StateDropdown";
 import { money } from "@/lib/admin-utils";
 import { useApiQuery } from "@/lib/query";
 import { apiPatch } from "@/lib/api";
@@ -41,6 +42,8 @@ export interface VendorRow {
   businessName: string;
   businessEmail?: string;
   businessAddress?: string;
+  stateCode?: string;
+  stateName?: string;
   tier: string;
   isApproved: boolean;
   isActive: boolean;
@@ -171,7 +174,12 @@ export function VendorsTable({ queryKey, path, onPageChange }: VendorsTableProps
                     </div>
                   </TableCell>
                   <TableCell className="px-4 py-3 text-zinc-600">{owner}</TableCell>
-                  <TableCell className="max-w-64 truncate px-4 py-3 text-zinc-600">{vendor.businessAddress || "Not set"}</TableCell>
+                  <TableCell className="max-w-64 px-4 py-3 text-zinc-600">
+                    <div className="flex min-w-48 flex-col gap-1">
+                      <StateChip name={vendor.stateName} />
+                      <span className="truncate">{vendor.businessAddress || "Not set"}</span>
+                    </div>
+                  </TableCell>
                   <TableCell className="px-4 py-3">
                     <StatusBadge status={vendor.tier} />
                   </TableCell>

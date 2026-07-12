@@ -1,15 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Building2, Shield, CreditCard, User, Key, Bell } from "lucide-react";
+import { Building2, Shield, CreditCard, User, Key, Bell, MapPin } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SettingsSection } from "@/components/settings/SettingsSection";
+import { OperatingStatesSection } from "@/components/settings/OperatingStatesSection";
 import { SuperAdminGuard } from "@/components/auth/PermissionGuard";
 
 const settingsMenu = [
   { name: "General", icon: Building2 },
+  { name: "Operating States", icon: MapPin },
   { name: "Security", icon: Shield },
   { name: "Notifications", icon: Bell },
   { name: "Billing & Plans", icon: CreditCard },
@@ -62,7 +64,7 @@ export default function SettingsPage() {
 
         {/* Right Settings Form Area */}
         <div className="flex-1 min-w-0">
-          <SettingsSection />
+          {activeSetting === "Operating States" ? <OperatingStatesSection /> : <SettingsSection />}
         </div>
       </div>
     </div>

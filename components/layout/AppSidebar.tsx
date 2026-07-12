@@ -33,6 +33,7 @@ import {
 import { useAdminSession, useApiQuery, useLogout } from "@/lib/query";
 import { hasPermission, type Permission } from "@/lib/permissions";
 import { HookLogo } from "@/components/shared/HookLogo";
+import { HookLoader } from "@/components/shared/HookLoader";
 import { navItems } from "./nav-items";
 
 interface DashboardSummary {
@@ -204,7 +205,7 @@ export default function AppSidebar() {
                   disabled={logout.isPending}
                   className="bg-zinc-950 text-white hover:bg-zinc-800"
                 >
-                  {logout.isPending ? "Logging out..." : "Log out"}
+                  {logout.isPending ? <HookLoader size="button" variant="yellow" /> : "Log out"}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

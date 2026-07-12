@@ -12,6 +12,8 @@ import { HookLoader } from "@/components/shared/HookLoader";
 import { useApiQuery } from "@/lib/query";
 import { useState } from "react";
 import { PermissionGuard } from "@/components/auth/PermissionGuard";
+import { StateDropdown } from "@/components/operations/StateDropdown";
+import { useUrlFilters } from "@/lib/admin-utils";
 
 interface DriverStats {
   total: number;
@@ -22,6 +24,8 @@ interface DriverStats {
 
 export default function DriversPage() {
   const [driverTab, setDriverTab] = useState("all");
+  const filters = useUrlFilters({ stateCode: "all" });
+  const stateCode = filters.get("stateCode") || "all";
   const { data: stats, isLoading } = useApiQuery<DriverStats>(
     ["admin", "dispatch", "drivers-stats"],
     "/admin/dispatch/drivers/stats",
@@ -35,6 +39,7 @@ export default function DriversPage() {
         actions={
           <>
             <SearchInput placeholder="Search driver or order..." className="hidden sm:block w-52 lg:w-64" />
+            <StateDropdown value={stateCode} onChange={(value) => filters.set({ stateCode: value })} />
             <PermissionGuard permission="drivers.edit">
               <Button asChild variant="brand" size="sm" className="gap-1.5">
                 <Link href="/dashboard/drivers/new">
@@ -49,9 +54,9 @@ export default function DriversPage() {
       {/* KPI Cards */}
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {isLoading ? (
-          Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-[88px] animate-pulse rounded-xl border border-border bg-card" />
-          ))
+          <div className="col-span-2 rounded-xl border border-border bg-card py-8 lg:col-span-4">
+            <HookLoader size="page" label="Loading driver stats..." />
+          </div>
         ) : (
           <>
             <KpiCard icon={Zap} tone="green" label="Active EVs" value={stats?.active ?? 0} caption="Online & available" />
@@ -65,7 +70,7 @@ export default function DriversPage() {
       {/* Driver List + Map */}
       <div className="flex flex-col gap-4 lg:flex-row" style={{ minHeight: 500 }}>
         <div className="w-full lg:w-auto">
-          <DriversTable activeTab={driverTab} onTabChange={setDriverTab} />
+          <DriversTable activeTab={driverTab} onTabChange={setDriverTab} stateCode={stateCode} />
         </div>
 
         {/* Map Area */}

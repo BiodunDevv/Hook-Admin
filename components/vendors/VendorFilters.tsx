@@ -12,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { StateDropdown } from "@/components/operations/StateDropdown";
 
 const STATUS_OPTIONS = [
   { label: "All vendors", value: "all" },
@@ -31,9 +32,11 @@ interface VendorFiltersProps {
   search: string;
   status: string;
   tier: string;
+  stateCode: string;
   onSearchChange: (value: string) => void;
   onStatusChange: (value: string) => void;
   onTierChange: (value: string) => void;
+  onStateChange: (value: string) => void;
   onClear: () => void;
 }
 
@@ -41,12 +44,14 @@ export function VendorFilters({
   search,
   status,
   tier,
+  stateCode,
   onSearchChange,
   onStatusChange,
   onTierChange,
+  onStateChange,
   onClear,
 }: VendorFiltersProps) {
-  const activeCount = [search, status !== "all" ? status : "", tier !== "all" ? tier : ""].filter(Boolean).length;
+  const activeCount = [search, status !== "all" ? status : "", tier !== "all" ? tier : "", stateCode !== "all" ? stateCode : ""].filter(Boolean).length;
   const statusLabel = STATUS_OPTIONS.find((option) => option.value === status)?.label || "All vendors";
   const tierLabel = TIER_OPTIONS.find((option) => option.value === tier)?.label || "All tiers";
 
@@ -107,6 +112,8 @@ export function VendorFilters({
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <StateDropdown value={stateCode} onChange={onStateChange} />
         </div>
       </div>
 

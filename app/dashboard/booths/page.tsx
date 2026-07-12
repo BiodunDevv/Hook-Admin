@@ -29,6 +29,8 @@ import { BoothCard, type BoothRow } from "@/components/booths/BoothCard";
 import { PermissionGuard } from "@/components/auth/PermissionGuard";
 import { useApiQuery } from "@/lib/query";
 import { apiPost, apiRequest } from "@/lib/api";
+import { StateDropdown } from "@/components/operations/StateDropdown";
+import { queryString, useUrlFilters } from "@/lib/admin-utils";
 
 interface Page<T> { data: T[]; total: number; }
 
@@ -70,6 +72,7 @@ function ProvisionBoothDialog({
   const [imageUrl, setImageUrl] = useState("");
   const [boothType, setBoothType] = useState<"phygital" | "micro_hub">("phygital");
   const [agentId, setAgentId] = useState<string>("none");
+  const [stateCode, setStateCode] = useState("LA");
 
   async function uploadImage(files: FileList | null) {
     if (!files?.length) return;
@@ -114,7 +117,7 @@ function ProvisionBoothDialog({
       name,
       description: description || undefined,
       boothType,
-      location: { address, lat, lng },
+      location: { address, lat, lng, stateCode },
       previewImageUrl: imageUrl || undefined,
       isActive: true,
     };
@@ -188,6 +191,11 @@ function ProvisionBoothDialog({
           <div className="space-y-1.5">
             <Label htmlFor="booth-address">Address *</Label>
             <Input id="booth-address" name="address" placeholder="Street, area, city" required />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Operating state</Label>
+            <StateDropdown mode="form" value={stateCode} onChange={setStateCode} className="h-9 w-full justify-between gap-2 text-zinc-700" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -277,8 +285,10 @@ function ProvisionBoothDialog({
 export default function BoothsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const filters = useUrlFilters({ stateCode: "all" });
+  const stateCode = filters.get("stateCode") || "all";
 
-  const booths = useApiQuery<Page<BoothRow>>(["admin", "booths"], "/admin/booths?limit=50");
+  const booths = useApiQuery<Page<BoothRow>>(["admin", "booths", stateCode], `/admin/booths${queryString({ limit: 50, stateCode })}`);
   const analytics = useApiQuery<BoothAnalytics>(["admin", "booths", "analytics"], "/admin/booths/analytics");
   const agents = useApiQuery<Page<AgentOption>>(["admin", "field-agents"], "/admin/field-agents?limit=50");
 
@@ -309,6 +319,7 @@ export default function BoothsPage() {
                 className="h-9 w-48 pl-8 lg:w-64"
               />
             </div>
+            <StateDropdown value={stateCode} onChange={(value) => filters.set({ stateCode: value })} />
             <PermissionGuard permission="booths.edit">
               <Button variant="brand" size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)}>
                 <Plus size={15} /> Provision New Booth

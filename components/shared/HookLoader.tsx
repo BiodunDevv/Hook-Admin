@@ -5,11 +5,13 @@ import { cn } from "@/lib/utils";
 interface HookLoaderProps {
   label?: string;
   size?: "page" | "inline" | "button";
+  variant?: "yellow" | "dark";
   className?: string;
 }
 
-export function HookLoader({ label, size = "inline", className }: HookLoaderProps) {
+export function HookLoader({ label, size = "inline", variant, className }: HookLoaderProps) {
   const showLabel = Boolean(label && size !== "button");
+  const tone = variant || (size === "button" ? "dark" : "yellow");
 
   return (
     <div
@@ -17,10 +19,11 @@ export function HookLoader({ label, size = "inline", className }: HookLoaderProp
       role={label ? "status" : undefined}
       aria-label={label}
     >
-      <span
+      <div
         aria-hidden="true"
         className={cn(
-          "hook-loader",
+          "loader",
+          tone === "dark" ? "hook-loader-dark" : "hook-loader-yellow",
           size === "button" && "hook-loader-button",
           size === "inline" && "hook-loader-inline",
           size === "page" && "hook-loader-page",

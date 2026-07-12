@@ -6,6 +6,7 @@ import SalesTrendChart from "@/components/charts/SalesTrendChart";
 import LiveOperations from "@/components/dashboard/LiveOperations";
 import RecentOrders from "@/components/dashboard/RecentOrders";
 import NegotiationPipeline from "@/components/charts/NegotiationPipeline";
+import { HookLoader } from "@/components/shared/HookLoader";
 import { apiGet } from "@/lib/api";
 import type { StatCardData } from "@/lib/data";
 
@@ -189,10 +190,11 @@ export default function DashboardPage() {
 
       {/* Stat cards */}
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {!summary && !error &&
-          Array.from({ length: 8 }).map((_, index) => (
-            <div key={index} className="h-32 animate-pulse rounded-lg border border-zinc-200 bg-white" />
-          ))}
+        {!summary && !error && (
+          <div className="col-span-full rounded-lg border border-zinc-200 bg-white py-12">
+            <HookLoader size="page" label="Loading dashboard stats..." />
+          </div>
+        )}
         {error && (
           <div className="col-span-full rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
             {error}

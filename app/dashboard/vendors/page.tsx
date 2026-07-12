@@ -17,13 +17,14 @@ function csvEscape(value: unknown) {
 }
 
 export default function VendorsPage() {
-  const filters = useUrlFilters({ page: "1", search: "", status: "all", tier: "all" });
+  const filters = useUrlFilters({ page: "1", search: "", status: "all", tier: "all", stateCode: "all" });
   const page = filters.get("page") || "1";
   const search = filters.get("search") || "";
   const status = filters.get("status") || "all";
   const tier = filters.get("tier") || "all";
-  const path = `/admin/vendors${queryString({ page, limit: 12, search, status, tier })}`;
-  const queryKey = ["admin", "vendors", page, search, status, tier] as const;
+  const stateCode = filters.get("stateCode") || "all";
+  const path = `/admin/vendors${queryString({ page, limit: 12, search, status, tier, stateCode })}`;
+  const queryKey = ["admin", "vendors", page, search, status, tier, stateCode] as const;
   const { data } = useApiQuery<Page<VendorRow>>(queryKey, path);
   const stats = data?.stats || {};
 
@@ -38,10 +39,10 @@ export default function VendorsPage() {
       return;
     }
 
-    const header = ["Business", "Owner", "Email", "Tier", "Approved", "Active"];
+    const header = ["Business", "Owner", "Email", "State", "Tier", "Approved", "Active"];
     const body = rows.map((vendor) => {
       const owner = `${vendor.owner?.firstName || ""} ${vendor.owner?.lastName || ""}`.trim() || vendor.owner?.email || "Owner";
-      return [vendor.businessName, owner, vendor.businessEmail, vendor.tier, vendor.isApproved, vendor.isActive].map(csvEscape).join(",");
+      return [vendor.businessName, owner, vendor.businessEmail, vendor.stateName, vendor.tier, vendor.isApproved, vendor.isActive].map(csvEscape).join(",");
     });
     const url = URL.createObjectURL(new Blob([[header.join(","), ...body].join("\n")], { type: "text/csv;charset=utf-8" }));
     const anchor = document.createElement("a");
@@ -87,10 +88,12 @@ export default function VendorsPage() {
           search={search}
           status={status}
           tier={tier}
+          stateCode={stateCode}
           onSearchChange={(value) => setFilter("search", value)}
           onStatusChange={(value) => setFilter("status", value)}
           onTierChange={(value) => setFilter("tier", value)}
-          onClear={() => filters.set({ search: "", status: "all", tier: "all", page: 1 })}
+          onStateChange={(value) => setFilter("stateCode", value)}
+          onClear={() => filters.set({ search: "", status: "all", tier: "all", stateCode: "all", page: 1 })}
         />
         <VendorsTable queryKey={queryKey} path={path} onPageChange={(nextPage) => filters.set({ page: nextPage })} />
       </div>

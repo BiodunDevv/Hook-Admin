@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { useApiQuery } from "@/lib/query";
 import { SuperAdminGuard } from "@/components/auth/PermissionGuard";
 import { money } from "@/lib/admin-utils";
+import { HookLoader } from "@/components/shared/HookLoader";
 
 const TIME_TABS = ["24H", "7D", "30D", "YTD"];
 
@@ -90,9 +91,9 @@ export default function FinancialsPage() {
       {/* KPIs */}
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {isLoading ? (
-          Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-22 animate-pulse rounded-xl border border-border bg-card" />
-          ))
+          <div className="col-span-2 rounded-xl border border-border bg-card py-8 lg:col-span-4">
+            <HookLoader size="page" label="Loading financial stats..." />
+          </div>
         ) : (
           <>
             <KpiCard icon={TrendingUp} tone="green" label="Total Processed Vol." value={money(kpis.grossVolume)} caption="Gross payment volume" />

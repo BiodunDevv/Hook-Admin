@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 import { Navigation, ArrowRight } from "lucide-react";
 import { useApiQuery } from "@/lib/query";
 import { HookLoader } from "@/components/shared/HookLoader";
+import { StateChip } from "@/components/operations/StateDropdown";
+import { queryString } from "@/lib/admin-utils";
 
 interface DriverRow {
   id: string;
@@ -13,6 +15,8 @@ interface DriverRow {
   lastName?: string;
   email: string;
   isActive: boolean;
+  operationalStateCode?: string;
+  operationalStateName?: string;
 }
 
 interface DriversResponse {
@@ -30,11 +34,13 @@ const STATUS_COLORS: Record<string, string> = {
 
 interface DriversTableProps {
   activeTab: string;
+  stateCode: string;
   onTabChange: (tab: string) => void;
 }
 
-export function DriversTable({ activeTab, onTabChange }: DriversTableProps) {
-  const { data, isLoading, error } = useApiQuery<DriverRow[] | DriversResponse>(["admin", "drivers"], "/admin/dispatch/drivers");
+export function DriversTable({ activeTab, stateCode, onTabChange }: DriversTableProps) {
+  const path = `/admin/dispatch/drivers${queryString({ stateCode })}`;
+  const { data, isLoading, error } = useApiQuery<DriverRow[] | DriversResponse>(["admin", "drivers", stateCode], path);
   const drivers = Array.isArray(data) ? data : data?.data || [];
   const errorMessage = error instanceof Error ? error.message.replace(/^\d+:\s*/, "") : "";
 
@@ -88,10 +94,11 @@ export function DriversTable({ activeTab, onTabChange }: DriversTableProps) {
               </Badge>
               <div className="mt-2 flex items-center gap-1.5 text-xs text-zinc-500">
                 <Navigation size={11} />
-                <span>Fleet pool</span>
+                <span>{d.operationalStateName || "Fleet pool"}</span>
                 <ArrowRight size={10} className="text-zinc-300" />
                 <span>Available jobs</span>
               </div>
+              <div className="mt-2"><StateChip name={d.operationalStateName} /></div>
             </div>
           );})}
         </div>

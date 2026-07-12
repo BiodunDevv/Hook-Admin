@@ -17,6 +17,8 @@ import type { QueueItem } from "@/components/field-agents/AgentReviewCard";
 import { useApiQuery } from "@/lib/query";
 import { apiPatch } from "@/lib/api";
 import { Search } from "lucide-react";
+import { StateChip, StateDropdown } from "@/components/operations/StateDropdown";
+import { queryString, useUrlFilters } from "@/lib/admin-utils";
 
 interface QaStats {
   pendingReview: number;
@@ -34,6 +36,8 @@ interface QueueResponse {
 interface AgentRow {
   id: string;
   assignedMarket: string;
+  stateCode?: string;
+  stateName?: string;
   isActive: boolean;
   agent?: { firstName?: string; lastName?: string; email?: string; phone?: string };
   stats?: { productsUploaded: number; pendingApproval: number; approvedToday: number };
@@ -83,6 +87,7 @@ function AgentDirectoryCard({ row, onRefresh }: { row: AgentRow; onRefresh: () =
             <p className="flex items-center gap-1 truncate text-xs text-zinc-500">
               <MapPin size={11} className="shrink-0 text-zinc-400" /> {row.assignedMarket}
             </p>
+            <div className="mt-1"><StateChip name={row.stateName} /></div>
           </div>
         </div>
 
@@ -125,11 +130,13 @@ function AgentDirectoryCard({ row, onRefresh }: { row: AgentRow; onRefresh: () =
 
 export default function FieldAgentsPage() {
   const [search, setSearch] = useState("");
+  const filters = useUrlFilters({ stateCode: "all" });
+  const stateCode = filters.get("stateCode") || "all";
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const stats = useApiQuery<QaStats>(["admin", "field-agents", "stats"], "/admin/field-agents/stats");
   const queue = useApiQuery<QueueResponse>(["admin", "field-agents", "queue"], "/admin/field-agents/queue?limit=50");
-  const agents = useApiQuery<AgentsResponse>(["admin", "field-agents"], "/admin/field-agents?limit=50");
+  const agents = useApiQuery<AgentsResponse>(["admin", "field-agents", stateCode], `/admin/field-agents${queryString({ limit: 50, stateCode })}`);
 
   const queueItems = (queue.data?.data ?? []).filter((item) =>
     !search || [item.title, item.market, item.agentName, item.category].some((v) =>
@@ -170,15 +177,18 @@ export default function FieldAgentsPage() {
         title="Field Agents & QA"
         description="Review catalog uploads from the field and manage market-assigned agents."
         actions={
-          <div className="relative hidden sm:block">
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
-            <Input
-              placeholder="Search items or agents..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="h-9 w-52 pl-8 lg:w-72"
-            />
-          </div>
+          <>
+            <div className="relative hidden sm:block">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+              <Input
+                placeholder="Search items or agents..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-9 w-52 pl-8 lg:w-72"
+              />
+            </div>
+            <StateDropdown value={stateCode} onChange={(value) => filters.set({ stateCode: value })} />
+          </>
         }
       />
 

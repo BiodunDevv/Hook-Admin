@@ -9,13 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PermissionGuard } from "@/components/auth/PermissionGuard";
 import { apiPatch } from "@/lib/api";
+import { StateChip } from "@/components/operations/StateDropdown";
 
 export interface BoothRow {
   id: string;
   name: string;
   description?: string;
   boothType: "phygital" | "micro_hub" | string;
-  location?: { address?: string; lat?: number; lng?: number };
+  location?: { address?: string; lat?: number; lng?: number; stateCode?: string; stateName?: string };
   operatingHours?: { open?: string; close?: string; days?: string };
   previewImageUrl?: string;
   isActive: boolean;
@@ -107,6 +108,7 @@ export function BoothCard({ booth, onRefresh }: BoothCardProps) {
               {booth.operatingHours.days ? ` · ${booth.operatingHours.days}` : ""}
             </span>
           )}
+          <StateChip name={booth.location?.stateName} />
         </div>
 
         {booth.description && (
