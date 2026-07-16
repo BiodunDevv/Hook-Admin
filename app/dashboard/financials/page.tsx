@@ -22,6 +22,7 @@ import { useApiQuery } from "@/lib/query";
 import { SuperAdminGuard } from "@/components/auth/PermissionGuard";
 import { money } from "@/lib/admin-utils";
 import { HookLoader } from "@/components/shared/HookLoader";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const TIME_TABS = ["24H", "7D", "30D", "YTD"];
 
@@ -32,11 +33,16 @@ interface FinancialsSummary {
   pendingPayouts: number;
   recentPayments: unknown[];
   recentSettlements: unknown[];
+  trend: Array<{ label: string; volume: number; revenue: number }>;
 }
 
 export default function FinancialsPage() {
   const [activeTime, setActiveTime] = useState("7D");
-  const { data, isLoading, error } = useApiQuery<FinancialsSummary>(["admin", "financials"], "/admin/financials");
+  const [boothId, setBoothId] = useState("all");
+  const booths = useApiQuery<{ data: Array<{ id: string; name: string }> }>(["admin", "booths", "financial-filter"], "/admin/booths?limit=100");
+  const { data, isLoading, error } = useApiQuery<FinancialsSummary>(["admin", "financials", activeTime, boothId], `/admin/financials?period=${activeTime.toLowerCase()}${boothId === "all" ? "" : `&boothId=${boothId}`}`);
+  const trend = data?.trend || [];
+  const trendMax = Math.max(1, ...trend.flatMap((row) => [row.volume, row.revenue]));
 
   const kpis = {
     grossVolume: data?.grossVolume ?? 0,
@@ -54,6 +60,7 @@ export default function FinancialsPage() {
         description="Manage platform revenue, vendor payouts, and escrow balances."
         actions={
           <>
+            <Select value={boothId} onValueChange={setBoothId}><SelectTrigger className="h-9 w-40 bg-white"><SelectValue placeholder="All booths" /></SelectTrigger><SelectContent><SelectItem value="all">All booths</SelectItem>{(booths.data?.data || []).map((booth) => <SelectItem key={booth.id} value={booth.id}>{booth.name}</SelectItem>)}</SelectContent></Select>
             <div className="flex items-center rounded-lg border border-zinc-200 bg-white p-1 shadow-sm">
               {TIME_TABS.map((tab) => (
                 <button
@@ -123,44 +130,15 @@ export default function FinancialsPage() {
             </div>
           </div>
 
-          {/* Chart Area */}
-          <div className="relative flex min-h-50 flex-1 flex-col sm:min-h-0">
-            <div className="absolute inset-0 flex flex-col justify-between pb-6 text-xs text-zinc-400">
-              {["₦10.0M", "₦7.5M", "₦5.0M", "₦2.5M", "₦0.0M"].map((val, i) => (
-                <div key={i} className="flex w-full items-center gap-3">
-                  <span className="w-10 text-left">{val}</span>
-                  <div className="flex-1 border-b border-dashed border-zinc-200" />
-                </div>
-              ))}
-            </div>
-
-            <div className="pointer-events-none absolute inset-0 left-13 right-0 pb-6">
-              <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="h-full w-full">
-                <defs>
-                  <linearGradient id="revenue-gradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#FFC107" stopOpacity="0.4" />
-                    <stop offset="100%" stopColor="#FFC107" stopOpacity="0.0" />
-                  </linearGradient>
-                </defs>
-                <path
-                  d="M 0 100 L 0 55 C 15 45, 25 55, 40 50 C 55 45, 65 25, 80 15 C 90 8, 95 5, 100 5 L 100 100 Z"
-                  fill="url(#revenue-gradient)"
-                />
-                <path
-                  d="M 0 55 C 15 45, 25 55, 40 50 C 55 45, 65 25, 80 15 C 90 8, 95 5, 100 5"
-                  fill="none"
-                  stroke="#FFC107"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </div>
-
-            <div className="mt-auto flex justify-between pl-13 pr-2 pt-3 text-xs text-zinc-400">
-              {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
-                <span key={day}>{day}</span>
-              ))}
-            </div>
+          <div className="flex min-h-50 flex-1 items-end gap-2 overflow-x-auto border-b border-zinc-200 px-1 pt-6">
+            {!isLoading && trend.length === 0 && <div className="m-auto text-center"><p className="font-medium text-zinc-700">No settled payment activity</p><p className="mt-1 text-sm text-zinc-500">Verified OPay transactions for this period will appear here.</p></div>}
+            {trend.map((row) => <div key={row.label} className="flex h-full min-w-12 flex-1 flex-col justify-end gap-1 text-center" title={`${row.label}: ${money(row.volume)} volume, ${money(row.revenue)} revenue`}>
+              <div className="mx-auto flex h-[85%] items-end gap-1">
+                <div className="w-3 rounded-t bg-zinc-800" style={{ height: `${Math.max(3, row.volume / trendMax * 100)}%` }} />
+                <div className="w-3 rounded-t bg-brand-gold" style={{ height: `${Math.max(3, row.revenue / trendMax * 100)}%` }} />
+              </div>
+              <span className="truncate pb-2 text-[10px] text-zinc-500">{row.label}</span>
+            </div>)}
           </div>
         </Card>
 

@@ -72,6 +72,7 @@ function ProvisionBoothDialog({
   const [imageUrl, setImageUrl] = useState("");
   const [boothType, setBoothType] = useState<"phygital" | "micro_hub">("phygital");
   const [agentId, setAgentId] = useState<string>("none");
+  const [attendantMode, setAttendantMode] = useState<"existing" | "new">("existing");
   const [stateCode, setStateCode] = useState("LA");
 
   async function uploadImage(files: FileList | null) {
@@ -121,7 +122,13 @@ function ProvisionBoothDialog({
       previewImageUrl: imageUrl || undefined,
       isActive: true,
     };
-    if (agentId !== "none") payload.fieldAgentId = agentId;
+    if (attendantMode === "existing" && agentId !== "none") payload.fieldAgentId = agentId;
+    if (attendantMode === "new") payload.newAttendant = {
+      firstName: String(form.get("attendantFirstName") || "").trim(),
+      lastName: String(form.get("attendantLastName") || "").trim(),
+      email: String(form.get("attendantEmail") || "").trim(),
+      phone: String(form.get("attendantPhone") || "").trim(),
+    };
 
     setLoading(true);
     try {
@@ -174,19 +181,31 @@ function ProvisionBoothDialog({
             </div>
             <div className="space-y-1.5">
               <Label>Attendant</Label>
-              <Select value={agentId} onValueChange={setAgentId}>
+              <Select value={attendantMode} onValueChange={(value) => setAttendantMode(value as "existing" | "new")}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Assign an agent" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Unassigned</SelectItem>
-                  {agents.map((agent) => (
-                    <SelectItem key={agent.id} value={agent.id}>{agentLabel(agent)}</SelectItem>
-                  ))}
+                  <SelectItem value="existing">Choose existing</SelectItem>
+                  <SelectItem value="new">Add new attendant</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
+
+          {attendantMode === "existing" ? (
+            <div className="space-y-1.5">
+              <Label>Existing attendant</Label>
+              <Select value={agentId} onValueChange={setAgentId}><SelectTrigger className="w-full"><SelectValue placeholder="Assign an attendant" /></SelectTrigger><SelectContent><SelectItem value="none">Unassigned</SelectItem>{agents.map((agent) => <SelectItem key={agent.id} value={agent.id}>{agentLabel(agent)}</SelectItem>)}</SelectContent></Select>
+            </div>
+          ) : (
+            <div className="rounded-lg border bg-zinc-50 p-3">
+              <p className="mb-3 text-sm font-medium">New attendant profile</p>
+              <div className="grid grid-cols-2 gap-3"><Input name="attendantFirstName" placeholder="First name" required /><Input name="attendantLastName" placeholder="Last name" required /></div>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2"><Input name="attendantEmail" type="email" placeholder="Email address" required /><Input name="attendantPhone" type="tel" placeholder="Phone number" required /></div>
+              <p className="mt-2 text-xs text-muted-foreground">A field-agent account is created and assigned immediately.</p>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <Label htmlFor="booth-address">Address *</Label>

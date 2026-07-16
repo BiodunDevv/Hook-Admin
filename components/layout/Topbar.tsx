@@ -172,6 +172,7 @@ const navPermissionMap: Record<string, Permission> = {
   "Field Agents": "field_agents.view",
   "Booths": "booths.view",
   "Financials": "financials.view",
+  "Refunds": "refunds.view",
   "AI Negotiation": "ai_negotiation.view",
   "Reports": "reports.view",
   "Settings": "settings.view",

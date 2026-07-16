@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Ban, Boxes, Check, Edit3, Eye, Info, Layers, Mail, PackageCheck, Phone, UserCheck, WalletCards } from "lucide-react";
+import { ArrowLeft, Ban, Boxes, Check, Edit3, Eye, Info, Layers, Mail, PackageCheck, Phone, UserCheck, WalletCards, X } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { KpiCard } from "@/components/shared/KpiCard";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -93,6 +93,8 @@ export default function ProductDetailPage() {
   const updateProduct = useApiPatch<ProductDetail, Record<string, unknown>>(`/admin/products/${id}`, ["admin", "products"], { successMessage: "Product updated" });
   const [editing, setEditing] = useState(false);
   const [editImages, setEditImages] = useState<string[]>([]);
+  const [editColors, setEditColors] = useState<string[]>([]);
+  const [editColorValue, setEditColorValue] = useState("#FFC809");
   const [editStatus, setEditStatus] = useState("pending_approval");
   const product = query.data;
   const heroImage = absoluteImageUrl(product?.images?.[0]);
@@ -100,6 +102,7 @@ export default function ProductDetailPage() {
   useEffect(() => {
     if (product) {
       setEditImages(product.images || []);
+      setEditColors(product.colors || []);
       setEditStatus(product.status);
     }
   }, [product?.id]);
@@ -112,7 +115,7 @@ export default function ProductDetailPage() {
         actions={
           <>
             <Button variant="outline" size="sm" onClick={() => router.back()}><ArrowLeft size={15} /> Back</Button>
-            {product && <Button variant="outline" size="sm" onClick={() => { setEditImages(product.images || []); setEditing(true); }}><Edit3 size={15} /> Edit</Button>}
+            {product && <Button variant="outline" size="sm" onClick={() => { setEditImages(product.images || []); setEditColors(product.colors || []); setEditing(true); }}><Edit3 size={15} /> Edit</Button>}
             {product && product.status !== "approved" && <Button size="sm" variant="brand" onClick={() => approve.mutate({ status: "approved" })}><Check size={15} /> Approve</Button>}
             {product && product.status !== "disabled" && <Button size="sm" variant="outline" onClick={() => disable.mutate(undefined)}><Ban size={15} /> Disable</Button>}
           </>
@@ -290,7 +293,7 @@ export default function ProductDetailPage() {
                   minAcceptablePrice: Number(payload.minAcceptablePrice || 0),
                   quantity: Number(payload.quantity || 0),
                   images: editImages,
-                  colors: String(payload.colors || "").split(",").map((item) => item.trim()).filter(Boolean),
+                  colors: editColors,
                   sizes: String(payload.sizes || "").split(",").map((item) => item.trim()).filter(Boolean),
                   status: editStatus,
                 });
@@ -305,7 +308,7 @@ export default function ProductDetailPage() {
               <Field><PriceLabel help="Lowest price AI negotiation can accept. It must not exceed the Hook platform price.">Negotiation Floor</PriceLabel><Input name="minAcceptablePrice" type="number" min="1" defaultValue={String(product.minAcceptablePrice)} /></Field>
               <Field><FieldLabel>Stock</FieldLabel><Input name="quantity" type="number" min="0" defaultValue={String(product.quantity)} /></Field>
               <Field><FieldLabel>Status</FieldLabel><Select value={editStatus} onValueChange={setEditStatus}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="draft">Draft</SelectItem><SelectItem value="pending_approval">Pending</SelectItem><SelectItem value="approved">Approved</SelectItem><SelectItem value="rejected">Rejected</SelectItem><SelectItem value="disabled">Disabled</SelectItem></SelectContent></Select></Field>
-              <Field><FieldLabel>Colors</FieldLabel><Input name="colors" defaultValue={(product.colors || []).join(", ")} /></Field>
+              <Field className="sm:col-span-2"><FieldLabel>Colors</FieldLabel><div className="flex flex-wrap items-center gap-2">{editColors.map((color) => <button key={color} type="button" onClick={() => setEditColors((current) => current.filter((item) => item !== color))} className="flex h-9 items-center gap-2 rounded-md border border-zinc-200 bg-white px-2 text-xs font-medium text-zinc-600" title={`Remove ${color}`}><span className="size-4 rounded-full border border-zinc-300" style={{ backgroundColor: color }} /><span className="font-mono">{color}</span><X size={12} /></button>)}<input value={editColorValue} onChange={(event) => setEditColorValue(event.target.value.toUpperCase())} type="color" className="h-9 w-11 rounded-md border border-zinc-200 bg-white p-1" aria-label="Pick product color" /><Button type="button" variant="outline" size="sm" onClick={() => setEditColors((current) => current.includes(editColorValue) ? current : [...current, editColorValue])}>Add color</Button></div></Field>
               <Field><FieldLabel>Sizes</FieldLabel><Input name="sizes" defaultValue={(product.sizes || []).join(", ")} /></Field>
               <div className="sm:col-span-2">
                 <MediaPicker

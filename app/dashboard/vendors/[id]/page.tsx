@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { useApiPatch, useApiQuery } from "@/lib/query";
 import { cleanError, money, number } from "@/lib/admin-utils";
 import { StateChip, StateDropdown } from "@/components/operations/StateDropdown";
+import { MediaPicker } from "@/components/shared/MediaPicker";
 
 interface VendorDetail {
   id: string;
@@ -26,6 +27,7 @@ interface VendorDetail {
   stateCode?: string;
   stateName?: string;
   description?: string;
+  imageUrl?: string;
   tier: string;
   isApproved: boolean;
   isActive: boolean;
@@ -52,6 +54,7 @@ export default function VendorDetailPage() {
   const updateVendor = useApiPatch<VendorDetail, Record<string, unknown>>(`/admin/vendors/${id}`, ["admin", "vendors"], { successMessage: "Vendor updated" });
   const [editing, setEditing] = useState(false);
   const [editStateCode, setEditStateCode] = useState("LA");
+  const [editImageUrls, setEditImageUrls] = useState<string[]>([]);
   const vendor = query.data;
   const owner = `${vendor?.owner?.firstName || ""} ${vendor?.owner?.lastName || ""}`.trim() || vendor?.owner?.email || "Owner";
 
@@ -63,7 +66,7 @@ export default function VendorDetailPage() {
         actions={
           <>
             <Button variant="outline" size="sm" onClick={() => router.back()}><ArrowLeft size={15} /> Back</Button>
-            {vendor && <Button variant="outline" size="sm" onClick={() => { setEditStateCode(vendor.stateCode || "LA"); setEditing(true); }}><Edit3 size={15} /> Edit</Button>}
+            {vendor && <Button variant="outline" size="sm" onClick={() => { setEditStateCode(vendor.stateCode || "LA"); setEditImageUrls(vendor.imageUrl ? [vendor.imageUrl] : []); setEditing(true); }}><Edit3 size={15} /> Edit</Button>}
             {vendor && !vendor.isApproved && <Button size="sm" variant="brand" onClick={() => approve.mutate(undefined)}><Check size={15} /> Approve</Button>}
             {vendor && <Button size="sm" variant="outline" onClick={() => toggle.mutate(undefined)}><Power size={15} /> {vendor.isActive ? "Deactivate" : "Activate"}</Button>}
           </>
@@ -85,6 +88,14 @@ export default function VendorDetailPage() {
           <div className="grid gap-4 lg:grid-cols-3">
             <Card className="rounded-lg border-zinc-200 py-0 shadow-card">
               <CardContent className="space-y-4 p-4 text-sm">
+                {vendor.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={vendor.imageUrl} alt={vendor.businessName} className="h-36 w-full rounded-lg object-cover" />
+                ) : (
+                  <div className="flex h-36 w-full items-center justify-center rounded-lg border border-dashed border-zinc-200 bg-zinc-50 text-xs text-zinc-400">
+                    No photo — add one from Edit
+                  </div>
+                )}
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-zinc-500">Status</span>
                   <StatusBadge status={vendorStatus(vendor)} />
@@ -158,6 +169,7 @@ export default function VendorDetailPage() {
                   businessAddress: payload.businessAddress || undefined,
                   stateCode: editStateCode,
                   description: payload.description || undefined,
+                  imageUrl: editImageUrls[0] || undefined,
                   tier: payload.tier,
                   commissionPercentage: Number(payload.commissionPercentage || 15),
                   isApproved: payload.isApproved === "true",
@@ -176,6 +188,15 @@ export default function VendorDetailPage() {
                 <StateDropdown mode="form" value={editStateCode} onChange={setEditStateCode} className="h-9 w-full justify-between gap-2 text-zinc-700" />
               </div>
               <div className="space-y-1.5 sm:col-span-2"><Label>Description</Label><textarea name="description" defaultValue={vendor.description} className="min-h-20 w-full rounded-md border bg-background p-2 text-sm" /></div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label>Vendor / Market Photo</Label>
+                <MediaPicker
+                  value={editImageUrls}
+                  onChange={(urls) => setEditImageUrls(urls.slice(-1))}
+                  label="Vendor photo"
+                  description="Shown on the customer-facing mobile home screen."
+                />
+              </div>
               <div className="space-y-1.5"><Label>Tier</Label><select name="tier" defaultValue={vendor.tier} className="h-9 w-full rounded-md border bg-background px-2 text-sm"><option value="tier_1">Tier 1</option><option value="tier_2">Tier 2</option><option value="tier_3">Tier 3</option></select></div>
               <div className="space-y-1.5"><Label>Commission %</Label><Input name="commissionPercentage" type="number" defaultValue={vendor.commissionPercentage} /></div>
               <div className="space-y-1.5"><Label>Approved</Label><select name="isApproved" defaultValue={String(vendor.isApproved)} className="h-9 w-full rounded-md border bg-background px-2 text-sm"><option value="true">Approved</option><option value="false">Pending</option></select></div>

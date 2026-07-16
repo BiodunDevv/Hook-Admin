@@ -11,6 +11,9 @@ import {
   Bot,
   BarChart3,
   Settings,
+  LifeBuoy,
+  ChartNoAxesCombined,
+  RotateCcw,
 } from "lucide-react";
 
 export interface NavItem {
@@ -30,7 +33,10 @@ export const navItems: NavItem[] = [
   { label: "Field Agents", href: "/dashboard/field-agents", icon: UsersRound },
   { label: "Booths", href: "/dashboard/booths", icon: MapPinned },
   { label: "Customers", href: "/dashboard/customers", icon: Users },
+  { label: "Support", href: "/dashboard/support", icon: LifeBuoy },
   { label: "Financials", href: "/dashboard/financials", icon: Wallet },
+  { label: "Refunds", href: "/dashboard/refunds", icon: RotateCcw },
+  { label: "Checkout Analytics", href: "/dashboard/checkout-analytics", icon: ChartNoAxesCombined },
   { label: "AI Negotiation", href: "/dashboard/ai-negotiation", icon: Bot },
   { label: "Reports", href: "/dashboard/reports", icon: BarChart3 },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },

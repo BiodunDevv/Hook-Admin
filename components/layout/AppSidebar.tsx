@@ -72,6 +72,8 @@ export default function AppSidebar() {
     "Field Agents": "field_agents.view",
     "Booths": "booths.view",
     "Financials": "financials.view",
+    "Support": "deletions.view",
+    "Checkout Analytics": "analytics.checkout",
     "AI Negotiation": "ai_negotiation.view",
     "Reports": "reports.view",
     "Settings": "settings.view",

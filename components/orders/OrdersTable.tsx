@@ -233,8 +233,8 @@ export function OrdersTable({ queryKey, path, onPageChange }: OrdersTableProps) 
             <Button variant="outline" className="justify-start text-emerald-700" onClick={() => updateOrderStatus("delivered")}>
               <CheckCircle2 size={15} /> Mark delivered
             </Button>
-            <Button variant="outline" className="justify-start text-blue-700" onClick={() => updateOrderStatus("in_transit")}>
-              <CheckCircle2 size={15} /> Mark in transit
+            <Button variant="outline" className="justify-start text-blue-700" onClick={() => updateOrderStatus("shipped")}>
+              <CheckCircle2 size={15} /> Mark shipped
             </Button>
             <Button variant="outline" className="justify-start text-red-700" onClick={() => updateOrderStatus("cancelled")}>
               <XCircle size={15} /> Cancel order

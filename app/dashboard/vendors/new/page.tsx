@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,16 +12,23 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useApiPost } from "@/lib/query";
 import { HookLoader } from "@/components/shared/HookLoader";
 import { StateDropdown } from "@/components/operations/StateDropdown";
+import { MediaPicker } from "@/components/shared/MediaPicker";
 
 export default function NewVendorPage() {
   const router = useRouter();
   const [stateCode, setStateCode] = useState("LA");
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
   const createVendor = useApiPost<{ id: string }, Record<string, unknown>>("/admin/vendors", ["admin", "vendors"], { successMessage: "Vendor onboarded" });
 
   async function submit(formData: FormData) {
+    if (!imageUrls[0]) {
+      toast.error("A professional photo is required — this appears on the customer-facing home screen.");
+      return;
+    }
     const payload = Object.fromEntries(formData.entries());
     const vendor = await createVendor.mutateAsync({
       ...payload,
+      imageUrl: imageUrls[0],
       commissionPercentage: Number(payload.commissionPercentage || 15),
       isApproved: payload.isApproved === "on",
       isActive: true,
@@ -57,6 +65,15 @@ export default function NewVendorPage() {
               <Label>Operating state</Label>
               <input type="hidden" name="stateCode" value={stateCode} />
               <StateDropdown mode="form" value={stateCode} onChange={setStateCode} className="h-9 w-full justify-between gap-2 text-zinc-700" />
+            </div>
+            <div className="md:col-span-2 space-y-1.5">
+              <Label>Vendor / Market Photo *</Label>
+              <MediaPicker
+                value={imageUrls}
+                onChange={(urls) => setImageUrls(urls.slice(-1))}
+                label="Vendor photo"
+                description="A professional photo of the storefront or market — this appears on the customer-facing mobile home screen."
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="tier">Tier</Label>
