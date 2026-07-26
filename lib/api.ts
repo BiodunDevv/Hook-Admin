@@ -227,7 +227,7 @@ export async function loginPlatformAccount(
   accountType: "runner" | "partner",
 ) {
   const session = await apiRequest<AuthSession>(
-    "/auth/login",
+    `/${accountType}/auth/login`,
     { method: "POST", body: JSON.stringify({ email, password }) },
     { auth: false },
   );
