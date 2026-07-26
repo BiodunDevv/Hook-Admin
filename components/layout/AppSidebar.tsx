@@ -63,7 +63,8 @@ export default function AppSidebar() {
   // For support role: filter nav items based on their permissions
   const navPermissionMap: Record<string, Permission> = {
     "Orders": "orders.view",
-    "Commercial Catalog": "products.view",
+    "Catalog Review": "catalog.submission.view",
+    "Commercial Catalog": "catalog.product.view",
     "Customers": "customers.view",
     "Runner Operations": "runners.view",
     "Markets": "markets.view",

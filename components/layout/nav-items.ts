@@ -2,6 +2,7 @@ import {
   LayoutGrid,
   ShoppingCart,
   Package,
+  ClipboardCheck,
   UsersRound,
   Users,
   Wallet,
@@ -28,7 +29,8 @@ export interface NavItem {
 export const navItems: NavItem[] = [
   { label: "Control Tower", href: "/dashboard", icon: LayoutGrid },
   { label: "Orders", href: "/dashboard/orders", icon: ShoppingCart },
-  { label: "Commercial Catalog", href: "/dashboard/products", icon: Package },
+  { label: "Catalog Review", href: "/dashboard/catalog-review", icon: ClipboardCheck },
+  { label: "Commercial Catalog", href: "/dashboard/commercial", icon: Package },
   { label: "Runner Operations", href: "/dashboard/runners", icon: UsersRound },
   { label: "Markets", href: "/dashboard/markets", icon: MapPinned },
   { label: "Dispatch Hubs", href: "/dashboard/hubs", icon: Warehouse },

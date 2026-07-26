@@ -19,7 +19,13 @@ export function PortalShell({
   const router = useRouter();
   const base = `/${type}`;
   const links = type === "runner"
-    ? [["Dashboard", base], ["Assigned Markets", `${base}/markets`], ["Profile", `${base}/profile`], ["Security", `${base}/security`]]
+    ? [
+        ["Dashboard", base],
+        ["Submissions", `${base}/submissions`],
+        ["Assigned Markets", `${base}/markets`],
+        ["Profile", `${base}/profile`],
+        ["Security", `${base}/security`],
+      ]
     : [["Dashboard", base], ["Location", `${base}/location`], ["Profile", `${base}/profile`], ["Security", `${base}/security`]];
   if (pathname === `${base}/login`) return <>{children}</>;
   async function logout() {
