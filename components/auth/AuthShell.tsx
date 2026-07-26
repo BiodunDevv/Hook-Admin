@@ -13,7 +13,7 @@ const copy = {
     eyebrow: "Admin operations",
     title: "Secure marketplace control for Hook teams.",
     description:
-      "Sign in to manage orders, vendors, dispatch, financials, and AI negotiation activity from one protected console.",
+      "Sign in to manage orders, catalog operations, finance, support, and AI negotiation activity from one protected console.",
     footer: "Hook admin security layer",
   },
   "/forgot-password": {

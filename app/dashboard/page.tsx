@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import StatCard from "@/components/shared/StatCard";
 import SalesTrendChart from "@/components/charts/SalesTrendChart";
-import LiveOperations from "@/components/dashboard/LiveOperations";
 import RecentOrders from "@/components/dashboard/RecentOrders";
 import NegotiationPipeline from "@/components/charts/NegotiationPipeline";
 import { HookLoader } from "@/components/shared/HookLoader";
@@ -23,21 +22,14 @@ interface DashboardSummary {
   deliverySla: DashboardMetric;
   aiNegotiation: DashboardMetric;
   customerSatisfaction: DashboardMetric;
-  activeVendors: DashboardMetric;
-  activeDrivers: DashboardMetric;
+  activeRunners: DashboardMetric;
+  publishedProducts: DashboardMetric;
 }
 
 type LegacyDashboardSummary = Partial<{
-  vendors: { total: number; active?: number; pending: number };
   orders: { total: number; active?: number; pending: number; delivered: number; today: number };
   revenue: { total: number; grossMerchandise?: number };
-  logistics: {
-    activeDeliveries: number;
-    totalDrivers: number;
-    activeDrivers?: number;
-    deliverySla?: number;
-    averageDeliveryHours?: number;
-  };
+  logistics: { deliverySla?: number; averageDeliveryHours?: number };
   negotiations: { total: number; accepted?: number; conversionRate?: number; averageSavings?: number };
   customers: { satisfactionScore: number; reviewCount: number };
 }>;
@@ -85,8 +77,8 @@ function normalizeDashboardSummary(payload: DashboardSummary | LegacyDashboardSu
     deliverySla: metric(legacy.logistics?.deliverySla, 0, `avg ${legacy.logistics?.averageDeliveryHours ?? 0}h delivery`),
     aiNegotiation: metric(legacy.negotiations?.conversionRate, 0, `avg ${formatNaira(legacy.negotiations?.averageSavings ?? 0)} saved`),
     customerSatisfaction: metric(legacy.customers?.satisfactionScore, 0, `from ${formatNumber(legacy.customers?.reviewCount ?? 0)} reviews`),
-    activeVendors: metric(legacy.vendors?.active ?? legacy.vendors?.total, 0, "across 8 cities"),
-    activeDrivers: metric(legacy.logistics?.activeDrivers ?? legacy.logistics?.totalDrivers, -1.2, "0% utilization"),
+    activeRunners: metric(0, 0, "market-side operations"),
+    publishedProducts: metric(0, 0, "commercially approved"),
   };
 }
 
@@ -163,19 +155,19 @@ export default function DashboardPage() {
         sparkline: [7, 7, 7, 7, 7, 7, 7],
       },
       {
-        label: "Active Vendors",
-        value: formatNumber(summary.activeVendors.value),
-        delta: formatChange(summary.activeVendors.change),
-        trend: trendFor(summary.activeVendors.change),
-        caption: summary.activeVendors.caption,
+        label: "Active Runners",
+        value: formatNumber(summary.activeRunners.value),
+        delta: formatChange(summary.activeRunners.change),
+        trend: trendFor(summary.activeRunners.change),
+        caption: summary.activeRunners.caption,
         sparkline: [1, 2, 3, 4, 5, 6, 7],
       },
       {
-        label: "Active Drivers",
-        value: formatNumber(summary.activeDrivers.value),
-        delta: formatChange(summary.activeDrivers.change),
-        trend: trendFor(summary.activeDrivers.change),
-        caption: summary.activeDrivers.caption,
+        label: "Published Products",
+        value: formatNumber(summary.publishedProducts.value),
+        delta: formatChange(summary.publishedProducts.change),
+        trend: trendFor(summary.publishedProducts.change),
+        caption: summary.publishedProducts.caption,
         sparkline: [8, 8, 8, 8, 8, 8, 8],
       },
     ];
@@ -205,12 +197,8 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Sales trend + live ops */}
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <SalesTrendChart />
-        </div>
-        <LiveOperations />
+      <div className="mt-6">
+        <SalesTrendChart />
       </div>
 
       {/* Recent orders + negotiation pipeline */}

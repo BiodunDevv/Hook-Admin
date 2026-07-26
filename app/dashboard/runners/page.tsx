@@ -12,8 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AgentReviewCard } from "@/components/field-agents/AgentReviewCard";
-import type { QueueItem } from "@/components/field-agents/AgentReviewCard";
+import { AgentReviewCard } from "@/components/runners/RunnerReviewCard";
+import type { QueueItem } from "@/components/runners/RunnerReviewCard";
 import { useApiQuery } from "@/lib/query";
 import { apiPatch } from "@/lib/api";
 import { Search } from "lucide-react";
@@ -49,7 +49,7 @@ interface AgentsResponse {
 }
 
 function agentName(row: AgentRow) {
-  return `${row.agent?.firstName || ""} ${row.agent?.lastName || ""}`.trim() || row.agent?.email || "Field agent";
+  return `${row.agent?.firstName || ""} ${row.agent?.lastName || ""}`.trim() || row.agent?.email || "Runner";
 }
 
 function agentInitials(row: AgentRow) {
@@ -62,7 +62,7 @@ function AgentDirectoryCard({ row, onRefresh }: { row: AgentRow; onRefresh: () =
   async function handleToggle() {
     setBusy(true);
     try {
-      await apiPatch(`/admin/field-agents/${row.id}/toggle`);
+      await apiPatch(`/admin/runners/${row.id}/toggle`);
       toast.success(row.isActive ? "Agent deactivated" : "Agent activated");
       onRefresh();
     } catch (err) {
@@ -114,7 +114,7 @@ function AgentDirectoryCard({ row, onRefresh }: { row: AgentRow; onRefresh: () =
 
         <div className="mt-3 flex items-center gap-2">
           <Button asChild variant="outline" size="sm" className="flex-1 gap-1.5">
-            <Link href={`/dashboard/field-agents/${row.id}`}>
+            <Link href={`/dashboard/runners/${row.id}`}>
               <Eye size={13} /> View
             </Link>
           </Button>
@@ -128,15 +128,15 @@ function AgentDirectoryCard({ row, onRefresh }: { row: AgentRow; onRefresh: () =
   );
 }
 
-export default function FieldAgentsPage() {
+export default function RunnersPage() {
   const [search, setSearch] = useState("");
   const filters = useUrlFilters({ stateCode: "all" });
   const stateCode = filters.get("stateCode") || "all";
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const stats = useApiQuery<QaStats>(["admin", "field-agents", "stats"], "/admin/field-agents/stats");
-  const queue = useApiQuery<QueueResponse>(["admin", "field-agents", "queue"], "/admin/field-agents/queue?limit=50");
-  const agents = useApiQuery<AgentsResponse>(["admin", "field-agents", stateCode], `/admin/field-agents${queryString({ limit: 50, stateCode })}`);
+  const stats = useApiQuery<QaStats>(["admin", "runners", "stats"], "/admin/runners/stats");
+  const queue = useApiQuery<QueueResponse>(["admin", "runners", "queue"], "/admin/runners/queue?limit=50");
+  const agents = useApiQuery<AgentsResponse>(["admin", "runners", stateCode], `/admin/runners${queryString({ limit: 50, stateCode })}`);
 
   const queueItems = (queue.data?.data ?? []).filter((item) =>
     !search || [item.title, item.market, item.agentName, item.category].some((v) =>
@@ -174,8 +174,8 @@ export default function FieldAgentsPage() {
   return (
     <div className="p-2 sm:p-4">
       <PageHeader
-        title="Field Agents & QA"
-        description="Review catalog uploads from the field and manage market-assigned agents."
+        title="Runners & Catalog QA"
+        description="Review catalog uploads from the field and manage market-assigned Runners."
         actions={
           <>
             <div className="relative hidden sm:block">
@@ -197,7 +197,7 @@ export default function FieldAgentsPage() {
         <KpiCard icon={ShieldAlert} tone="amber" label="Pending QA Review" value={stats.data?.pendingReview ?? 0} caption="Awaiting approval" />
         <KpiCard icon={CheckCircle2} tone="green" label="Approved Today" value={stats.data?.approvedToday ?? 0} caption="Field uploads cleared" />
         <KpiCard icon={XCircle} tone="red" label="Rejected Items" value={stats.data?.rejected ?? 0} caption="Sent back for changes" />
-        <KpiCard icon={Camera} tone="blue" label="Active Field Agents" value={stats.data?.activeAgents ?? 0} caption="In the markets" />
+        <KpiCard icon={Camera} tone="blue" label="Active Runners" value={stats.data?.activeAgents ?? 0} caption="In the markets" />
       </div>
 
       {/* Tabs */}
@@ -216,7 +216,7 @@ export default function FieldAgentsPage() {
             value="agents"
             className="rounded-none border-b-2 border-transparent pb-3 font-medium text-zinc-500 data-active:border-brand-gold data-active:font-semibold data-active:text-zinc-900"
           >
-            Agents Directory
+            Runners Directory
             <span className="ml-2 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-bold text-zinc-600">
               {agents.data?.total ?? 0}
             </span>
@@ -258,15 +258,15 @@ export default function FieldAgentsPage() {
         <TabsContent value="agents">
           {agents.isLoading && (
             <div className="flex items-center justify-center py-16">
-              <HookLoader size="page" label="Loading agents..." />
+              <HookLoader size="page" label="Loading Runners..." />
             </div>
           )}
 
           {!agents.isLoading && agentRows.length === 0 && (
             <EmptyState
               icon={Camera}
-              title={search ? "No matching agents" : "No field agents yet"}
-              description={search ? `No agents match "${search}".` : "Field agents will appear here once onboarded."}
+              title={search ? "No matching agents" : "No Runners yet"}
+              description={search ? `No agents match "${search}".` : "Runners will appear here once onboarded."}
             />
           )}
 

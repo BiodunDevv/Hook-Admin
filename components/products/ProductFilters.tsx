@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ChevronDown, PackageCheck, Store, Tags, X } from "lucide-react";
+import { AlertTriangle, ChevronDown, PackageCheck, Tags, X } from "lucide-react";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,21 +31,17 @@ const STOCK_OPTIONS = [
 interface Option {
   id: string;
   name?: string;
-  businessName?: string;
 }
 
 interface ProductFiltersProps {
   search: string;
   status: string;
   categoryId: string;
-  vendorId: string;
   stock: string;
   categories: Option[];
-  vendors: Option[];
   onSearchChange: (value: string) => void;
   onStatusChange: (value: string) => void;
   onCategoryChange: (value: string) => void;
-  onVendorChange: (value: string) => void;
   onStockChange: (value: string) => void;
   onClear: () => void;
 }
@@ -54,14 +50,11 @@ export function ProductFilters({
   search,
   status,
   categoryId,
-  vendorId,
   stock,
   categories,
-  vendors,
   onSearchChange,
   onStatusChange,
   onCategoryChange,
-  onVendorChange,
   onStockChange,
   onClear,
 }: ProductFiltersProps) {
@@ -69,19 +62,17 @@ export function ProductFilters({
     search,
     status !== "all" ? status : "",
     categoryId !== "all" ? categoryId : "",
-    vendorId !== "all" ? vendorId : "",
     stock !== "all" ? stock : "",
   ].filter(Boolean).length;
   const statusLabel = STATUS_OPTIONS.find((option) => option.value === status)?.label || "All products";
   const categoryLabel = categories.find((category) => category.id === categoryId)?.name || "All categories";
-  const vendorLabel = vendors.find((vendor) => vendor.id === vendorId)?.businessName || "All vendors";
   const stockLabel = STOCK_OPTIONS.find((option) => option.value === stock)?.label || "All stock";
 
   return (
     <div className="flex flex-col gap-3 border-b border-zinc-200 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
       <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
         <SearchInput
-          placeholder="Search products, vendors..."
+          placeholder="Search products..."
           className="w-full sm:w-64 lg:w-72"
           value={search}
           onChange={onSearchChange}
@@ -130,31 +121,6 @@ export function ProductFilters({
                 {categories.map((category) => (
                   <DropdownMenuRadioItem key={category.id} value={category.id}>
                     {category.name || "Unnamed category"}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button type="button" variant="outline" size="sm" className="justify-between gap-2 text-zinc-700">
-                <Store size={14} />
-                <span className="max-w-36 truncate">{vendorLabel}</span>
-                {vendorId !== "all" && (
-                  <span className="rounded-full bg-brand-gold px-1.5 py-0.5 text-[11px] font-semibold text-zinc-900">1</span>
-                )}
-                <ChevronDown size={13} className="text-zinc-400" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="max-h-72 w-64 overflow-y-auto">
-              <DropdownMenuLabel>Vendor</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuRadioGroup value={vendorId} onValueChange={onVendorChange}>
-                <DropdownMenuRadioItem value="all">All vendors</DropdownMenuRadioItem>
-                {vendors.map((vendor) => (
-                  <DropdownMenuRadioItem key={vendor.id} value={vendor.id}>
-                    {vendor.businessName || "Unnamed vendor"}
                   </DropdownMenuRadioItem>
                 ))}
               </DropdownMenuRadioGroup>

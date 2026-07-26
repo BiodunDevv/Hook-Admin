@@ -26,12 +26,12 @@ const statusColorMap: Record<string, string> = {
   DELAYED: "bg-red-50 text-red-600 border-red-200",
   "QUALITY CHECK": "bg-purple-50 text-purple-600 border-purple-200",
 
-  // Vendor tiers
+  // Legacy partner tiers retained for historical records
   Platinum: "bg-indigo-50 text-indigo-600 border-indigo-200",
   Gold: "bg-amber-50 text-amber-600 border-amber-200",
   Silver: "bg-zinc-100 text-zinc-500 border-zinc-200",
 
-  // Driver/agent statuses
+  // Runner and legacy logistics statuses
   Active: "bg-emerald-50 text-emerald-600 border-emerald-200",
   Inactive: "bg-zinc-100 text-zinc-500 border-zinc-200",
   Online: "bg-emerald-50 text-emerald-600 border-emerald-200",
@@ -40,7 +40,7 @@ const statusColorMap: Record<string, string> = {
   Available: "bg-emerald-50 text-emerald-600 border-emerald-200",
   "On Break": "bg-amber-50 text-amber-600 border-amber-200",
 
-  // Booth statuses
+  // Legacy location statuses
   "Fully Operational": "bg-emerald-50 text-emerald-600 border-emerald-200",
   "Low Stock": "bg-amber-50 text-amber-600 border-amber-200",
   Maintenance: "bg-red-50 text-red-600 border-red-200",

@@ -1,6 +1,5 @@
  "use client";
 
-import { Store } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,7 +25,7 @@ interface ApiOrder {
   id: string;
   orderCode?: string;
   user?: { firstName?: string; lastName?: string; email?: string };
-  items?: Array<{ productTitle?: string; vendor?: { businessName?: string } }>;
+  items?: Array<{ productTitle?: string }>;
   status: string;
   total: number;
   paymentStatus: string;
@@ -61,7 +60,7 @@ export default function RecentOrders() {
                   Order ID
                 </TableHead>
                 <TableHead className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
-                  Customer &amp; Vendor
+                  Customer
                 </TableHead>
                 <TableHead className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
                   Status
@@ -85,9 +84,6 @@ export default function RecentOrders() {
                   </TableCell>
                   <TableCell className="align-top">
                     <p className="text-zinc-700">{name}</p>
-                    <p className="flex items-center gap-1 text-xs text-zinc-400">
-                      <Store size={12} /> {item?.vendor?.businessName || "Multiple vendors"}
-                    </p>
                   </TableCell>
                   <TableCell className="align-top">
                     <StatusBadge status={order.status} />

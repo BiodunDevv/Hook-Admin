@@ -8,7 +8,6 @@ import {
   BellOff,
   ShoppingCart,
   Package,
-  Store,
   Users,
   Search,
   UserCog,
@@ -77,15 +76,6 @@ interface SearchProduct {
   vendor?: string | null;
 }
 
-interface SearchVendor {
-  id: string;
-  businessName: string;
-  businessEmail?: string;
-  tier?: string;
-  isApproved: boolean;
-  isActive: boolean;
-}
-
 interface SearchCustomer {
   id: string;
   firstName?: string;
@@ -109,7 +99,6 @@ interface SearchResults {
   query: string;
   orders: SearchOrder[];
   products: SearchProduct[];
-  vendors: SearchVendor[];
   customers: SearchCustomer[];
   staff: SearchStaff[];
   total: number;
@@ -166,11 +155,8 @@ function ProductThumb({ src, title }: { src?: string | null; title: string }) {
 const navPermissionMap: Record<string, Permission> = {
   "Orders": "orders.view",
   "Products": "products.view",
-  "Vendors": "vendors.view",
   "Customers": "customers.view",
-  "Drivers": "drivers.view",
-  "Field Agents": "field_agents.view",
-  "Booths": "booths.view",
+  "Runners": "runners.view",
   "Financials": "financials.view",
   "Refunds": "refunds.view",
   "AI Negotiation": "ai_negotiation.view",
@@ -190,14 +176,12 @@ export default function Topbar() {
   // Search scope is driven by the caller's role + permissions — mirrors backend scoping
   const canSearchOrders = hasPermission(admin ?? null, "orders.view");
   const canSearchProducts = hasPermission(admin ?? null, "products.view");
-  const canSearchVendors = hasPermission(admin ?? null, "vendors.view");
   const canSearchCustomers = hasPermission(admin ?? null, "customers.view");
   const canSearchStaff = isSuperAdmin(admin);
 
   const searchScopes = [
     canSearchOrders && "orders",
     canSearchProducts && "products",
-    canSearchVendors && "vendors",
     canSearchCustomers && "customers",
     canSearchStaff && "staff",
   ].filter(Boolean) as string[];
@@ -275,13 +259,12 @@ export default function Topbar() {
     ? {
         orders: canSearchOrders ? results.orders : [],
         products: canSearchProducts ? results.products : [],
-        vendors: canSearchVendors ? results.vendors : [],
         customers: canSearchCustomers ? results.customers : [],
         staff: canSearchStaff ? results.staff ?? [] : [],
       }
     : null;
   const scopedTotal = scoped
-    ? scoped.orders.length + scoped.products.length + scoped.vendors.length + scoped.customers.length + scoped.staff.length
+    ? scoped.orders.length + scoped.products.length + scoped.customers.length + scoped.staff.length
     : 0;
   const noResults = results && scopedTotal === 0 && query.length >= 2 && !searching;
   const isSearchMode = query.length >= 2;
@@ -428,34 +411,7 @@ export default function Topbar() {
                 </CommandGroup>
               )}
 
-              {scoped.products.length > 0 && scoped.vendors.length > 0 && <CommandSeparator />}
-
-              {scoped.vendors.length > 0 && (
-                <CommandGroup heading={`Vendors (${scoped.vendors.length})`}>
-                  {scoped.vendors.map((vendor) => (
-                    <CommandItem
-                      key={vendor.id}
-                      value={`vendor-${vendor.id}-${vendor.businessName}`}
-                      onSelect={() => navigate(`/dashboard/vendors/${vendor.id}`)}
-                      className="gap-3 py-2.5"
-                    >
-                      <span className="flex size-7 shrink-0 items-center justify-center rounded bg-blue-50 text-blue-500">
-                        <Store size={14} />
-                      </span>
-                      <span className="flex flex-1 items-center gap-2 min-w-0">
-                        <span className="font-semibold text-zinc-900 shrink-0">{vendor.businessName}</span>
-                        {vendor.tier && <StatusChip status={vendor.tier} />}
-                        <StatusChip status={vendor.isApproved ? "approved" : "pending"} />
-                      </span>
-                      {vendor.businessEmail && (
-                        <span className="shrink-0 text-xs text-zinc-400 hidden sm:block">{vendor.businessEmail}</span>
-                      )}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-
-              {scoped.vendors.length > 0 && scoped.customers.length > 0 && <CommandSeparator />}
+              {scoped.products.length > 0 && scoped.customers.length > 0 && <CommandSeparator />}
 
               {scoped.customers.length > 0 && (
                 <CommandGroup heading={`Customers (${scoped.customers.length})`}>
@@ -566,9 +522,6 @@ export default function Topbar() {
               <CommandGroup heading="Quick Actions">
                 <CommandItem value="view-all-orders" onSelect={() => navigate("/dashboard/orders")}>
                   View all orders
-                </CommandItem>
-                <CommandItem value="manage-vendors" onSelect={() => navigate("/dashboard/vendors")}>
-                  Manage vendors
                 </CommandItem>
                 <CommandItem value="open-reports" onSelect={() => navigate("/dashboard/reports")}>
                   Open reports

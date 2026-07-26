@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Ban, Boxes, Check, Edit3, Eye, Info, Layers, Mail, PackageCheck, Phone, UserCheck, WalletCards, X } from "lucide-react";
@@ -111,7 +110,7 @@ export default function ProductDetailPage() {
     <div className="min-h-[calc(100vh-4rem)] overflow-y-auto p-2 pb-6 sm:p-4 sm:pb-8">
       <PageHeader
         title={product?.title || "Product Detail"}
-        description={`${product?.vendor?.businessName || "Vendor"} • ${product?.category?.name || "Category"}`}
+        description={`${product?.category?.name || "Category"} • Commercial catalog`}
         actions={
           <>
             <Button variant="outline" size="sm" onClick={() => router.back()}><ArrowLeft size={15} /> Back</Button>
@@ -171,12 +170,8 @@ export default function ProductDetailPage() {
                   </div>
                   <div className="grid gap-3 text-sm sm:grid-cols-2">
                     <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
-                      <p className="text-zinc-400">Vendor</p>
-                      {product.vendor?.id ? (
-                        <Link href={`/dashboard/vendors/${product.vendor.id}`} className="mt-1 block font-medium text-zinc-900 hover:underline">{product.vendor.businessName}</Link>
-                      ) : (
-                        <p className="mt-1 font-medium text-zinc-900">{product.vendor?.businessName || "No vendor"}</p>
-                      )}
+                      <p className="text-zinc-400">Legacy source</p>
+                      <p className="mt-1 font-medium text-zinc-900">{product.vendor?.businessName || "Hook catalog"}</p>
                     </div>
                     <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
                       <p className="text-zinc-400">Category</p>

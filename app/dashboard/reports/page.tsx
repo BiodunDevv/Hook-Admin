@@ -22,7 +22,7 @@ import { apiGet } from "@/lib/api";
 import { useApiQuery } from "@/lib/query";
 import { money, number } from "@/lib/admin-utils";
 
-const tabs = ["Overview", "Sales", "Vendors", "Customers", "Logistics"];
+const tabs = ["Overview", "Sales", "Customers", "Catalog", "Delivery"];
 
 interface ApiReport { id: string; type?: string; createdAt?: string; status?: string; }
 interface PageData<T> { data: T[]; total?: number; }

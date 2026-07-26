@@ -17,18 +17,12 @@ interface CategoryOption {
   name: string;
 }
 
-interface VendorOption {
-  id: string;
-  businessName: string;
-}
-
 export default function ProductsPage() {
   const filters = useUrlFilters({
     page: "1",
     search: "",
     status: "all",
     categoryId: "all",
-    vendorId: "all",
     stock: "all",
   });
 
@@ -36,19 +30,16 @@ export default function ProductsPage() {
   const search = filters.get("search") || "";
   const status = filters.get("status") || "all";
   const categoryId = filters.get("categoryId") || "all";
-  const vendorId = filters.get("vendorId") || "all";
   const stock = filters.get("stock") || "all";
-  const listPath = `/admin/products${queryString({ page, limit: 12, search, status, categoryId, vendorId, stock })}`;
-  const queryKey = ["admin", "products", page, search, status, categoryId, vendorId, stock] as const;
+  const listPath = `/admin/products${queryString({ page, limit: 12, search, status, categoryId, stock })}`;
+  const queryKey = ["admin", "products", page, search, status, categoryId, stock] as const;
 
   const productsQuery = useApiQuery<Page<ProductRow>>(queryKey, listPath);
-  const vendorsQuery = useApiQuery<Page<VendorOption>>(["admin", "product-vendor-options"], "/admin/vendors?limit=100");
   const categoriesQuery = useApiQuery<CategoryOption[]>(["admin", "product-category-options"], "/categories");
 
   const stats = productsQuery.data?.stats || {};
   const products = productsQuery.data?.data || [];
   const categories = categoriesQuery.data || [];
-  const vendors = vendorsQuery.data?.data || [];
 
   function setFilter(key: string, value: string) {
     filters.set({ [key]: value, page: 1 });
@@ -61,12 +52,11 @@ export default function ProductsPage() {
     }
 
     const rows = [
-      ["Product", "Hook ID", "Category", "Vendor", "Hook Price", "Stock", "Status"],
+      ["Product", "Hook ID", "Category", "Hook Price", "Stock", "Status"],
       ...products.map((product) => [
         product.title,
         product.hookId || product.id,
         product.category?.name || "Uncategorized",
-        product.vendor?.businessName || "No vendor",
         String(product.sellingPrice || 0),
         String(product.quantity || 0),
         product.status,
@@ -141,16 +131,13 @@ export default function ProductsPage() {
           search={search}
           status={status}
           categoryId={categoryId}
-          vendorId={vendorId}
           stock={stock}
           categories={categories}
-          vendors={vendors}
           onSearchChange={(value) => setFilter("search", value)}
           onStatusChange={(value) => setFilter("status", value)}
           onCategoryChange={(value) => setFilter("categoryId", value)}
-          onVendorChange={(value) => setFilter("vendorId", value)}
           onStockChange={(value) => setFilter("stock", value)}
-          onClear={() => filters.set({ search: "", status: "all", categoryId: "all", vendorId: "all", stock: "all", page: 1 })}
+          onClear={() => filters.set({ search: "", status: "all", categoryId: "all", stock: "all", page: 1 })}
         />
 
         <ProductsTable queryKey={queryKey} path={listPath} onPageChange={(nextPage) => filters.set({ page: nextPage })} />

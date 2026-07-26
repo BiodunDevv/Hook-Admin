@@ -32,10 +32,8 @@ export default function OrdersPage() {
   const search = filters.get("search");
   const status = filters.get("status") || "all";
   const paymentStatus = filters.get("paymentStatus") || "all";
-  const boothId = filters.get("boothId") || "all";
-  const booths = useApiQuery<Page<{ id: string; name: string }>>(["admin", "booths", "order-filter"], "/admin/booths?limit=100");
-  const path = `/admin/orders${queryString({ page, limit: 12, search, status, paymentStatus, boothId })}`;
-  const queryKey = useMemo(() => ["admin", "orders", page, search, status, paymentStatus, boothId] as const, [page, search, status, paymentStatus, boothId]);
+  const path = `/admin/orders${queryString({ page, limit: 12, search, status, paymentStatus })}`;
+  const queryKey = useMemo(() => ["admin", "orders", page, search, status, paymentStatus] as const, [page, search, status, paymentStatus]);
   const { data } = useApiQuery<Page<ApiOrder>>(queryKey, path);
   const stats = data?.stats || {};
 
@@ -96,13 +94,10 @@ export default function OrdersPage() {
           search={search}
           status={status}
           paymentStatus={paymentStatus}
-          boothId={boothId}
-          booths={booths.data?.data || []}
           onSearchChange={(value) => filters.set({ search: value })}
           onStatusChange={(value) => filters.set({ status: value })}
           onPaymentStatusChange={(value) => filters.set({ paymentStatus: value })}
-          onBoothChange={(value) => filters.set({ boothId: value })}
-          onClear={() => filters.set({ search: "", status: "all", paymentStatus: "all", boothId: "all", page: 1 })}
+          onClear={() => filters.set({ search: "", status: "all", paymentStatus: "all", page: 1 })}
         />
         <OrdersTable queryKey={queryKey} path={path} onPageChange={(nextPage) => filters.set({ page: nextPage })} />
       </div>

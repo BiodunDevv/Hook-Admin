@@ -40,7 +40,7 @@ interface ApiOrder {
   id: string;
   orderCode?: string;
   user?: { firstName?: string; lastName?: string; email?: string };
-  items?: Array<{ productTitle?: string; vendor?: { businessName?: string } }>;
+  items?: Array<{ productTitle?: string }>;
   status: string;
   total: number;
   paymentStatus: string;
@@ -102,7 +102,7 @@ export function OrdersTable({ queryKey, path, onPageChange }: OrdersTableProps) 
         <Table>
           <TableHeader>
             <TableRow className="border-b border-zinc-100 bg-zinc-50">
-              {["No", "Order ID", "Customer", "Product", "Vendor", "Status", "Amount", "Payment", "ETA", ""].map((header) => (
+              {["No", "Order ID", "Customer", "Product", "Status", "Amount", "Payment", "ETA", ""].map((header) => (
                 <TableHead key={header} className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
                   {header}
                 </TableHead>
@@ -112,7 +112,7 @@ export function OrdersTable({ queryKey, path, onPageChange }: OrdersTableProps) 
           <TableBody>
             {isLoading && (
               <TableRow>
-                <TableCell colSpan={10} className="px-3 py-12 whitespace-normal sm:px-5">
+                <TableCell colSpan={9} className="px-3 py-12 whitespace-normal sm:px-5">
                   <div className="mx-auto flex max-w-sm items-center justify-center gap-3 rounded-lg border border-zinc-100 bg-zinc-50 p-4 text-sm text-zinc-500">
                     <HookLoader label="Loading orders..." />
                   </div>
@@ -122,7 +122,7 @@ export function OrdersTable({ queryKey, path, onPageChange }: OrdersTableProps) 
 
             {errorMessage && (
               <TableRow>
-                <TableCell colSpan={10} className="px-3 py-12 whitespace-normal sm:px-5">
+                <TableCell colSpan={9} className="px-3 py-12 whitespace-normal sm:px-5">
                   <div className="mx-auto w-full max-w-xl rounded-lg border border-red-200 bg-red-50 p-5 text-center">
                     <div className="mx-auto mb-3 flex size-10 items-center justify-center rounded-full bg-white text-red-500">
                       <AlertTriangle size={20} />
@@ -139,7 +139,7 @@ export function OrdersTable({ queryKey, path, onPageChange }: OrdersTableProps) 
 
             {!isLoading && !errorMessage && orders.length === 0 && (
               <TableRow>
-                <TableCell colSpan={10} className="px-3 py-14 whitespace-normal sm:px-5 sm:py-16">
+                <TableCell colSpan={9} className="px-3 py-14 whitespace-normal sm:px-5 sm:py-16">
                   <div className="mx-auto flex min-h-56 w-full max-w-2xl flex-col items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 px-5 py-8 text-center sm:px-8">
                     <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-white text-zinc-400 shadow-sm sm:size-16">
                       <PackageSearch size={26} />
@@ -177,7 +177,6 @@ export function OrdersTable({ queryKey, path, onPageChange }: OrdersTableProps) 
                     </div>
                   </TableCell>
                   <TableCell className="px-4 py-3 text-zinc-600">{item?.productTitle || `${order.items?.length || 0} items`}</TableCell>
-                  <TableCell className="px-4 py-3 text-zinc-600">{item?.vendor?.businessName || "Multiple vendors"}</TableCell>
                   <TableCell className="px-4 py-3">
                     <StatusBadge status={order.status} />
                   </TableCell>

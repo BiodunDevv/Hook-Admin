@@ -30,7 +30,7 @@ export function OperatingStatesSection() {
           <div>
             <h3 className="text-lg font-bold text-zinc-900">Operating States</h3>
             <p className="mt-1 max-w-2xl text-sm leading-6 text-zinc-500">
-              Choose the Nigerian states where Hook actively onboards vendors, booths, drivers, and field agents.
+              Choose the Nigerian states where Hook operates markets, runners, dispatch hubs, and customer delivery.
             </p>
           </div>
           <StateChip name={`${activeCount} active`} />

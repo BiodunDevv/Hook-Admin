@@ -14,9 +14,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useApiPost, useApiQuery } from "@/lib/query";
 import { HookLoader } from "@/components/shared/HookLoader";
 import { MediaPicker } from "@/components/shared/MediaPicker";
-import type { Page } from "@/lib/admin-utils";
-
-interface VendorOption { id: string; businessName: string; }
 interface CategoryOption { id: string; name: string; isActive?: boolean; }
 function csv(value: FormDataEntryValue | null) {
   return String(value || "").split(",").map((item) => item.trim()).filter(Boolean);
@@ -43,10 +40,8 @@ export default function NewProductPage() {
   const [images, setImages] = useState<string[]>([]);
   const [selectedColors, setSelectedColors] = useState(["#111827", "#ffffff"]);
   const [colorValue, setColorValue] = useState("#fbbf24");
-  const [vendorId, setVendorId] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [status, setStatus] = useState("pending_approval");
-  const vendors = useApiQuery<Page<VendorOption>>(["admin", "vendors", "options"], "/admin/vendors?limit=100");
   const categories = useApiQuery<CategoryOption[]>(["categories", "options"], "/categories");
   const createProduct = useApiPost<{ id: string }, Record<string, unknown>>("/admin/products", ["admin", "products"], { successMessage: "Product created" });
 
@@ -56,7 +51,6 @@ export default function NewProductPage() {
     const payload = Object.fromEntries(formData.entries());
     const product = await createProduct.mutateAsync({
       ...payload,
-      vendorId,
       categoryId,
       status,
       costPrice: Number(payload.costPrice || 0),
@@ -74,7 +68,7 @@ export default function NewProductPage() {
     <div className="min-h-[calc(100vh-4rem)] overflow-y-auto p-2 pb-6 sm:p-4 sm:pb-8">
       <PageHeader
         title="Create Product"
-        description="Add catalog inventory for a vendor."
+        description="Add inventory to Hook's commercial catalog."
         actions={<Button variant="outline" size="sm" onClick={() => router.back()}><ArrowLeft size={15} /> Back</Button>}
       />
       <form onSubmit={submit}>
@@ -82,15 +76,6 @@ export default function NewProductPage() {
           <CardContent className="grid gap-4 p-4 lg:grid-cols-[1fr_360px]">
             <TooltipProvider>
             <div className="grid gap-4 md:grid-cols-2">
-              <Field>
-                <FieldLabel>Vendor</FieldLabel>
-                <Select value={vendorId} onValueChange={setVendorId} required>
-                  <SelectTrigger className="w-full"><SelectValue placeholder="Select vendor" /></SelectTrigger>
-                  <SelectContent>
-                    {(vendors.data?.data || []).map((vendor) => <SelectItem key={vendor.id} value={vendor.id}>{vendor.businessName}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </Field>
               <Field>
                 <FieldLabel>Category</FieldLabel>
                 <Select value={categoryId} onValueChange={setCategoryId} required>

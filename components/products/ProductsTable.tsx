@@ -125,7 +125,7 @@ export function ProductsTable({ queryKey, path, onPageChange }: ProductsTablePro
         <Table>
           <TableHeader>
             <TableRow className="border-b border-zinc-100 bg-zinc-50">
-              {["No", "Product", "Category", "Managed By", "Vendor", "Hook Price", "Stock", "Status", "Created", ""].map((header) => (
+              {["No", "Product", "Category", "Managed By", "Legacy Source", "Hook Price", "Stock", "Status", "Created", ""].map((header) => (
                 <TableHead
                   key={header}
                   className={cn(
@@ -224,7 +224,7 @@ export function ProductsTable({ queryKey, path, onPageChange }: ProductsTablePro
                       <span className="text-sm text-zinc-300">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="px-4 py-3 text-zinc-600">{product.vendor?.businessName || "No vendor"}</TableCell>
+                  <TableCell className="px-4 py-3 text-zinc-600">{product.vendor?.businessName || "Hook catalog"}</TableCell>
                   <TableCell className="px-4 py-3 font-semibold text-zinc-900">{money(product.sellingPrice || 0)}</TableCell>
                   <TableCell className="px-4 py-3">
                     <span className={cn("text-sm font-semibold", stockTone(quantity))}>{quantity.toLocaleString()}</span>

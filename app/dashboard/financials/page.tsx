@@ -22,7 +22,6 @@ import { useApiQuery } from "@/lib/query";
 import { SuperAdminGuard } from "@/components/auth/PermissionGuard";
 import { money } from "@/lib/admin-utils";
 import { HookLoader } from "@/components/shared/HookLoader";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const TIME_TABS = ["24H", "7D", "30D", "YTD"];
 
@@ -38,9 +37,7 @@ interface FinancialsSummary {
 
 export default function FinancialsPage() {
   const [activeTime, setActiveTime] = useState("7D");
-  const [boothId, setBoothId] = useState("all");
-  const booths = useApiQuery<{ data: Array<{ id: string; name: string }> }>(["admin", "booths", "financial-filter"], "/admin/booths?limit=100");
-  const { data, isLoading, error } = useApiQuery<FinancialsSummary>(["admin", "financials", activeTime, boothId], `/admin/financials?period=${activeTime.toLowerCase()}${boothId === "all" ? "" : `&boothId=${boothId}`}`);
+  const { data, isLoading, error } = useApiQuery<FinancialsSummary>(["admin", "financials", activeTime], `/admin/financials?period=${activeTime.toLowerCase()}`);
   const trend = data?.trend || [];
   const trendMax = Math.max(1, ...trend.flatMap((row) => [row.volume, row.revenue]));
 
@@ -57,10 +54,9 @@ export default function FinancialsPage() {
     <div className="p-2 sm:p-4">
       <PageHeader
         title="Financial Controls"
-        description="Manage platform revenue, vendor payouts, and escrow balances."
+        description="Monitor platform revenue, refunds, payment reconciliation, and legacy settlement balances."
         actions={
           <>
-            <Select value={boothId} onValueChange={setBoothId}><SelectTrigger className="h-9 w-40 bg-white"><SelectValue placeholder="All booths" /></SelectTrigger><SelectContent><SelectItem value="all">All booths</SelectItem>{(booths.data?.data || []).map((booth) => <SelectItem key={booth.id} value={booth.id}>{booth.name}</SelectItem>)}</SelectContent></Select>
             <div className="flex items-center rounded-lg border border-zinc-200 bg-white p-1 shadow-sm">
               {TIME_TABS.map((tab) => (
                 <button
@@ -106,7 +102,7 @@ export default function FinancialsPage() {
             <KpiCard icon={TrendingUp} tone="green" label="Total Processed Vol." value={money(kpis.grossVolume)} caption="Gross payment volume" />
             <KpiCard icon={Wallet} tone="blue" label="Escrow Balance" value={money(kpis.escrowBalance)} caption="Pending release" />
             <KpiCard icon={Banknote} tone="amber" label="Platform Revenue" value={money(kpis.platformRevenue)} caption="After commissions" />
-            <KpiCard icon={Clock} tone="red" label="Pending Payouts" value={money(kpis.pendingPayouts)} caption="Awaiting vendor transfer" />
+            <KpiCard icon={Clock} tone="red" label="Legacy Liabilities" value={money(kpis.pendingPayouts)} caption="Historical balances pending review" />
           </>
         )}
       </div>

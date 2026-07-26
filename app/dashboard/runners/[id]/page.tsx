@@ -31,23 +31,23 @@ interface FieldAgent {
   recentUploads?: RecentUpload[];
 }
 
-export default function FieldAgentDetailPage() {
+export default function RunnerDetailPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
-  const query = useApiQuery<FieldAgent>(["admin", "field-agents", id], `/admin/field-agents/${id}`, Boolean(id));
+  const query = useApiQuery<FieldAgent>(["admin", "runners", id], `/admin/runners/${id}`, Boolean(id));
   const toggle = useApiPatch<{ id: string; isActive: boolean }, undefined>(
-    `/admin/field-agents/${id}/toggle`,
-    ["admin", "field-agents"],
-    { successMessage: "Field agent status updated" },
+    `/admin/runners/${id}/toggle`,
+    ["admin", "runners"],
+    { successMessage: "Runner status updated" },
   );
   const agent = query.data;
-  const name = `${agent?.agent?.firstName || ""} ${agent?.agent?.lastName || ""}`.trim() || agent?.agent?.email || "Field agent";
+  const name = `${agent?.agent?.firstName || ""} ${agent?.agent?.lastName || ""}`.trim() || agent?.agent?.email || "Runner";
 
   return (
     <div className="space-y-4 px-3 py-3 sm:px-5">
       <PageHeader
         title={name}
-        description={agent?.assignedMarket || "Field agent profile"}
+        description={agent?.assignedMarket || "Runner profile"}
         actions={
           <>
             <Button variant="outline" size="sm" onClick={() => router.back()}><ArrowLeft size={15} /> Back</Button>
@@ -62,7 +62,7 @@ export default function FieldAgentDetailPage() {
 
       {query.isLoading && (
         <div className="flex items-center justify-center py-16">
-          <HookLoader size="page" label="Loading agent..." />
+          <HookLoader size="page" label="Loading Runner..." />
         </div>
       )}
 
@@ -113,7 +113,7 @@ export default function FieldAgentDetailPage() {
                 <h3 className="mb-3 text-sm font-semibold text-zinc-900">Recent Uploads</h3>
                 {!agent.recentUploads?.length ? (
                   <p className="rounded-md border border-dashed border-zinc-200 bg-zinc-50 p-6 text-center text-sm text-zinc-400">
-                    No uploads from this agent yet.
+                    No uploads from this Runner yet.
                   </p>
                 ) : (
                   <div className="overflow-hidden rounded-lg border border-zinc-200">

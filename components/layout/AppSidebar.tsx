@@ -38,9 +38,7 @@ import { navItems } from "./nav-items";
 
 interface DashboardSummary {
   activeOrders?: { value: number };
-  activeDrivers?: { value: number };
   orders?: { pending: number; active?: number };
-  logistics?: { activeDeliveries: number };
 }
 
 function initials(firstName?: string, lastName?: string, email?: string) {
@@ -66,11 +64,8 @@ export default function AppSidebar() {
   const navPermissionMap: Record<string, Permission> = {
     "Orders": "orders.view",
     "Products": "products.view",
-    "Vendors": "vendors.view",
     "Customers": "customers.view",
-    "Drivers": "drivers.view",
-    "Field Agents": "field_agents.view",
-    "Booths": "booths.view",
+    "Runners": "runners.view",
     "Financials": "financials.view",
     "Support": "deletions.view",
     "Checkout Analytics": "analytics.checkout",
@@ -107,12 +102,6 @@ export default function AppSidebar() {
     const orders = summary?.activeOrders?.value ?? summary?.orders?.active ?? summary?.orders?.pending ?? 0;
     if (label === "Orders" && orders) return String(orders);
     return null;
-  }
-
-  function sidebarDot(label: string) {
-    const activeDrivers = summary?.activeDrivers?.value ?? summary?.logistics?.activeDeliveries ?? 0;
-    if (label === "Drivers") return Boolean(activeDrivers);
-    return false;
   }
 
   return (
@@ -153,11 +142,6 @@ export default function AppSidebar() {
                     {sidebarBadge(item.label) && (
                       <SidebarMenuBadge className="text-[11px]">
                         {sidebarBadge(item.label)}
-                      </SidebarMenuBadge>
-                    )}
-                    {sidebarDot(item.label) && (
-                      <SidebarMenuBadge>
-                        <span className="size-2 rounded-full bg-emerald-500" />
                       </SidebarMenuBadge>
                     )}
                   </SidebarMenuItem>
