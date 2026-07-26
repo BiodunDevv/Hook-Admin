@@ -63,9 +63,13 @@ export default function AppSidebar() {
   // For support role: filter nav items based on their permissions
   const navPermissionMap: Record<string, Permission> = {
     "Orders": "orders.view",
-    "Products": "products.view",
+    "Commercial Catalog": "products.view",
     "Customers": "customers.view",
-    "Runners": "runners.view",
+    "Runner Operations": "runners.view",
+    "Markets": "markets.view",
+    "Dispatch Hubs": "hubs.view",
+    "Hook Partners": "partners.view",
+    "Administration": "staff.view",
     "Financials": "financials.view",
     "Support": "deletions.view",
     "Checkout Analytics": "analytics.checkout",
@@ -84,7 +88,7 @@ export default function AppSidebar() {
   // Categories after Products (catalog cluster), Staff after Customers (people cluster)
   if (admin?.role === "super_admin") {
     const categoriesItem = { label: "Categories", href: "/dashboard/categories", icon: Tags };
-    const productsIndex = visibleNavItems.findIndex((item) => item.label === "Products");
+    const productsIndex = visibleNavItems.findIndex((item) => item.label === "Commercial Catalog");
     visibleNavItems.splice(productsIndex === -1 ? visibleNavItems.length : productsIndex + 1, 0, categoriesItem);
 
     const staffItem = { label: "Staff", href: "/dashboard/staff", icon: UserCog };

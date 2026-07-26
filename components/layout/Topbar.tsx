@@ -41,6 +41,7 @@ import { apiGet } from "@/lib/api";
 import { money } from "@/lib/admin-utils";
 import { hasPermission, isSuperAdmin, type Permission } from "@/lib/permissions";
 import { navItems } from "./nav-items";
+import { PlatformContextSelector } from "@/components/platform/PlatformContextSelector";
 
 interface Notification {
   id: string;
@@ -289,6 +290,7 @@ export default function Topbar() {
         </Button>
 
         <div className="flex-1" />
+        <PlatformContextSelector />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

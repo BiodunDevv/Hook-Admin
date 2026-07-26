@@ -101,7 +101,7 @@ export function useLogout() {
 }
 
 export function useForgotPassword() {
-  return useMutation<{ message: string }, Error, { email: string }>({
+  return useMutation<{ sent: boolean } | { message: string }, Error, { email: string }>({
     mutationFn: ({ email }) => requestAdminPasswordReset(email),
     meta: {
       successMessage: "If that admin email exists, an OTP has been sent",
@@ -110,7 +110,7 @@ export function useForgotPassword() {
 }
 
 export function useResetPassword() {
-  return useMutation<{ message: string }, Error, { email: string; code: string; password: string }>({
+  return useMutation<{ reset: boolean } | { message: string }, Error, { email: string; code: string; password: string }>({
     mutationFn: ({ email, code, password }) => resetAdminPassword(email, code, password),
     meta: {
       successMessage: "Password reset successfully",

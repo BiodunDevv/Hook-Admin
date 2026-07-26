@@ -11,6 +11,10 @@ import {
   LifeBuoy,
   ChartNoAxesCombined,
   RotateCcw,
+  MapPinned,
+  Warehouse,
+  Handshake,
+  ShieldCheck,
 } from "lucide-react";
 
 export interface NavItem {
@@ -22,10 +26,13 @@ export interface NavItem {
 }
 
 export const navItems: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutGrid },
+  { label: "Control Tower", href: "/dashboard", icon: LayoutGrid },
   { label: "Orders", href: "/dashboard/orders", icon: ShoppingCart },
-  { label: "Products", href: "/dashboard/products", icon: Package },
-  { label: "Runners", href: "/dashboard/runners", icon: UsersRound },
+  { label: "Commercial Catalog", href: "/dashboard/products", icon: Package },
+  { label: "Runner Operations", href: "/dashboard/runners", icon: UsersRound },
+  { label: "Markets", href: "/dashboard/markets", icon: MapPinned },
+  { label: "Dispatch Hubs", href: "/dashboard/hubs", icon: Warehouse },
+  { label: "Hook Partners", href: "/dashboard/partners", icon: Handshake },
   { label: "Customers", href: "/dashboard/customers", icon: Users },
   { label: "Support", href: "/dashboard/support", icon: LifeBuoy },
   { label: "Financials", href: "/dashboard/financials", icon: Wallet },
@@ -34,4 +41,5 @@ export const navItems: NavItem[] = [
   { label: "AI Negotiation", href: "/dashboard/ai-negotiation", icon: Bot },
   { label: "Reports", href: "/dashboard/reports", icon: BarChart3 },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
+  { label: "Administration", href: "/dashboard/administration", icon: ShieldCheck },
 ];

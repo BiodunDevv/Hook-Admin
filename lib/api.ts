@@ -17,6 +17,13 @@ export interface AdminUser {
   isActive?: boolean;
   createdAt?: string;
   phone?: string;
+  publicId?: string;
+  accountType?: "customer" | "staff" | "runner" | "partner";
+  accountStatus?: string;
+  roleKeys?: string[];
+  scopeType?: "global" | "multi_state" | "single_state" | "hub" | "self";
+  assignedStateIds?: string[];
+  assignedHubIds?: string[];
 }
 
 export interface AuthSession {
@@ -27,10 +34,17 @@ export interface AuthSession {
 
 interface ApiEnvelope<T> {
   success: boolean;
-  message: string;
-  data: T;
-  timestamp: string;
-  errors?: unknown;
+  data?: T;
+  error?: {
+    code: string;
+    message: string;
+    details?: unknown;
+  };
+  meta: {
+    requestId: string;
+    timestamp: string;
+    pagination?: { page: number; limit: number; total: number; totalPages: number };
+  };
 }
 
 function isBrowser() {
@@ -96,11 +110,19 @@ async function parseResponse<T>(res: Response): Promise<T> {
     : null;
 
   if (!res.ok || !payload?.success) {
-    const message = payload?.message || `Request failed with ${res.status}`;
-    throw new Error(`${res.status}: ${message}`);
+    const message = payload?.error?.message || `Request failed with ${res.status}`;
+    const error = new Error(`${res.status}: ${message}`) as Error & {
+      code?: string;
+      requestId?: string;
+      details?: unknown;
+    };
+    error.code = payload?.error?.code;
+    error.requestId = payload?.meta?.requestId;
+    error.details = payload?.error?.details;
+    throw error;
   }
 
-  return payload.data;
+  return payload.data as T;
 }
 
 async function refreshAccessToken(): Promise<string | null> {
@@ -136,6 +158,12 @@ export async function apiRequest<T>(
     headers.set("Content-Type", "application/json");
   }
   if (auth && token) headers.set("Authorization", `Bearer ${token}`);
+  if (isBrowser()) {
+    const stateId = localStorage.getItem("hook_admin_state_id");
+    const hubId = localStorage.getItem("hook_admin_hub_id");
+    if (stateId) headers.set("X-Hook-State-Id", stateId);
+    if (hubId) headers.set("X-Hook-Hub-Id", hubId);
+  }
 
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
@@ -186,8 +214,25 @@ export async function loginAdmin(email: string, password: string) {
     },
     { auth: false },
   );
-  if (!["support", "admin", "super_admin"].includes(session.user.role)) {
+  if (session.user.accountType !== "staff" && !["support", "admin", "super_admin"].includes(session.user.role)) {
     throw new Error("403: Staff access required");
+  }
+  setSession(session);
+  return session;
+}
+
+export async function loginPlatformAccount(
+  email: string,
+  password: string,
+  accountType: "runner" | "partner",
+) {
+  const session = await apiRequest<AuthSession>(
+    "/auth/login",
+    { method: "POST", body: JSON.stringify({ email, password }) },
+    { auth: false },
+  );
+  if (session.user.accountType !== accountType) {
+    throw new Error(`403: ${accountType === "runner" ? "Runner" : "Hook Partner"} access required`);
   }
   setSession(session);
   return session;
@@ -199,7 +244,7 @@ export async function logoutAdmin() {
   if (!accessToken && !refreshToken) {
     throw new Error("401: Authentication token required");
   }
-  await apiRequest<{ message: string }>(
+  await apiRequest<{ loggedOut: boolean }>(
     "/admin/auth/logout",
     {
       method: "POST",
@@ -211,7 +256,7 @@ export async function logoutAdmin() {
 }
 
 export async function requestAdminPasswordReset(email: string) {
-  return apiRequest<{ message: string }>(
+  return apiRequest<{ sent: boolean } | { message: string }>(
     "/admin/auth/password/forgot",
     {
       method: "POST",
@@ -222,7 +267,7 @@ export async function requestAdminPasswordReset(email: string) {
 }
 
 export async function resetAdminPassword(email: string, code: string, password: string) {
-  return apiRequest<{ message: string }>(
+  return apiRequest<{ reset: boolean } | { message: string }>(
     "/admin/auth/password/reset",
     {
       method: "POST",
@@ -234,7 +279,7 @@ export async function resetAdminPassword(email: string, code: string, password: 
 
 export async function getCurrentAdmin() {
   const user = await apiGet<AdminUser>("/auth/profile");
-  if (!["support", "admin", "super_admin"].includes(user.role)) {
+  if (user.accountType !== "staff" && !["support", "admin", "super_admin"].includes(user.role)) {
     clearSession();
     throw new Error("403: Admin access required");
   }

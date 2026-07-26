@@ -7,6 +7,16 @@ import type { AdminUser } from "./api";
  * Support staff only get what is explicitly assigned.
  */
 export const ALL_PERMISSIONS = [
+  "staff.view", "staff.create", "staff.edit", "staff.suspend", "staff.revoke_sessions",
+  "roles.view", "roles.manage",
+  "states.view", "states.manage",
+  "cities.view", "cities.manage",
+  "zones.view", "zones.manage",
+  "markets.view", "markets.manage", "markets.assign_hub",
+  "hubs.view", "hubs.manage", "hubs.assign_markets",
+  "partners.view", "partners.manage",
+  "runners.manage", "runners.assign",
+  "audit.view", "settings.manage",
   "orders.view",
   "orders.edit",
   "orders.create",
@@ -33,6 +43,17 @@ export const ALL_PERMISSIONS = [
 export type Permission = (typeof ALL_PERMISSIONS)[number];
 
 export const PERMISSION_LABELS: Record<Permission, string> = {
+  "staff.view": "View Staff", "staff.create": "Create Staff", "staff.edit": "Edit Staff",
+  "staff.suspend": "Suspend Staff", "staff.revoke_sessions": "Revoke Staff Sessions",
+  "roles.view": "View Roles", "roles.manage": "Manage Roles",
+  "states.view": "View States", "states.manage": "Manage States",
+  "cities.view": "View Cities", "cities.manage": "Manage Cities",
+  "zones.view": "View Zones", "zones.manage": "Manage Zones",
+  "markets.view": "View Markets", "markets.manage": "Manage Markets", "markets.assign_hub": "Assign Market Hubs",
+  "hubs.view": "View Hubs", "hubs.manage": "Manage Hubs", "hubs.assign_markets": "Assign Hub Markets",
+  "partners.view": "View Partners", "partners.manage": "Manage Partners",
+  "runners.manage": "Manage Runners", "runners.assign": "Assign Runners",
+  "audit.view": "View Audit Logs", "settings.manage": "Manage Settings",
   "orders.view": "View Orders",
   "orders.edit": "Edit Orders",
   "orders.create": "Create Orders",
@@ -85,6 +106,7 @@ export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] =
 
 export function hasPermission(user: AdminUser | null | undefined, permission: Permission): boolean {
   if (!user) return false;
+  if (user.roleKeys?.includes("SUPER_ADMIN")) return true;
   if (user.role === "super_admin") return true;
   if (user.role === "admin") return true;
   // support role — check explicit permissions
@@ -92,7 +114,7 @@ export function hasPermission(user: AdminUser | null | undefined, permission: Pe
 }
 
 export function isSuperAdmin(user: AdminUser | null | undefined): boolean {
-  return user?.role === "super_admin";
+  return user?.role === "super_admin" || Boolean(user?.roleKeys?.includes("SUPER_ADMIN"));
 }
 
 export function isAdmin(user: AdminUser | null | undefined): boolean {
