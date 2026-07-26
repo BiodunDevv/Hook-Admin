@@ -31,7 +31,7 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { useAdminSession, useApiQuery, useLogout } from "@/lib/query";
-import { hasPermission, type Permission } from "@/lib/permissions";
+import { hasPermission, isSuperAdmin, type Permission } from "@/lib/permissions";
 import { HookLogo } from "@/components/shared/HookLogo";
 import { HookLoader } from "@/components/shared/HookLoader";
 import { navItems } from "./nav-items";
@@ -86,7 +86,7 @@ export default function AppSidebar() {
 
   // Super_admin-only items spliced into logical positions:
   // Categories after Products (catalog cluster), Staff after Customers (people cluster)
-  if (admin?.role === "super_admin") {
+  if (isSuperAdmin(admin)) {
     const categoriesItem = { label: "Categories", href: "/dashboard/categories", icon: Tags };
     const productsIndex = visibleNavItems.findIndex((item) => item.label === "Commercial Catalog");
     visibleNavItems.splice(productsIndex === -1 ? visibleNavItems.length : productsIndex + 1, 0, categoriesItem);

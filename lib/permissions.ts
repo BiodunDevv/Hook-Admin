@@ -2,9 +2,8 @@ import type { AdminUser } from "./api";
 
 /**
  * All granular permission keys used across the admin dashboard.
- * Super admins always have all permissions regardless of this list.
- * Admins default to all permissions.
- * Support staff only get what is explicitly assigned.
+ * Permissions are resolved from active backend Role records.
+ * Only the explicit SUPER_ADMIN role key bypasses individual checks.
  */
 export const ALL_PERMISSIONS = [
   "staff.view", "staff.create", "staff.edit", "staff.suspend", "staff.revoke_sessions",
@@ -26,7 +25,6 @@ export const ALL_PERMISSIONS = [
   "customers.view",
   "customers.edit",
   "runners.view",
-  "runners.edit",
   "financials.view",
   "financials.refund",
   "financials.reconcile",
@@ -63,7 +61,6 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   "customers.view": "View Customers",
   "customers.edit": "Edit Customers",
   "runners.view": "View Runners",
-  "runners.edit": "Manage Runners",
   "financials.view": "View Financials",
   "financials.refund": "Issue Refunds",
   "financials.reconcile": "Reconcile Payments",
@@ -92,7 +89,7 @@ export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] =
   },
   {
     label: "Operations",
-    permissions: ["runners.view", "runners.edit"],
+    permissions: ["runners.view", "runners.manage"],
   },
   {
     label: "Finance & Reports",
@@ -107,9 +104,6 @@ export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] =
 export function hasPermission(user: AdminUser | null | undefined, permission: Permission): boolean {
   if (!user) return false;
   if (user.roleKeys?.includes("SUPER_ADMIN")) return true;
-  if (user.role === "super_admin") return true;
-  if (user.role === "admin") return true;
-  // support role — check explicit permissions
   return Array.isArray(user.permissions) && user.permissions.includes(permission);
 }
 
@@ -118,5 +112,5 @@ export function isSuperAdmin(user: AdminUser | null | undefined): boolean {
 }
 
 export function isAdmin(user: AdminUser | null | undefined): boolean {
-  return user?.role === "admin" || user?.role === "super_admin";
+  return user?.accountType === "staff";
 }
