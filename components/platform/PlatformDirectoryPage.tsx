@@ -2,14 +2,16 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Inbox, Plus, RefreshCcw } from "lucide-react";
+import { ChevronsUpDown, Inbox, Plus, RefreshCcw } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -17,12 +19,13 @@ import { HookLoader } from "@/components/shared/HookLoader";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { apiPost } from "@/lib/api";
 import { useApiQuery } from "@/lib/query";
+import { cn } from "@/lib/utils";
 
 type Option = { value: string; label: string };
 type Field = {
   key: string;
   label: string;
-  type?: "text" | "email" | "number" | "id-list" | "select";
+  type?: "text" | "email" | "number" | "id-list" | "select" | "multi-select";
   required?: boolean;
   options?: Option[];
   optionsEndpoint?: string;
@@ -32,6 +35,32 @@ type Field = {
 };
 type Row = Record<string, unknown> & { id: string; publicId?: string; status?: string; name?: string };
 type PageData = { data: Row[]; total: number };
+type FormValue = string | string[];
+type FormValues = Record<string, FormValue>;
+
+function selectedDependency(values: FormValues, key?: string) {
+  if (!key) return [];
+  const value = values[key];
+  return Array.isArray(value) ? value : value ? [value] : [];
+}
+
+function useRelatedOptions(field: Field, values: FormValues) {
+  const dependencies = selectedDependency(values, field.dependsOn);
+  const query = useApiQuery<PageData | Row[]>(
+    ["platform-options", field.optionsEndpoint, ...dependencies],
+    `${field.optionsEndpoint}?limit=100`,
+    Boolean(field.optionsEndpoint) && (!field.dependsOn || dependencies.length > 0),
+  );
+  const rows = Array.isArray(query.data) ? query.data : query.data?.data || [];
+  const filtered = dependencies.length
+    ? rows.filter((row) => dependencies.includes(String(row[field.dependsOnKey || `${field.dependsOn}Id`] || "")))
+    : rows;
+  const options = field.options || filtered.map((row) => ({
+    value: String(row.id),
+    label: String(row[field.optionLabelKey || "name"] || row.publicId || "Unnamed record"),
+  }));
+  return { options, query, dependencies };
+}
 
 function RelatedSelect({
   field,
@@ -41,31 +70,18 @@ function RelatedSelect({
 }: {
   field: Field;
   value?: string;
-  values: Record<string, string>;
+  values: FormValues;
   onChange: (value: string) => void;
 }) {
-  const dependency = field.dependsOn ? values[field.dependsOn] : undefined;
-  const query = useApiQuery<PageData | Row[]>(
-    ["platform-options", field.optionsEndpoint, dependency],
-    `${field.optionsEndpoint}?limit=100`,
-    Boolean(field.optionsEndpoint) && (!field.dependsOn || Boolean(dependency)),
-  );
-  const rows = Array.isArray(query.data) ? query.data : query.data?.data || [];
-  const filtered = dependency
-    ? rows.filter((row) => String(row[field.dependsOnKey || `${field.dependsOn}Id`] || "") === dependency)
-    : rows;
-  const options = field.options || filtered.map((row) => ({
-    value: String(row.id),
-    label: String(row[field.optionLabelKey || "name"] || row.publicId || row.id),
-  }));
+  const { options, query, dependencies } = useRelatedOptions(field, values);
 
   return (
     <>
       <input type="hidden" name={field.key} value={value || ""} />
-      <Select value={value} onValueChange={onChange} disabled={Boolean(field.dependsOn && !dependency) || query.isLoading}>
+      <Select value={value} onValueChange={onChange} disabled={Boolean(field.dependsOn && !dependencies.length) || query.isLoading}>
         <SelectTrigger id={field.key} className="w-full">
           <SelectValue placeholder={
-            field.dependsOn && !dependency
+            field.dependsOn && !dependencies.length
               ? `Select ${field.dependsOn.replace(/Id$/, "")} first`
               : query.isLoading
                 ? "Loading options..."
@@ -78,6 +94,74 @@ function RelatedSelect({
           ))}
         </SelectContent>
       </Select>
+    </>
+  );
+}
+
+function RelatedMultiSelect({
+  field,
+  value = [],
+  values,
+  onChange,
+}: {
+  field: Field;
+  value?: string[];
+  values: FormValues;
+  onChange: (value: string[]) => void;
+}) {
+  const { options, query, dependencies } = useRelatedOptions(field, values);
+  const disabled = Boolean(field.dependsOn && !dependencies.length) || query.isLoading;
+  const selectedLabels = options.filter((option) => value.includes(option.value)).map((option) => option.label);
+
+  return (
+    <>
+      <input type="hidden" name={field.key} value={value.join(",")} />
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            id={field.key}
+            type="button"
+            variant="outline"
+            role="combobox"
+            disabled={disabled}
+            className="h-auto min-h-9 w-full justify-between px-3 font-normal"
+          >
+            <span className={cn("truncate text-left", !selectedLabels.length && "text-muted-foreground")}>
+              {query.isLoading
+                ? "Loading options..."
+                : field.dependsOn && !dependencies.length
+                  ? `Select ${field.dependsOn.replace(/Ids?$/, "")} first`
+                  : selectedLabels.length
+                    ? selectedLabels.join(", ")
+                    : `Select ${field.label.toLowerCase()}`}
+            </span>
+            <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] gap-0 p-0">
+          <Command>
+            <CommandInput placeholder={`Search ${field.label.toLowerCase()}...`} />
+            <CommandList>
+              <CommandEmpty>No matching options.</CommandEmpty>
+              <CommandGroup>
+                {options.map((option) => {
+                  const selected = value.includes(option.value);
+                  return (
+                    <CommandItem
+                      key={option.value}
+                      value={`${option.label} ${option.value}`}
+                      data-checked={selected}
+                      onSelect={() => onChange(selected ? value.filter((item) => item !== option.value) : [...value, option.value])}
+                    >
+                      <span className="truncate">{option.label}</span>
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
     </>
   );
 }
@@ -100,7 +184,7 @@ export function PlatformDirectoryPage({
   columns: { key: string; label: string }[];
 }) {
   const [open, setOpen] = useState(false);
-  const [values, setValues] = useState<Record<string, string>>({});
+  const [values, setValues] = useState<FormValues>({});
   const query = useApiQuery<PageData>(["platform", endpoint], `${endpoint}?limit=50`);
 
   async function create(event: React.FormEvent<HTMLFormElement>) {
@@ -114,7 +198,7 @@ export function PlatformDirectoryPage({
         body[field.key] = Number(raw);
         continue;
       }
-      if (field.type === "id-list") {
+      if (field.type === "id-list" || field.type === "multi-select") {
         body[field.key] = raw.split(",").map((value) => value.trim()).filter(Boolean);
         continue;
       }
@@ -185,7 +269,20 @@ export function PlatformDirectoryPage({
                 {field.type === "select" ? (
                   <RelatedSelect
                     field={field}
-                    value={values[field.key]}
+                    value={typeof values[field.key] === "string" ? values[field.key] as string : undefined}
+                    values={values}
+                    onChange={(value) => setValues((current) => {
+                      const next = { ...current, [field.key]: value };
+                      for (const candidate of fields) {
+                        if (candidate.dependsOn === field.key) delete next[candidate.key];
+                      }
+                      return next;
+                    })}
+                  />
+                ) : field.type === "multi-select" ? (
+                  <RelatedMultiSelect
+                    field={field}
+                    value={Array.isArray(values[field.key]) ? values[field.key] as string[] : []}
                     values={values}
                     onChange={(value) => setValues((current) => {
                       const next = { ...current, [field.key]: value };
