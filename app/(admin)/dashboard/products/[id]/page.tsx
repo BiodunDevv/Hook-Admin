@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Ban, Boxes, Check, Edit3, Eye, Info, Layers, Mail, PackageCheck, Phone, UserCheck, WalletCards, X } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -98,14 +98,6 @@ export default function ProductDetailPage() {
   const product = query.data;
   const heroImage = absoluteImageUrl(product?.images?.[0]);
 
-  useEffect(() => {
-    if (product) {
-      setEditImages(product.images || []);
-      setEditColors(product.colors || []);
-      setEditStatus(product.status);
-    }
-  }, [product?.id]);
-
   return (
     <div className="min-h-[calc(100vh-4rem)] overflow-y-auto p-2 pb-6 sm:p-4 sm:pb-8">
       <PageHeader
@@ -114,7 +106,7 @@ export default function ProductDetailPage() {
         actions={
           <>
             <Button variant="outline" size="sm" onClick={() => router.back()}><ArrowLeft size={15} /> Back</Button>
-            {product && <Button variant="outline" size="sm" onClick={() => { setEditImages(product.images || []); setEditColors(product.colors || []); setEditing(true); }}><Edit3 size={15} /> Edit</Button>}
+            {product && <Button variant="outline" size="sm" onClick={() => { setEditImages(product.images || []); setEditColors(product.colors || []); setEditStatus(product.status); setEditing(true); }}><Edit3 size={15} /> Edit</Button>}
             {product && product.status !== "approved" && <Button size="sm" variant="brand" onClick={() => approve.mutate({ status: "approved" })}><Check size={15} /> Approve</Button>}
             {product && product.status !== "disabled" && <Button size="sm" variant="outline" onClick={() => disable.mutate(undefined)}><Ban size={15} /> Disable</Button>}
           </>

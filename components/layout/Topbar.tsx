@@ -204,13 +204,15 @@ export default function Topbar() {
     if (abortRef.current) clearTimeout(abortRef.current);
 
     if (query.length < 2) {
-      setResults(null);
-      setSearching(false);
+      abortRef.current = setTimeout(() => {
+        setResults(null);
+        setSearching(false);
+      }, 0);
       return;
     }
 
-    setSearching(true);
     abortRef.current = setTimeout(async () => {
+      setSearching(true);
       try {
         const data = await apiGet<SearchResults>(
           `/admin/search?q=${encodeURIComponent(query)}&limit=5`,
@@ -228,14 +230,14 @@ export default function Topbar() {
     };
   }, [query]);
 
-  // Reset on close
-  useEffect(() => {
-    if (!commandOpen) {
+  function changeCommandOpen(open: boolean) {
+    setCommandOpen(open);
+    if (!open) {
       setQuery("");
       setResults(null);
       setSearching(false);
     }
-  }, [commandOpen]);
+  }
 
   // ⌘K shortcut
   useEffect(() => {
@@ -338,7 +340,7 @@ export default function Topbar() {
         </Button>
       </header>
 
-      <CommandDialog open={commandOpen} onOpenChange={setCommandOpen}>
+      <CommandDialog open={commandOpen} onOpenChange={changeCommandOpen}>
         <Command shouldFilter={false}>
           <CommandInput
             placeholder={searchPlaceholder}

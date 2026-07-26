@@ -22,19 +22,22 @@ export function SettingsSection() {
   const saveSettingsMutation = useApiPatch<Record<string, unknown>, Record<string, unknown>>("/admin/settings", ["admin", "settings"]);
 
   useEffect(() => {
-    if (settingsQuery.data) {
-      const data = settingsQuery.data;
-      setSettings((current) => ({
-        ...current,
-        platformName: String(data.platformName || "Hook"),
-        supportEmail: String(data.supportEmail || "support@hook.local"),
-        currency: String(data.currency || "NGN"),
-        timezone: String(data.timezone || "Africa/Lagos"),
-      }));
-    }
-    if (settingsQuery.error) {
-      setStatus(settingsQuery.error instanceof Error ? settingsQuery.error.message.replace(/^\d+:\s*/, "") : "Failed to load settings");
-    }
+    const timeout = setTimeout(() => {
+      if (settingsQuery.data) {
+        const data = settingsQuery.data;
+        setSettings((current) => ({
+          ...current,
+          platformName: String(data.platformName || "Hook"),
+          supportEmail: String(data.supportEmail || "support@hook.local"),
+          currency: String(data.currency || "NGN"),
+          timezone: String(data.timezone || "Africa/Lagos"),
+        }));
+      }
+      if (settingsQuery.error) {
+        setStatus(settingsQuery.error instanceof Error ? settingsQuery.error.message.replace(/^\d+:\s*/, "") : "Failed to load settings");
+      }
+    }, 0);
+    return () => clearTimeout(timeout);
   }, [settingsQuery.data, settingsQuery.error]);
 
   async function saveSettings() {

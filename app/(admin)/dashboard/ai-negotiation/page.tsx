@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Activity,
   CheckCircle2,
@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { NegotiationSession } from "@/components/ai-negotiation/NegotiationSession";
 import { ChatInterface, type NegotiationDetail } from "@/components/ai-negotiation/ChatInterface";
 import type { Session } from "@/components/ai-negotiation/NegotiationSession";
-import { apiGet } from "@/lib/api";
+import { useApiQuery } from "@/lib/query";
 
 interface NegotiationRow {
   id: string;
@@ -40,62 +40,45 @@ type StatusFilter = (typeof STATUS_FILTERS)[number];
 
 export default function AINegotiationPage() {
   const [activeSession, setActiveSession] = useState("");
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [rows, setRows] = useState<NegotiationRow[]>([]);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [metrics, setMetrics] = useState({ active: 0, accepted: 0, declined: 0, conversionRate: 0 });
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    setIsLoading(true);
-    setError(false);
-    apiGet<Page<NegotiationRow>>("/admin/negotiations")
-      .then((result) => {
-        const data = result.data || [];
-
-        const toSession = (item: NegotiationRow): Session => {
-          const customer = `${item.user?.firstName || ""} ${item.user?.lastName || ""}`.trim()
-            || item.user?.email || "Customer";
-          const statusColor =
-            item.status === "accepted" ? "text-emerald-700 bg-emerald-50 border-emerald-200"
-            : item.status === "active"  ? "text-blue-700 bg-blue-50 border-blue-200"
-            : item.status === "declined" ? "text-red-700 bg-red-50 border-red-200"
-            : "text-zinc-600 bg-zinc-50 border-zinc-200";
-          return {
-            id: item.id,
-            status: item.status,
-            statusColor,
-            time: new Date(item.updatedAt).toLocaleString("en-NG", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }),
-            product: item.product?.title || "Product",
-            customer,
-            amountLabel: item.acceptedPrice ? "Closed at" : "Offered",
-            amount: `₦${Number(item.acceptedPrice || item.offeredPrice || 0).toLocaleString()}`,
-            amountColor: item.acceptedPrice ? "text-emerald-600" : "text-zinc-700",
-            img: item.product?.images?.[0] || "",
-            hasIcon: !item.product?.images?.[0],
-          };
-        };
-
-        setRows(data);
-        setSessions(data.map(toSession));
-        setActiveSession(data[0]?.id || "");
-        setMetrics({
-          active: data.filter((n) => n.status === "active").length,
-          accepted: result.accepted ?? data.filter((n) => n.status === "accepted").length,
-          declined: data.filter((n) => n.status === "declined" || n.status === "expired").length,
-          conversionRate: result.conversionRate || 0,
-        });
-      })
-      .catch(() => setError(true))
-      .finally(() => setIsLoading(false));
-  }, []);
+  const query = useApiQuery<Page<NegotiationRow>>(["admin", "negotiations"], "/admin/negotiations");
+  const rows = useMemo(() => query.data?.data || [], [query.data]);
+  const sessions = useMemo<Session[]>(() => rows.map((item) => {
+    const customer = `${item.user?.firstName || ""} ${item.user?.lastName || ""}`.trim()
+      || item.user?.email || "Customer";
+    const statusColor =
+      item.status === "accepted" ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+      : item.status === "active" ? "text-blue-700 bg-blue-50 border-blue-200"
+      : item.status === "declined" ? "text-red-700 bg-red-50 border-red-200"
+      : "text-zinc-600 bg-zinc-50 border-zinc-200";
+    return {
+      id: item.id,
+      status: item.status,
+      statusColor,
+      time: new Date(item.updatedAt).toLocaleString("en-NG", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }),
+      product: item.product?.title || "Product",
+      customer,
+      amountLabel: item.acceptedPrice ? "Closed at" : "Offered",
+      amount: `₦${Number(item.acceptedPrice || item.offeredPrice || 0).toLocaleString()}`,
+      amountColor: item.acceptedPrice ? "text-emerald-600" : "text-zinc-700",
+      img: item.product?.images?.[0] || "",
+      hasIcon: !item.product?.images?.[0],
+    };
+  }), [rows]);
+  const metrics = useMemo(() => ({
+    active: rows.filter((item) => item.status === "active").length,
+    accepted: query.data?.accepted ?? rows.filter((item) => item.status === "accepted").length,
+    declined: rows.filter((item) => item.status === "declined" || item.status === "expired").length,
+    conversionRate: query.data?.conversionRate || 0,
+  }), [query.data, rows]);
+  const isLoading = query.isLoading;
+  const error = query.isError;
 
   const filteredSessions = statusFilter === "all"
     ? sessions
     : sessions.filter((s) => s.status === statusFilter);
 
-  const selectedNegotiation = rows.find((r) => r.id === activeSession);
+  const selectedNegotiation = rows.find((r) => r.id === (activeSession || rows[0]?.id));
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)] flex-col overflow-hidden p-2 sm:p-4">

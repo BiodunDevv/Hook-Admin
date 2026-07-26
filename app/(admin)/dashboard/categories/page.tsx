@@ -109,12 +109,6 @@ function CategoryDialog({
   const fileInputId = `category-icon-${useId().replace(/:/g, "")}`;
   const isEdit = Boolean(category);
 
-  // Reset the icon whenever the dialog opens (create dialog stays mounted)
-  useEffect(() => {
-    if (open) setIconUrl(category?.iconUrl || "");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, category?.id]);
-
   async function uploadIcon(files: FileList | null) {
     if (!files?.length) return;
     const formData = new FormData();
@@ -470,17 +464,16 @@ export default function CategoriesPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const { data: session } = useAdminSession();
   const router = useRouter();
-
-  // Guard: only super_admin manages the organization taxonomy
-  if (session && !isSuperAdmin(session)) {
-    router.replace("/dashboard");
-    return null;
-  }
-
   const { data, isLoading, error, refetch } = useApiQuery<CategoriesResponse>(
     ["admin", "categories"],
     "/admin/categories",
   );
+
+  // Guard: only super_admin manages the organization taxonomy
+  useEffect(() => {
+    if (session && !isSuperAdmin(session)) router.replace("/dashboard");
+  }, [router, session]);
+  if (session && !isSuperAdmin(session)) return null;
 
   const all = data?.data ?? [];
   const filtered = all.filter((category) => {
@@ -581,11 +574,13 @@ export default function CategoriesPage() {
         </div>
       )}
 
-      <CategoryDialog
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        onSuccess={() => refetch()}
-      />
+      {createOpen && (
+        <CategoryDialog
+          open
+          onClose={() => setCreateOpen(false)}
+          onSuccess={() => refetch()}
+        />
+      )}
 
       {editing && (
         <CategoryDialog

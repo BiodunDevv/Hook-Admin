@@ -14,7 +14,12 @@ export default function StaffPage() {
         { key: "email", label: "Work email", type: "email", required: true },
         { key: "phone", label: "Phone", required: true },
         { key: "roleIds", label: "Role IDs (comma-separated)", type: "id-list", required: true },
-        { key: "scopeType", label: "Scope: global, multi_state, single_state, or hub", required: true },
+        { key: "scopeType", label: "Operational scope", type: "select", required: true, options: [
+          { value: "global", label: "Global" },
+          { value: "multi_state", label: "Multiple states" },
+          { value: "single_state", label: "Single state" },
+          { value: "hub", label: "Dispatch Hub" },
+        ] },
         { key: "stateIds", label: "State IDs (comma-separated)", type: "id-list" },
         { key: "hubIds", label: "Hub IDs (comma-separated)", type: "id-list" },
       ]}

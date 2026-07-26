@@ -37,7 +37,7 @@ export function FloatingPaths({ position }: { position: number }) {
 						strokeOpacity={0.1 + path.id * 0.03}
 						strokeWidth={path.width}
 						transition={{
-							duration: 20 + Math.random() * 10,
+							duration: 20 + (path.id % 10),
 							repeat: Number.POSITIVE_INFINITY,
 							ease: "linear",
 						}}
