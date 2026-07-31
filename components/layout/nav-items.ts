@@ -16,6 +16,8 @@ import {
   Warehouse,
   Handshake,
   ShieldCheck,
+  BadgeCheck,
+  CreditCard,
 } from "lucide-react";
 
 export interface NavItem {
@@ -29,7 +31,17 @@ export interface NavItem {
 export const navItems: NavItem[] = [
   { label: "Control Tower", href: "/dashboard", icon: LayoutGrid },
   { label: "Orders", href: "/dashboard/orders", icon: ShoppingCart },
-  { label: "Catalog Review", href: "/dashboard/catalog-review", icon: ClipboardCheck },
+  {
+    label: "POD Verification",
+    href: "/dashboard/orders/pod",
+    icon: BadgeCheck,
+  },
+  { label: "Payments", href: "/dashboard/payments", icon: CreditCard },
+  {
+    label: "Catalog Review",
+    href: "/dashboard/catalog-review",
+    icon: ClipboardCheck,
+  },
   { label: "Commercial Catalog", href: "/dashboard/commercial", icon: Package },
   { label: "Runner Operations", href: "/dashboard/runners", icon: UsersRound },
   { label: "Markets", href: "/dashboard/markets", icon: MapPinned },
@@ -39,9 +51,17 @@ export const navItems: NavItem[] = [
   { label: "Support", href: "/dashboard/support", icon: LifeBuoy },
   { label: "Financials", href: "/dashboard/financials", icon: Wallet },
   { label: "Refunds", href: "/dashboard/refunds", icon: RotateCcw },
-  { label: "Checkout Analytics", href: "/dashboard/checkout-analytics", icon: ChartNoAxesCombined },
+  {
+    label: "Checkout Analytics",
+    href: "/dashboard/checkout-analytics",
+    icon: ChartNoAxesCombined,
+  },
   { label: "AI Negotiation", href: "/dashboard/ai-negotiation", icon: Bot },
   { label: "Reports", href: "/dashboard/reports", icon: BarChart3 },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
-  { label: "Administration", href: "/dashboard/administration", icon: ShieldCheck },
+  {
+    label: "Administration",
+    href: "/dashboard/administration",
+    icon: ShieldCheck,
+  },
 ];
