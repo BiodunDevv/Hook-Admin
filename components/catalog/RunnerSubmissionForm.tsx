@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ImagePlus, Plus, Save, Send, Trash2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { AlertCircle, ImagePlus, Plus, Save, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { apiPatch, apiPost } from "@/lib/api";
+import { apiGet, apiPatch, apiPost } from "@/lib/api";
 import type { ProductSubmission } from "@/lib/catalog";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -25,6 +27,16 @@ interface UploadIntent {
   publicId: string;
   type: string;
   signature: string;
+}
+
+interface MediaReadiness {
+  provider: "cloudinary";
+  mode: "signed";
+  enabled: boolean;
+  configured: boolean;
+  available: boolean;
+  maxBytes: number;
+  supportedFormats: string[];
 }
 
 interface FormState {
@@ -75,6 +87,13 @@ export function RunnerSubmissionForm({
   const [uploading, setUploading] = useState(false);
   const [dirty, setDirty] = useState(false);
   const editable = !submission || ["draft", "changes_requested"].includes(submission.status);
+  const mediaReadiness = useQuery({
+    queryKey: ["catalog-media-readiness"],
+    queryFn: () => apiGet<MediaReadiness>("/catalog/media/readiness"),
+    staleTime: 60_000,
+    retry: 1,
+  });
+  const mediaAvailable = mediaReadiness.data?.available === true;
 
   useEffect(() => {
     const guard = (event: BeforeUnloadEvent) => {
@@ -128,6 +147,10 @@ export function RunnerSubmissionForm({
 
   async function upload(file?: File) {
     if (!file) return;
+    if (!mediaAvailable) {
+      toast.error("Secure image uploads are temporarily unavailable");
+      return;
+    }
     setUploading(true);
     try {
       const intent = await apiPost<UploadIntent>("/catalog/media/upload-intents", {
@@ -184,7 +207,7 @@ export function RunnerSubmissionForm({
           </FieldGroup>
         </CardContent></Card>
         <div className="space-y-4">
-          <Card className="rounded-lg shadow-none"><CardHeader><CardTitle>Media</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-sm text-muted-foreground">Upload at least one clear, original product image.</p><label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed bg-muted/20 text-sm"><ImagePlus className="mb-2 size-5" />{uploading ? <HookLoader size="inline" /> : "Choose image"}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" className="sr-only" disabled={!editable || uploading} onChange={(event) => void upload(event.target.files?.[0])} /></label>{form.mediaIds.map((id) => <div key={id} className="flex items-center justify-between rounded-md border p-2 text-xs"><span className="truncate">{id}</span><Button type="button" variant="ghost" size="icon-sm" disabled={!editable} onClick={() => update("mediaIds", form.mediaIds.filter((value) => value !== id))}><Trash2 /></Button></div>)}</CardContent></Card>
+          <Card className="rounded-lg shadow-none"><CardHeader><CardTitle>Media</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-sm text-muted-foreground">Upload at least one clear, original product image.</p>{mediaReadiness.isError || (mediaReadiness.isSuccess && !mediaAvailable) ? <Alert><AlertCircle /><AlertTitle>Secure uploads unavailable</AlertTitle><AlertDescription>Existing draft media remains safe. You can continue editing and save this draft, then upload images when the media service is restored.</AlertDescription></Alert> : null}<label className={`flex min-h-28 flex-col items-center justify-center rounded-lg border border-dashed bg-muted/20 text-sm ${editable && mediaAvailable && !uploading ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}><ImagePlus className="mb-2 size-5" />{mediaReadiness.isLoading || uploading ? <HookLoader size="inline" /> : mediaAvailable ? "Choose image" : "Upload unavailable"}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" className="sr-only" disabled={!editable || uploading || !mediaAvailable} onChange={(event) => void upload(event.target.files?.[0])} /></label>{form.mediaIds.map((id) => <div key={id} className="flex items-center justify-between rounded-md border p-2 text-xs"><span className="truncate">{id}</span><Button type="button" variant="ghost" size="icon-sm" disabled={!editable} onClick={() => update("mediaIds", form.mediaIds.filter((value) => value !== id))}><Trash2 /></Button></div>)}</CardContent></Card>
           <Card className="rounded-lg shadow-none"><CardHeader className="flex-row items-center justify-between"><CardTitle>Variants</CardTitle><Button type="button" variant="outline" size="sm" disabled={!editable} onClick={() => update("variants", [...form.variants, { size: "", colour: "", attributes: {}, active: true }])}><Plus /> Add</Button></CardHeader><CardContent className="space-y-3">{form.variants.map((variant, index) => <div key={index} className="grid grid-cols-[1fr_1fr_auto] gap-2"><Input disabled={!editable} placeholder="Size" value={variant.size} onChange={(event) => update("variants", form.variants.map((item, itemIndex) => itemIndex === index ? { ...item, size: event.target.value } : item))} /><Input disabled={!editable} placeholder="Colour" value={variant.colour} onChange={(event) => update("variants", form.variants.map((item, itemIndex) => itemIndex === index ? { ...item, colour: event.target.value } : item))} /><Button variant="ghost" size="icon" disabled={!editable || form.variants.length === 1} onClick={() => update("variants", form.variants.filter((_, itemIndex) => itemIndex !== index))}><Trash2 /></Button></div>)}</CardContent></Card>
         </div>
       </div>
