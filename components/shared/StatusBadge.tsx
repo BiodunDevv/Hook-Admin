@@ -6,65 +6,95 @@ interface StatusBadgeProps {
   className?: string;
 }
 
-const statusColorMap: Record<string, string> = {
-  // Order statuses
-  Delivered: "bg-emerald-50 text-emerald-600 border-emerald-200",
-  "In Transit": "bg-blue-50 text-blue-600 border-blue-200",
-  Processing: "bg-zinc-100 text-zinc-500 border-zinc-200",
-  Negotiating: "bg-purple-50 text-purple-600 border-purple-200",
-  Pending: "bg-amber-50 text-amber-600 border-amber-200",
-  Cancelled: "bg-red-50 text-red-600 border-red-200",
+type StatusIntent = "success" | "warning" | "danger" | "neutral";
 
-  // Payment statuses
-  PAID: "bg-emerald-50 text-emerald-600 border-emerald-200",
-  PENDING: "bg-amber-50 text-amber-600 border-amber-200",
-  UNPAID: "bg-red-50 text-red-600 border-red-200",
+const successStatuses = new Set([
+  "active",
+  "approved",
+  "available",
+  "collected",
+  "completed",
+  "confirmed",
+  "delivered",
+  "fully operational",
+  "in stock",
+  "online",
+  "paid",
+  "published",
+  "qc passed",
+  "release approved",
+  "resolved",
+  "successful",
+  "verified",
+]);
 
-  // Delivery statuses
-  "ON ROUTE": "bg-blue-50 text-blue-600 border-blue-200",
-  "PICKING UP": "bg-amber-50 text-amber-600 border-amber-200",
-  DELAYED: "bg-red-50 text-red-600 border-red-200",
-  "QUALITY CHECK": "bg-purple-50 text-purple-600 border-purple-200",
+const warningStatuses = new Set([
+  "awaiting payment",
+  "changes requested",
+  "due at handover",
+  "in review",
+  "low stock",
+  "low stock alert",
+  "on break",
+  "pending",
+  "pending approval",
+  "processing",
+  "submitted",
+  "verification pending",
+]);
 
-  // Legacy partner tiers retained for historical records
-  Platinum: "bg-indigo-50 text-indigo-600 border-indigo-200",
-  Gold: "bg-amber-50 text-amber-600 border-amber-200",
-  Silver: "bg-zinc-100 text-zinc-500 border-zinc-200",
+const dangerStatuses = new Set([
+  "blocked",
+  "cancelled",
+  "critical",
+  "delayed",
+  "disabled",
+  "failed",
+  "inactive",
+  "out of stock",
+  "rejected",
+  "suspended",
+  "unpaid",
+]);
 
-  // Runner and legacy logistics statuses
-  Active: "bg-emerald-50 text-emerald-600 border-emerald-200",
-  Inactive: "bg-zinc-100 text-zinc-500 border-zinc-200",
-  Online: "bg-emerald-50 text-emerald-600 border-emerald-200",
-  Offline: "bg-zinc-100 text-zinc-500 border-zinc-200",
-  "On Delivery": "bg-blue-50 text-blue-600 border-blue-200",
-  Available: "bg-emerald-50 text-emerald-600 border-emerald-200",
-  "On Break": "bg-amber-50 text-amber-600 border-amber-200",
-
-  // Legacy location statuses
-  "Fully Operational": "bg-emerald-50 text-emerald-600 border-emerald-200",
-  "Low Stock": "bg-amber-50 text-amber-600 border-amber-200",
-  Maintenance: "bg-red-50 text-red-600 border-red-200",
-
-  // Product/stock
-  "In Stock": "bg-emerald-50 text-emerald-600 border-emerald-200",
-  "Low Stock Alert": "bg-amber-50 text-amber-600 border-amber-200",
-  "Out of Stock": "bg-red-50 text-red-600 border-red-200",
+const intentClasses: Record<StatusIntent, string> = {
+  success: "border-success/20 bg-success-soft text-success",
+  warning: "border-warning/20 bg-warning-soft text-warning",
+  danger: "border-danger/20 bg-danger-soft text-danger",
+  neutral: "border-border bg-muted text-muted-foreground",
 };
 
+function formatStatus(status: string) {
+  const value = String(status || "")
+    .trim()
+    .replaceAll("_", " ");
+  if (!value) return "Unknown";
+  return value
+    .toLowerCase()
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function intentFor(status: string): StatusIntent {
+  const normalized = status.trim().replaceAll("_", " ").toLowerCase();
+  if (successStatuses.has(normalized)) return "success";
+  if (warningStatuses.has(normalized)) return "warning";
+  if (dangerStatuses.has(normalized)) return "danger";
+  return "neutral";
+}
+
 export function StatusBadge({ status, className }: StatusBadgeProps) {
-  const colorClass =
-    statusColorMap[status] ?? "bg-zinc-100 text-zinc-500 border-zinc-200";
+  const intent = intentFor(status);
 
   return (
     <Badge
       variant="outline"
       className={cn(
-        "rounded-full px-2.5 py-0.5 text-xs font-medium",
-        colorClass,
-        className
+        "rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap",
+        intentClasses[intent],
+        className,
       )}
     >
-      {status}
+      {formatStatus(status)}
     </Badge>
   );
 }

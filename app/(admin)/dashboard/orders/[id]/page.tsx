@@ -11,9 +11,11 @@ import {
 import { PageHeader } from "@/components/shared/PageHeader";
 import { HookLoader } from "@/components/shared/HookLoader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { MetricCard } from "@/components/shared/MetricCard";
+import { DetailSection } from "@/components/shared/DetailSection";
+import { DefinitionGrid } from "@/components/shared/DefinitionGrid";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useApiQuery } from "@/lib/query";
 
@@ -100,7 +102,7 @@ export default function OrderDetailPage() {
   const customer = order.customerSnapshot || {};
   const address = order.addressSnapshot || order.pickupPartnerSnapshot || {};
   return (
-    <div className="space-y-5 p-4 md:p-6">
+    <div className="space-y-5 pb-10">
       <PageHeader
         title={order.publicId || order.orderCode || order.id}
         description={`${text(order.channel).replaceAll("_", " ")} · ${text(order.deliveryMethod).replaceAll("_", " ")}`}
@@ -112,24 +114,14 @@ export default function OrderDetailPage() {
         }
       />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric label="Order status" value={text(order.commerceStatus)} />
-        <Metric
-          label="Payment status"
-          value={text(order.commercePaymentStatus)}
-        />
-        <Metric label="State" value={text(order.sourceStateId)} />
-        <Metric label="Total" value={money(order.totalMinor)} />
+        <MetricCard icon={Package} label="Order status" value={text(order.commerceStatus).replaceAll("_", " ")} intent="warning" />
+        <MetricCard icon={CreditCard} label="Payment status" value={text(order.commercePaymentStatus).replaceAll("_", " ")} intent="success" />
+        <MetricCard icon={MapPin} label="Source state" value={text(order.sourceStateId)} />
+        <MetricCard icon={ShieldCheck} label="Order total" value={money(order.totalMinor)} />
       </div>
       <div className="grid gap-5 xl:grid-cols-3">
         <div className="space-y-5 xl:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                Immutable line snapshots
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
+          <DetailSection title="Order items" description="Immutable product, variant, quote, and price snapshots captured at checkout." action={<Package className="size-4 text-muted-foreground" />} contentClassName="space-y-3">
               {(order.items || []).map((item) => (
                 <div
                   key={item.publicId || item.id}
@@ -169,13 +161,8 @@ export default function OrderDetailPage() {
                 <Amount label="Delivery" value={order.deliveryFeeMinor} />
                 <Amount label="Total" value={order.totalMinor} strong />
               </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Order timeline</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
+          </DetailSection>
+          <DetailSection title="Order timeline" description="Customer and operations lifecycle events in chronological order." contentClassName="space-y-4">
               {(order.timeline || []).map((event, index) => (
                 <div
                   key={`${event.status}-${event.at}-${index}`}
@@ -198,108 +185,18 @@ export default function OrderDetailPage() {
                   </div>
                 </div>
               ))}
-            </CardContent>
-          </Card>
+          </DetailSection>
         </div>
         <div className="space-y-5">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ShieldCheck className="h-5 w-5" />
-                Customer & policies
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <Info label="Customer" value={customer.name} />
-              <Info label="Email" value={customer.email} />
-              <Info label="Phone" value={customer.phone} />
-              <Info
-                label="Policy versions"
-                value={Object.entries(order.policyVersions || {})
-                  .map(([key, value]) => `${key} ${value}`)
-                  .join(" · ")}
-              />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MapPin className="h-5 w-5" />
-                Delivery snapshot
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <Info
-                label="Recipient"
-                value={address.recipientName || address.name}
-              />
-              <Info label="Address" value={address.line1 || address.address} />
-              <Info
-                label="Phone"
-                value={
-                  address.phone ||
-                  (address.contact as Record<string, unknown> | undefined)
-                    ?.phone
-                }
-              />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5" />
-                Payment evidence
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <Info label="Method" value={order.commercePaymentMethod} />
-              <Info
-                label="Provider"
-                value={order.payment?.gateway || "paystack"}
-              />
-              <Info label="Reference" value={order.payment?.transactionRef} />
-              <StatusBadge
-                status={
-                  order.payment?.commerceStatus ||
-                  order.commercePaymentStatus ||
-                  "PENDING"
-                }
-              />
-              {order.podReview ? (
-                <div className="rounded-md bg-muted p-3 text-xs">
-                  POD review: {JSON.stringify(order.podReview)}
-                </div>
-              ) : null}
-            </CardContent>
-          </Card>
+          <DetailSection title="Customer & policies" description="Identity and accepted policy versions captured for this order." action={<ShieldCheck className="size-4 text-muted-foreground" />}><DefinitionGrid columns={1} items={[{ label: "Customer", value: text(customer.name) }, { label: "Email", value: text(customer.email) }, { label: "Phone", value: text(customer.phone) }, { label: "Policy versions", value: Object.entries(order.policyVersions || {}).map(([key, value]) => `${key} ${value}`).join(" · ") || "Not recorded" }]} /></DetailSection>
+          <DetailSection title="Delivery snapshot" description="Immutable destination information used for fulfilment." action={<MapPin className="size-4 text-muted-foreground" />}><DefinitionGrid columns={1} items={[{ label: "Recipient", value: text(address.recipientName || address.name) }, { label: "Address", value: text(address.line1 || address.address) }, { label: "Phone", value: text(address.phone || (address.contact as Record<string, unknown> | undefined)?.phone) }]} /></DetailSection>
+          <DetailSection title="Payment evidence" description="Provider-backed transaction context; status cannot be edited here." action={<CreditCard className="size-4 text-muted-foreground" />}><DefinitionGrid columns={1} items={[{ label: "Method", value: text(order.commercePaymentMethod).replaceAll("_", " ") }, { label: "Provider", value: order.payment?.gateway || "Paystack" }, { label: "Reference", value: text(order.payment?.transactionRef) }, { label: "Status", value: <StatusBadge status={order.payment?.commerceStatus || order.commercePaymentStatus || "PENDING"} /> }, ...(order.podReview ? Object.entries(order.podReview).map(([key, value]) => ({ label: `POD ${key.replace(/([A-Z])/g, " $1")}`, value: text(value) })) : [])]} /></DetailSection>
         </div>
       </div>
     </div>
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <p className="text-xs font-medium uppercase text-muted-foreground">
-          {label}
-        </p>
-        <p className="mt-2 truncate text-lg font-semibold">
-          {value.replaceAll("_", " ")}
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
-function Info({ label, value }: { label: string; value: unknown }) {
-  return (
-    <div>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 break-words font-medium">{text(value)}</p>
-    </div>
-  );
-}
 function Amount({
   label,
   value,

@@ -22,6 +22,7 @@ export function PortalShell({
     type === "runner"
       ? [
           ["Dashboard", base],
+          ["Fulfilments", `${base}/fulfilments`],
           ["Submissions", `${base}/submissions`],
           ["Assigned Markets", `${base}/markets`],
           ["Profile", `${base}/profile`],
@@ -33,6 +34,7 @@ export function PortalShell({
           ["Customers", `${base}/customers`],
           ["Assisted Basket", `${base}/basket`],
           ["Orders", `${base}/orders`],
+          ["Custody", `${base}/fulfilment`],
           ["Location", `${base}/location`],
           ["Profile", `${base}/profile`],
           ["Security", `${base}/security`],

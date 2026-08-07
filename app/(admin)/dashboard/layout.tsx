@@ -10,11 +10,13 @@ export default function DashboardLayout({
 }) {
   return (
     <AdminGuard>
-      <SidebarProvider>
+      <SidebarProvider className="[--sidebar-width:16rem] [--sidebar-width-icon:3.5rem]">
         <AppSidebar />
-        <SidebarInset className="min-w-0 overflow-hidden">
+        <SidebarInset className="min-w-0 overflow-hidden bg-background">
           <Topbar />
-          <main className="flex-1 overflow-y-auto bg-background">{children}</main>
+          <main className="flex-1 overflow-y-auto bg-background pt-14">
+            {children}
+          </main>
         </SidebarInset>
       </SidebarProvider>
     </AdminGuard>

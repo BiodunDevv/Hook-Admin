@@ -13,6 +13,7 @@ export const ALL_PERMISSIONS = [
   "zones.view", "zones.manage",
   "markets.view", "markets.manage", "markets.assign_hub",
   "hubs.view", "hubs.manage", "hubs.assign_markets",
+  "categories.view", "categories.manage",
   "partners.view", "partners.manage",
   "runners.manage", "runners.assign",
   "audit.view", "settings.manage",
@@ -41,6 +42,15 @@ export const ALL_PERMISSIONS = [
   "customers.view",
   "customers.edit",
   "runners.view",
+  "fulfilment.view", "fulfilment.manage", "fulfilment.assign", "fulfilment.resolve", "fulfilment.consolidate",
+  "fulfilment.hub.view", "fulfilment.hub.receive", "fulfilment.hub.qc",
+  "logistics.view", "logistics.book", "logistics.manage", "logistics.track",
+  "returns.view", "returns.review", "returns.manage",
+  "custody.view", "custody.manage",
+  "finance.refunds.view", "finance.refunds.process",
+  "commerce.pod.review", "commerce.pod.override", "commerce.pod.eligibility",
+  "commerce.payments.view", "commerce.payments.reconcile",
+  "commerce.outbox.view", "commerce.settings.view", "commerce.settings.manage",
   "financials.view",
   "financials.refund",
   "financials.reconcile",
@@ -52,6 +62,8 @@ export const ALL_PERMISSIONS = [
   "reports.view",
   "ai_negotiation.view",
   "settings.view",
+  "delivery.coverage.view", "delivery.coverage.manage",
+  "delivery.pricing.view", "delivery.pricing.manage", "delivery.pricing.preview",
 ] as const;
 
 export type Permission = (typeof ALL_PERMISSIONS)[number];
@@ -65,6 +77,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   "zones.view": "View Zones", "zones.manage": "Manage Zones",
   "markets.view": "View Markets", "markets.manage": "Manage Markets", "markets.assign_hub": "Assign Market Hubs",
   "hubs.view": "View Hubs", "hubs.manage": "Manage Hubs", "hubs.assign_markets": "Assign Hub Markets",
+  "categories.view": "View Categories", "categories.manage": "Manage Categories",
   "partners.view": "View Partners", "partners.manage": "Manage Partners",
   "runners.manage": "Manage Runners", "runners.assign": "Assign Runners",
   "audit.view": "View Audit Logs", "settings.manage": "Manage Settings",
@@ -93,6 +106,33 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   "customers.view": "View Customers",
   "customers.edit": "Edit Customers",
   "runners.view": "View Runners",
+  "fulfilment.view": "View Fulfilment",
+  "fulfilment.manage": "Manage Fulfilment",
+  "fulfilment.assign": "Assign Fulfilment",
+  "fulfilment.resolve": "Resolve Fulfilment Exceptions",
+  "fulfilment.consolidate": "Consolidate Orders",
+  "fulfilment.hub.view": "View Hub Packages",
+  "fulfilment.hub.receive": "Receive Hub Packages",
+  "fulfilment.hub.qc": "Perform Hub Quality Checks",
+  "logistics.view": "View Shipments",
+  "logistics.book": "Book Shipments",
+  "logistics.manage": "Manage Shipments",
+  "logistics.track": "Track Shipments",
+  "returns.view": "View Returns",
+  "returns.review": "Review Returns",
+  "returns.manage": "Manage Returns",
+  "custody.view": "View Partner Custody",
+  "custody.manage": "Manage Partner Custody",
+  "finance.refunds.view": "View Fulfilment Refunds",
+  "finance.refunds.process": "Process Fulfilment Refunds",
+  "commerce.pod.review": "Review Pay-at-Handover Orders",
+  "commerce.pod.override": "Override Pay-at-Handover Limits",
+  "commerce.pod.eligibility": "Manage Customer Pay-at-Handover Eligibility",
+  "commerce.payments.view": "View Commerce Payments",
+  "commerce.payments.reconcile": "Reconcile Commerce Payments",
+  "commerce.outbox.view": "View Commerce Events",
+  "commerce.settings.view": "View Commerce Settings",
+  "commerce.settings.manage": "Manage Commerce Settings",
   "financials.view": "View Financials",
   "financials.refund": "Issue Refunds",
   "financials.reconcile": "Reconcile Payments",
@@ -104,6 +144,11 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   "reports.view": "View Reports",
   "ai_negotiation.view": "View AI Negotiation",
   "settings.view": "View Settings",
+  "delivery.coverage.view": "View Delivery Coverage",
+  "delivery.coverage.manage": "Manage Delivery Coverage",
+  "delivery.pricing.view": "View Delivery Pricing",
+  "delivery.pricing.manage": "Manage Delivery Pricing",
+  "delivery.pricing.preview": "Preview Delivery Pricing",
 };
 
 export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] = [
@@ -115,6 +160,7 @@ export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] =
     label: "Catalog",
     permissions: [
       "products.view", "products.review", "products.edit",
+      "categories.view", "categories.manage",
       "catalog.submission.view", "catalog.submission.review", "catalog.submission.request_changes",
       "catalog.submission.approve", "catalog.submission.reject", "catalog.product.view",
       "catalog.product.edit", "catalog.product.publish", "catalog.product.pause",
@@ -129,15 +175,32 @@ export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] =
   },
   {
     label: "Operations",
-    permissions: ["runners.view", "runners.manage"],
+    permissions: [
+      "runners.view", "runners.manage", "fulfilment.view", "fulfilment.manage",
+      "fulfilment.assign", "fulfilment.resolve", "fulfilment.consolidate",
+      "fulfilment.hub.view", "fulfilment.hub.receive", "fulfilment.hub.qc",
+      "logistics.view", "logistics.book", "logistics.manage", "logistics.track",
+      "returns.view", "returns.review", "returns.manage", "custody.view", "custody.manage",
+    ],
   },
   {
     label: "Finance & Reports",
-    permissions: ["financials.view", "financials.refund", "financials.reconcile", "reports.view", "ai_negotiation.view", "analytics.checkout"],
+    permissions: [
+      "financials.view", "financials.refund", "financials.reconcile",
+      "finance.refunds.view", "finance.refunds.process",
+      "commerce.payments.view", "commerce.payments.reconcile",
+      "reports.view", "ai_negotiation.view", "analytics.checkout",
+    ],
   },
   {
     label: "Platform",
-    permissions: ["refunds.view", "refunds.manage", "deletions.view", "deletions.manage", "settings.view"],
+    permissions: [
+      "refunds.view", "refunds.manage", "deletions.view", "deletions.manage",
+      "commerce.pod.review", "commerce.pod.override", "commerce.pod.eligibility",
+      "commerce.outbox.view", "commerce.settings.view", "commerce.settings.manage",
+      "settings.view", "settings.manage",
+      "delivery.coverage.view", "delivery.coverage.manage", "delivery.pricing.view", "delivery.pricing.manage", "delivery.pricing.preview",
+    ],
   },
 ];
 
@@ -148,7 +211,7 @@ export function hasPermission(user: AdminUser | null | undefined, permission: Pe
 }
 
 export function isSuperAdmin(user: AdminUser | null | undefined): boolean {
-  return user?.role === "super_admin" || Boolean(user?.roleKeys?.includes("SUPER_ADMIN"));
+  return user?.role === "super_admin" || user?.role === "SUPER_ADMIN" || Boolean(user?.roleKeys?.includes("SUPER_ADMIN"));
 }
 
 export function isAdmin(user: AdminUser | null | undefined): boolean {

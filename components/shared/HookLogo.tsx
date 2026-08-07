@@ -10,16 +10,9 @@ interface HookLogoProps {
 
 export function HookLogo({ className, markClassName, compact = false }: HookLogoProps) {
   return (
-    <span className={cn("inline-flex items-baseline font-extrabold tracking-tight text-zinc-950", className)}>
-      {compact ? (
-        <span className={cn("flex size-8 items-center justify-center rounded-md bg-zinc-950 text-sm text-white", markClassName)}>
-          h<span className="text-brand-gold">.</span>
-        </span>
-      ) : (
-        <>
-          hook<span className={cn("text-brand-gold", markClassName)}>.</span>
-        </>
-      )}
+    <span className={cn("inline-flex items-baseline font-extrabold tracking-tight text-current", className)}>
+      <span className={compact ? "text-[0.9em]" : undefined}>hook</span>
+      <span className={cn("text-brand-gold", markClassName)}>.</span>
     </span>
   );
 }

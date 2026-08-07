@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { toast } from "sonner";
+import { AdminRealtimeBridge } from "@/lib/realtime";
 
 function getToastMessage(error: unknown) {
   if (error instanceof Error) {
@@ -61,6 +62,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         {children}
+        <AdminRealtimeBridge />
         <Toaster position="bottom-right" closeButton />
       </TooltipProvider>
     </QueryClientProvider>

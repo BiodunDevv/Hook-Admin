@@ -8,12 +8,33 @@ export default function RolesPage() {
       endpoint="/admin/roles"
       detailBase="/dashboard/administration/roles"
       permissionLabel="role administration"
+      managePermission="roles.manage"
       fields={[
         { key: "name", label: "Role name", required: true },
         { key: "key", label: "Role key", required: true },
         { key: "description", label: "Description", required: true },
-        { key: "permissionKeys", label: "Permission keys (comma-separated)", type: "id-list", required: true },
-        { key: "defaultScopeType", label: "Default scope: global, multi_state, single_state, hub, or self", required: true },
+        {
+          key: "permissionKeys",
+          label: "Permissions",
+          type: "multi-select",
+          optionsEndpoint: "/admin/permissions",
+          optionValueKey: "key",
+          optionLabelKey: "key",
+          required: true,
+        },
+        {
+          key: "defaultScopeType",
+          label: "Default scope",
+          type: "select",
+          options: [
+            { value: "global", label: "Global" },
+            { value: "multi_state", label: "Multiple states" },
+            { value: "single_state", label: "Single state" },
+            { value: "hub", label: "Dispatch Hub" },
+            { value: "self", label: "Self" },
+          ],
+          required: true,
+        },
       ]}
       columns={[
         { key: "key", label: "Key" },

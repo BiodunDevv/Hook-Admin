@@ -91,8 +91,9 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] overflow-y-auto p-2 pb-6 sm:p-4 sm:pb-8">
+    <div className="mx-auto w-full max-w-[1600px] space-y-4 p-4 md:p-5">
       <PageHeader
+        className="mb-0"
         title="Orders"
         description="Manage and track all customer orders in real-time."
         actions={
@@ -113,7 +114,7 @@ export default function OrdersPage() {
         }
       />
 
-      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiCard
           icon={WalletCards}
           tone="blue"
@@ -149,10 +150,10 @@ export default function OrdersPage() {
           search={search}
           status={status}
           paymentStatus={paymentStatus}
-          onSearchChange={(value) => filters.set({ search: value })}
-          onStatusChange={(value) => filters.set({ status: value })}
+          onSearchChange={(value) => filters.set({ search: value, page: 1 })}
+          onStatusChange={(value) => filters.set({ status: value, page: 1 })}
           onPaymentStatusChange={(value) =>
-            filters.set({ paymentStatus: value })
+            filters.set({ paymentStatus: value, page: 1 })
           }
           onClear={() =>
             filters.set({

@@ -1,16 +1,33 @@
+import { cn } from "@/lib/utils";
+
 interface PageHeaderProps {
   title: string;
   description?: string;
   actions?: React.ReactNode;
+  className?: string;
 }
 
-export function PageHeader({ title, description, actions }: PageHeaderProps) {
+export function PageHeader({
+  title,
+  description,
+  actions,
+  className,
+}: PageHeaderProps) {
   return (
-    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div
+      className={cn(
+        "mb-4 flex min-h-12 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between",
+        className,
+      )}
+    >
       <div className="min-w-0">
-        <h1 className="text-xl font-semibold leading-tight text-zinc-900 sm:text-2xl">{title}</h1>
+        <h1 className="text-lg font-semibold leading-tight tracking-normal text-foreground">
+          {title}
+        </h1>
         {description && (
-          <p className="mt-0.5 text-sm leading-tight text-zinc-500">{description}</p>
+          <p className="mt-1 max-w-3xl text-sm leading-5 text-muted-foreground">
+            {description}
+          </p>
         )}
       </div>
       {actions && (

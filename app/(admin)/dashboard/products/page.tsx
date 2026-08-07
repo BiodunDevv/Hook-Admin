@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { AlertCircle, Boxes, Download, PackageCheck, Plus, Tags } from "lucide-react";
+import {
+  AlertCircle,
+  Boxes,
+  Download,
+  PackageCheck,
+  Plus,
+  Tags,
+} from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { KpiCard } from "@/components/shared/KpiCard";
@@ -32,10 +39,21 @@ export default function ProductsPage() {
   const categoryId = filters.get("categoryId") || "all";
   const stock = filters.get("stock") || "all";
   const listPath = `/admin/products${queryString({ page, limit: 12, search, status, categoryId, stock })}`;
-  const queryKey = ["admin", "products", page, search, status, categoryId, stock] as const;
+  const queryKey = [
+    "admin",
+    "products",
+    page,
+    search,
+    status,
+    categoryId,
+    stock,
+  ] as const;
 
   const productsQuery = useApiQuery<Page<ProductRow>>(queryKey, listPath);
-  const categoriesQuery = useApiQuery<CategoryOption[]>(["admin", "product-category-options"], "/categories");
+  const categoriesQuery = useApiQuery<CategoryOption[]>(
+    ["admin", "product-category-options"],
+    "/categories",
+  );
 
   const stats = productsQuery.data?.stats || {};
   const products = productsQuery.data?.data || [];
@@ -62,8 +80,14 @@ export default function ProductsPage() {
         product.status,
       ]),
     ];
-    const csv = rows.map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",")).join("\n");
-    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const csv = rows
+      .map((row) =>
+        row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(","),
+      )
+      .join("\n");
+    const url = URL.createObjectURL(
+      new Blob([csv], { type: "text/csv;charset=utf-8" }),
+    );
     const link = document.createElement("a");
     link.href = url;
     link.download = `hook-products-page-${page}.csv`;
@@ -73,19 +97,32 @@ export default function ProductsPage() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] overflow-y-auto p-2 pb-6 sm:p-4 sm:pb-8">
+    <div className="mx-auto w-full max-w-[1600px] space-y-4 p-4 md:p-5">
       <PageHeader
+        className="mb-0"
         title="Products"
         description="Manage inventory, market pricing, Hook pricing, and AI negotiation floors."
         actions={
           <>
             <PermissionGuard permission="products.view">
-              <Button type="button" variant="outline" size="sm" className="flex items-center gap-1.5" onClick={exportCsv}>
-                <Download size={15} /> <span className="hidden sm:inline">Export CSV</span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-1.5"
+                onClick={exportCsv}
+              >
+                <Download size={15} />{" "}
+                <span className="hidden sm:inline">Export CSV</span>
               </Button>
             </PermissionGuard>
             <PermissionGuard permission="products.edit">
-              <Button asChild variant="ink" size="sm" className="flex items-center gap-1.5">
+              <Button
+                asChild
+                variant="brand"
+                size="sm"
+                className="flex items-center gap-1.5"
+              >
                 <Link href="/dashboard/products/new">
                   <Plus size={16} /> Add Product
                 </Link>
@@ -95,7 +132,7 @@ export default function ProductsPage() {
         }
       />
 
-      <div className="mb-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiCard
           label="Total Products"
           value={number(stats.total)}
@@ -137,10 +174,22 @@ export default function ProductsPage() {
           onStatusChange={(value) => setFilter("status", value)}
           onCategoryChange={(value) => setFilter("categoryId", value)}
           onStockChange={(value) => setFilter("stock", value)}
-          onClear={() => filters.set({ search: "", status: "all", categoryId: "all", stock: "all", page: 1 })}
+          onClear={() =>
+            filters.set({
+              search: "",
+              status: "all",
+              categoryId: "all",
+              stock: "all",
+              page: 1,
+            })
+          }
         />
 
-        <ProductsTable queryKey={queryKey} path={listPath} onPageChange={(nextPage) => filters.set({ page: nextPage })} />
+        <ProductsTable
+          queryKey={queryKey}
+          path={listPath}
+          onPageChange={(nextPage) => filters.set({ page: nextPage })}
+        />
       </div>
     </div>
   );

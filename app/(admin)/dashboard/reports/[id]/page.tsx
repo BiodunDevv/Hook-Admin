@@ -4,10 +4,11 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { QueryState } from "@/components/shared/QueryState";
+import { DetailSection } from "@/components/shared/DetailSection";
+import { DefinitionGrid } from "@/components/shared/DefinitionGrid";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { useApiQuery } from "@/lib/query";
-import { cleanError } from "@/lib/admin-utils";
 
 interface Report { id: string; type: string; status: string; createdAt: string; downloadUrl?: string | null; data?: Record<string, unknown>; }
 
@@ -19,8 +20,9 @@ export default function ReportDetailPage() {
   return (
     <div className="space-y-4 px-3 py-3 sm:px-5">
       <PageHeader title={report?.type ? `${report.type} report` : "Report Detail"} description={report?.id || "Generated report metadata"} actions={<Button variant="outline" size="sm" onClick={() => router.back()}><ArrowLeft size={15} /> Back</Button>} />
-      {query.error && <Card><CardContent className="p-4 text-sm text-red-600">{cleanError(query.error)}</CardContent></Card>}
-      {report && <Card className="rounded-lg shadow-none"><CardContent className="grid gap-4 p-4 text-sm md:grid-cols-2"><div><p className="text-muted-foreground">Status</p><StatusBadge status={report.status} /></div><div><p className="text-muted-foreground">Created</p><p>{new Date(report.createdAt).toLocaleString()}</p></div><div><p className="text-muted-foreground">Download</p><p>{report.downloadUrl || "Preparing metadata only"}</p></div><div><p className="text-muted-foreground">Payload</p><pre className="overflow-auto rounded bg-muted p-2 text-xs">{JSON.stringify(report.data || {}, null, 2)}</pre></div></CardContent></Card>}
+      <QueryState loading={query.isLoading} error={query.error} loadingLabel="Loading report" onRetry={() => query.refetch()}>
+        {report ? <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,0.65fr)_minmax(0,1.35fr)]"><DetailSection title="Report metadata" description="Generation status and output availability."><DefinitionGrid columns={1} items={[{ label: "Status", value: <StatusBadge status={report.status} /> }, { label: "Created", value: new Date(report.createdAt).toLocaleString("en-NG") }, { label: "Download", value: report.downloadUrl ? <a className="text-primary underline underline-offset-4" href={report.downloadUrl}>Download generated report</a> : "Preparing metadata only" }]} /></DetailSection><DetailSection title="Report payload" description="Structured data captured for this generated report."><pre className="max-h-[560px] overflow-auto rounded-md bg-muted p-4 text-xs leading-5">{JSON.stringify(report.data || {}, null, 2)}</pre></DetailSection></div> : null}
+      </QueryState>
     </div>
   );
 }

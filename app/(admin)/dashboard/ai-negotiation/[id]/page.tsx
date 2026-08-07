@@ -5,10 +5,12 @@ import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { CompactStatGrid } from "@/components/shared/CompactStatGrid";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { QueryState } from "@/components/shared/QueryState";
+import { DetailSection } from "@/components/shared/DetailSection";
+import { DefinitionGrid } from "@/components/shared/DefinitionGrid";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { useApiQuery } from "@/lib/query";
-import { cleanError, money } from "@/lib/admin-utils";
+import { money } from "@/lib/admin-utils";
 
 interface Negotiation { id: string; status: string; offeredPrice: number; acceptedPrice?: number; message?: string; product?: { title?: string }; user?: { email?: string; firstName?: string; lastName?: string }; updatedAt: string; }
 
@@ -20,8 +22,9 @@ export default function NegotiationDetailPage() {
   return (
     <div className="space-y-4 px-3 py-3 sm:px-5">
       <PageHeader title={item?.product?.title || "Negotiation Detail"} description={item?.user?.email || "AI negotiation session"} actions={<Button variant="outline" size="sm" onClick={() => router.back()}><ArrowLeft size={15} /> Back</Button>} />
-      {query.error && <Card><CardContent className="p-4 text-sm text-red-600">{cleanError(query.error)}</CardContent></Card>}
-      {item && <><CompactStatGrid stats={[{ label: "Offered", value: money(item.offeredPrice), tone: "amber" }, { label: "Accepted", value: money(item.acceptedPrice), tone: "green" }, { label: "Status", value: item.status }]} /><Card className="rounded-lg shadow-none"><CardContent className="space-y-3 p-4 text-sm"><StatusBadge status={item.status} /><p>{item.message || "No customer message recorded."}</p><p className="text-muted-foreground">Updated {new Date(item.updatedAt).toLocaleString()}</p></CardContent></Card></>}
+      <QueryState loading={query.isLoading} error={query.error} loadingLabel="Loading negotiation" onRetry={() => query.refetch()}>
+        {item ? <><CompactStatGrid stats={[{ label: "Customer offer", value: money(item.offeredPrice), tone: "amber" }, { label: "Accepted price", value: money(item.acceptedPrice), tone: "green" }, { label: "Session status", value: item.status }]} /><div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)]"><DetailSection title="Conversation outcome" description="Customer-safe negotiation response recorded for this session."><div className="flex items-start gap-3"><StatusBadge status={item.status} /><p className="text-sm leading-6 text-muted-foreground">{item.message || "No customer message recorded."}</p></div></DetailSection><DetailSection title="Session context" description="Customer and lifecycle metadata."><DefinitionGrid columns={1} items={[{ label: "Customer", value: `${item.user?.firstName || ""} ${item.user?.lastName || ""}`.trim() || item.user?.email || "Guest customer" }, { label: "Updated", value: new Date(item.updatedAt).toLocaleString("en-NG") }]} /></DetailSection></div></> : null}
+      </QueryState>
     </div>
   );
 }

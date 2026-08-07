@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useApiPatch, useApiQuery } from "@/lib/query";
 import { cleanError, money, number } from "@/lib/admin-utils";
+import { PermissionGuard } from "@/components/auth/PermissionGuard";
 
 interface ProductDetail {
   id: string;
@@ -106,9 +107,13 @@ export default function ProductDetailPage() {
         actions={
           <>
             <Button variant="outline" size="sm" onClick={() => router.back()}><ArrowLeft size={15} /> Back</Button>
-            {product && <Button variant="outline" size="sm" onClick={() => { setEditImages(product.images || []); setEditColors(product.colors || []); setEditStatus(product.status); setEditing(true); }}><Edit3 size={15} /> Edit</Button>}
-            {product && product.status !== "approved" && <Button size="sm" variant="brand" onClick={() => approve.mutate({ status: "approved" })}><Check size={15} /> Approve</Button>}
-            {product && product.status !== "disabled" && <Button size="sm" variant="outline" onClick={() => disable.mutate(undefined)}><Ban size={15} /> Disable</Button>}
+            <PermissionGuard permission="products.edit">
+              {product && <Button variant="outline" size="sm" onClick={() => { setEditImages(product.images || []); setEditColors(product.colors || []); setEditStatus(product.status); setEditing(true); }}><Edit3 size={15} /> Edit</Button>}
+              {product && product.status !== "disabled" && <Button size="sm" variant="outline" onClick={() => disable.mutate(undefined)}><Ban size={15} /> Disable</Button>}
+            </PermissionGuard>
+            <PermissionGuard permission="products.review">
+              {product && product.status !== "approved" && <Button size="sm" variant="brand" onClick={() => approve.mutate({ status: "approved" })}><Check size={15} /> Approve</Button>}
+            </PermissionGuard>
           </>
         }
       />

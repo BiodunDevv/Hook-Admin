@@ -51,7 +51,8 @@ import { HookLoader } from "@/components/shared/HookLoader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { useApiQuery, useAdminSession } from "@/lib/query";
 import { apiPost, apiPatch, apiRequest } from "@/lib/api";
-import { isSuperAdmin } from "@/lib/permissions";
+import { hasPermission } from "@/lib/permissions";
+import { PermissionGuard } from "@/components/auth/PermissionGuard";
 import { toast } from "sonner";
 
 interface CategoryManager {
@@ -302,10 +303,12 @@ function CategoryCard({
   category,
   onEdit,
   onRefresh,
+  canManage,
 }: {
   category: CategoryRow;
   onEdit: () => void;
   onRefresh: () => void;
+  canManage: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const canDelete = category.productCount === 0;
@@ -370,23 +373,25 @@ function CategoryCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={onEdit}>
-                <Pencil size={14} />
-                Edit Category
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleToggle} disabled={busy}>
-                <Power size={14} />
-                {category.isActive ? "Deactivate" : "Activate"}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={canDelete ? handleDelete : undefined}
-                disabled={!canDelete || busy}
-                className="text-destructive focus:text-destructive"
-              >
-                <Trash2 size={14} />
-                {canDelete ? "Delete" : "Delete (has products)"}
-              </DropdownMenuItem>
+              {canManage ? <>
+                <DropdownMenuItem onClick={onEdit}>
+                  <Pencil size={14} />
+                  Edit Category
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleToggle} disabled={busy}>
+                  <Power size={14} />
+                  {category.isActive ? "Deactivate" : "Activate"}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={canDelete ? handleDelete : undefined}
+                  disabled={!canDelete || busy}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 size={14} />
+                  {canDelete ? "Delete" : "Delete (has products)"}
+                </DropdownMenuItem>
+              </> : <DropdownMenuItem disabled>View-only access</DropdownMenuItem>}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -469,11 +474,12 @@ export default function CategoriesPage() {
     "/admin/categories",
   );
 
-  // Guard: only super_admin manages the organization taxonomy
+  const canView = hasPermission(session, "categories.view");
+  const canManage = hasPermission(session, "categories.manage");
   useEffect(() => {
-    if (session && !isSuperAdmin(session)) router.replace("/dashboard");
-  }, [router, session]);
-  if (session && !isSuperAdmin(session)) return null;
+    if (session && !canView) router.replace("/dashboard");
+  }, [canView, router, session]);
+  if (session && !canView) return null;
 
   const all = data?.data ?? [];
   const filtered = all.filter((category) => {
@@ -494,10 +500,12 @@ export default function CategoriesPage() {
         title="Categories"
         description="Organization-wide product taxonomy and the staff in charge of each category."
         actions={
-          <Button variant="brand" onClick={() => setCreateOpen(true)} className="gap-1.5">
-            <Plus size={15} />
-            New Category
-          </Button>
+          <PermissionGuard permission="categories.manage">
+            <Button variant="brand" onClick={() => setCreateOpen(true)} className="gap-1.5">
+              <Plus size={15} />
+              New Category
+            </Button>
+          </PermissionGuard>
         }
       />
 
@@ -569,6 +577,7 @@ export default function CategoriesPage() {
               category={category}
               onEdit={() => setEditing(category)}
               onRefresh={refetch}
+              canManage={canManage}
             />
           ))}
         </div>

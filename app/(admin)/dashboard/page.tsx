@@ -5,7 +5,8 @@ import StatCard from "@/components/shared/StatCard";
 import SalesTrendChart from "@/components/charts/SalesTrendChart";
 import RecentOrders from "@/components/dashboard/RecentOrders";
 import NegotiationPipeline from "@/components/charts/NegotiationPipeline";
-import { HookLoader } from "@/components/shared/HookLoader";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { QueryState } from "@/components/shared/QueryState";
 import { apiGet } from "@/lib/api";
 import type { StatCardData } from "@/lib/data";
 
@@ -27,10 +28,21 @@ interface DashboardSummary {
 }
 
 type LegacyDashboardSummary = Partial<{
-  orders: { total: number; active?: number; pending: number; delivered: number; today: number };
+  orders: {
+    total: number;
+    active?: number;
+    pending: number;
+    delivered: number;
+    today: number;
+  };
   revenue: { total: number; grossMerchandise?: number };
   logistics: { deliverySla?: number; averageDeliveryHours?: number };
-  negotiations: { total: number; accepted?: number; conversionRate?: number; averageSavings?: number };
+  negotiations: {
+    total: number;
+    accepted?: number;
+    conversionRate?: number;
+    averageSavings?: number;
+  };
   customers: { satisfactionScore: number; reviewCount: number };
 }>;
 
@@ -64,19 +76,41 @@ function isDashboardMetric(value: unknown): value is DashboardMetric {
   return Boolean(value && typeof value === "object" && "value" in value);
 }
 
-function normalizeDashboardSummary(payload: DashboardSummary | LegacyDashboardSummary): DashboardSummary {
+function normalizeDashboardSummary(
+  payload: DashboardSummary | LegacyDashboardSummary,
+): DashboardSummary {
   if (isDashboardMetric((payload as DashboardSummary).grossMerchandise)) {
     return payload as DashboardSummary;
   }
 
   const legacy = payload as LegacyDashboardSummary;
   return {
-    grossMerchandise: metric(legacy.revenue?.grossMerchandise ?? legacy.revenue?.total, 0, "vs last month"),
+    grossMerchandise: metric(
+      legacy.revenue?.grossMerchandise ?? legacy.revenue?.total,
+      0,
+      "vs last month",
+    ),
     totalRevenue: metric(legacy.revenue?.total, 0, "vs last month"),
-    activeOrders: metric(legacy.orders?.active ?? legacy.orders?.pending, 0, "vs last day"),
-    deliverySla: metric(legacy.logistics?.deliverySla, 0, `avg ${legacy.logistics?.averageDeliveryHours ?? 0}h delivery`),
-    aiNegotiation: metric(legacy.negotiations?.conversionRate, 0, `avg ${formatNaira(legacy.negotiations?.averageSavings ?? 0)} saved`),
-    customerSatisfaction: metric(legacy.customers?.satisfactionScore, 0, `from ${formatNumber(legacy.customers?.reviewCount ?? 0)} reviews`),
+    activeOrders: metric(
+      legacy.orders?.active ?? legacy.orders?.pending,
+      0,
+      "vs last day",
+    ),
+    deliverySla: metric(
+      legacy.logistics?.deliverySla,
+      0,
+      `avg ${legacy.logistics?.averageDeliveryHours ?? 0}h delivery`,
+    ),
+    aiNegotiation: metric(
+      legacy.negotiations?.conversionRate,
+      0,
+      `avg ${formatNaira(legacy.negotiations?.averageSavings ?? 0)} saved`,
+    ),
+    customerSatisfaction: metric(
+      legacy.customers?.satisfactionScore,
+      0,
+      `from ${formatNumber(legacy.customers?.reviewCount ?? 0)} reviews`,
+    ),
     activeRunners: metric(0, 0, "market-side operations"),
     publishedProducts: metric(0, 0, "commercially approved"),
   };
@@ -94,7 +128,10 @@ export default function DashboardPage() {
         if (mounted) setSummary(normalizeDashboardSummary(data));
       })
       .catch((err: unknown) => {
-        if (mounted) setError(err instanceof Error ? err.message : "Failed to load dashboard");
+        if (mounted)
+          setError(
+            err instanceof Error ? err.message : "Failed to load dashboard",
+          );
       });
 
     return () => {
@@ -112,7 +149,6 @@ export default function DashboardPage() {
         delta: formatChange(summary.grossMerchandise.change),
         trend: trendFor(summary.grossMerchandise.change),
         caption: summary.grossMerchandise.caption,
-        sparkline: [2, 4, 3, 6, 5, 7, 8],
       },
       {
         label: "Total Revenue",
@@ -120,7 +156,6 @@ export default function DashboardPage() {
         delta: formatChange(summary.totalRevenue.change),
         trend: trendFor(summary.totalRevenue.change),
         caption: summary.totalRevenue.caption,
-        sparkline: [3, 5, 6, 5, 7, 8, 10],
       },
       {
         label: "Active Orders",
@@ -128,7 +163,6 @@ export default function DashboardPage() {
         delta: formatChange(summary.activeOrders.change),
         trend: trendFor(summary.activeOrders.change),
         caption: summary.activeOrders.caption,
-        sparkline: [3, 3, 4, 4, 5, 4, 5],
       },
       {
         label: "Delivery SLA",
@@ -136,7 +170,6 @@ export default function DashboardPage() {
         delta: formatChange(summary.deliverySla.change),
         trend: trendFor(summary.deliverySla.change),
         caption: summary.deliverySla.caption,
-        sparkline: [8, 8, 8, 8, 8, 8, 8],
       },
       {
         label: "AI Negotiation",
@@ -144,7 +177,6 @@ export default function DashboardPage() {
         delta: formatChange(summary.aiNegotiation.change),
         trend: trendFor(summary.aiNegotiation.change),
         caption: summary.aiNegotiation.caption,
-        sparkline: [4, 5, 5, 6, 7, 7, 8],
       },
       {
         label: "Customer Satisfaction",
@@ -152,7 +184,6 @@ export default function DashboardPage() {
         delta: formatChange(summary.customerSatisfaction.change),
         trend: trendFor(summary.customerSatisfaction.change),
         caption: summary.customerSatisfaction.caption,
-        sparkline: [7, 7, 7, 7, 7, 7, 7],
       },
       {
         label: "Active Runners",
@@ -160,7 +191,6 @@ export default function DashboardPage() {
         delta: formatChange(summary.activeRunners.change),
         trend: trendFor(summary.activeRunners.change),
         caption: summary.activeRunners.caption,
-        sparkline: [1, 2, 3, 4, 5, 6, 7],
       },
       {
         label: "Published Products",
@@ -168,28 +198,30 @@ export default function DashboardPage() {
         delta: formatChange(summary.publishedProducts.change),
         trend: trendFor(summary.publishedProducts.change),
         caption: summary.publishedProducts.caption,
-        sparkline: [8, 8, 8, 8, 8, 8, 8],
       },
     ];
   }, [summary]);
 
   return (
-    <div className="px-4 py-4">
-      <h1 className="text-xl font-semibold text-zinc-900 sm:text-2xl">Overview</h1>
-      <p className="mt-1 text-sm text-zinc-500">
-        Here&apos;s what&apos;s happening today.
-      </p>
+    <div className="mx-auto w-full max-w-[1600px] space-y-4 p-4 md:p-5">
+      <PageHeader
+        className="mb-0"
+        title="Control Tower"
+        description="Live commerce, catalogue, fulfilment, and customer performance across the current operating scope."
+      />
 
-      {/* Stat cards */}
-      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {!summary && !error && (
-          <div className="col-span-full rounded-lg border border-zinc-200 bg-white py-12">
-            <HookLoader size="page" label="Loading dashboard stats..." />
+          <div className="col-span-full rounded-lg border bg-card">
+            <QueryState loading loadingLabel="Loading dashboard metrics..." />
           </div>
         )}
         {error && (
-          <div className="col-span-full rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-            {error}
+          <div className="col-span-full rounded-lg border bg-card">
+            <QueryState
+              error={new Error(error)}
+              errorTitle="Dashboard metrics could not be loaded"
+            />
           </div>
         )}
         {statCards.map((stat) => (
@@ -197,12 +229,11 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <div className="mt-6">
+      <div>
         <SalesTrendChart />
       </div>
 
-      {/* Recent orders + negotiation pipeline */}
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <RecentOrders />
         </div>

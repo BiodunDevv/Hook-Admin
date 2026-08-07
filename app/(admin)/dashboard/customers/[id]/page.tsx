@@ -4,11 +4,11 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Power } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { HookLoader } from "@/components/shared/HookLoader";
+import { QueryState } from "@/components/shared/QueryState";
+import { DetailSection } from "@/components/shared/DetailSection";
+import { DefinitionGrid } from "@/components/shared/DefinitionGrid";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { useApiPatch, useApiQuery } from "@/lib/query";
-import { cleanError } from "@/lib/admin-utils";
 
 interface CustomerDetail {
   id: string;
@@ -34,20 +34,28 @@ export default function CustomerDetailPage() {
   return (
     <div className="space-y-4 px-3 py-3 sm:px-5">
       <PageHeader title={name} description={customer?.email || "Customer profile"} actions={<><Button variant="outline" size="sm" onClick={() => router.back()}><ArrowLeft size={15} /> Back</Button>{customer && <Button variant="outline" size="sm" onClick={() => toggle.mutate(undefined)}><Power size={15} /> {customer.isActive ? "Suspend" : "Activate"}</Button>}</>} />
-      {query.isLoading && <Card><CardContent className="p-4"><HookLoader label="Loading customer..." /></CardContent></Card>}
-      {query.error && <Card><CardContent className="p-4 text-sm text-red-600">{cleanError(query.error)}</CardContent></Card>}
-      {customer && (
-        <Card className="rounded-lg shadow-none">
-          <CardContent className="grid gap-4 p-4 text-sm md:grid-cols-2">
-            <div><p className="text-muted-foreground">Email</p><p>{customer.email}</p></div>
-            <div><p className="text-muted-foreground">Phone</p><p>{customer.phone || "Not set"}</p></div>
-            <div><p className="text-muted-foreground">Status</p><StatusBadge status={customer.isActive ? "Active" : "Suspended"} /></div>
-            <div><p className="text-muted-foreground">Verified</p><StatusBadge status={customer.isEmailVerified ? "Verified" : "Unverified"} /></div>
-            <div><p className="text-muted-foreground">Last login</p><p>{customer.lastLoginAt ? new Date(customer.lastLoginAt).toLocaleString() : "Never"}</p></div>
-            <div><p className="text-muted-foreground">Address</p><p>{customer.address ? JSON.stringify(customer.address) : "Not set"}</p></div>
-          </CardContent>
-        </Card>
-      )}
+      <QueryState loading={query.isLoading} error={query.error} loadingLabel="Loading customer" onRetry={() => query.refetch()}>
+        {customer ? (
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)]">
+            <DetailSection title="Customer profile" description="Verified identity and account contact information.">
+              <DefinitionGrid items={[
+                { label: "Email", value: customer.email },
+                { label: "Phone", value: customer.phone || "Not set" },
+                { label: "Account status", value: <StatusBadge status={customer.isActive ? "Active" : "Suspended"} /> },
+                { label: "Email verification", value: <StatusBadge status={customer.isEmailVerified ? "Verified" : "Unverified"} /> },
+              ]} />
+            </DetailSection>
+            <div className="space-y-4">
+              <DetailSection title="Account activity" description="Most recent authentication activity.">
+                <DefinitionGrid columns={1} items={[{ label: "Last login", value: customer.lastLoginAt ? new Date(customer.lastLoginAt).toLocaleString("en-NG") : "Never" }]} />
+              </DetailSection>
+              <DetailSection title="Default address" description="Current customer delivery information.">
+                <DefinitionGrid columns={1} items={customer.address ? Object.entries(customer.address).map(([key, value]) => ({ label: key.replace(/([A-Z])/g, " $1"), value: String(value || "Not set") })) : [{ label: "Address", value: "Not set" }]} />
+              </DetailSection>
+            </div>
+          </div>
+        ) : null}
+      </QueryState>
     </div>
   );
 }

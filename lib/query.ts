@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   apiGet,
+  apiDelete,
   apiPatch,
   apiPost,
   clearSession,
@@ -54,6 +55,24 @@ export function useApiPatch<TData, TVariables = unknown>(
     mutationFn: (variables: TVariables) => apiPatch<TData>(path, variables),
     meta: {
       successMessage: toastOptions.successMessage || "Changes saved",
+      silent: toastOptions.silent,
+    },
+    onSuccess: () => {
+      if (invalidate) queryClient.invalidateQueries({ queryKey: invalidate });
+    },
+  });
+}
+
+export function useApiDelete<TData = unknown, TVariables = undefined>(
+  path: string,
+  invalidate?: readonly unknown[],
+  toastOptions: ToastOptions = {},
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (variables: TVariables) => apiDelete<TData>(path, variables),
+    meta: {
+      successMessage: toastOptions.successMessage || "Record archived",
       silent: toastOptions.silent,
     },
     onSuccess: () => {

@@ -1,17 +1,22 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Ban, KeyRound, Mail, RotateCcw, ShieldX } from "lucide-react";
+import { Archive, ArrowLeft, Ban, KeyRound, Mail, RotateCcw, ShieldX } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { HookLoader } from "@/components/shared/HookLoader";
-import { useApiQuery } from "@/lib/query";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { QueryState } from "@/components/shared/QueryState";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { DetailSection } from "@/components/shared/DetailSection";
+import { DefinitionGrid, type DefinitionItem } from "@/components/shared/DefinitionGrid";
+import { useAdminSession, useApiQuery } from "@/lib/query";
 import { apiPost } from "@/lib/api";
-import { useState } from "react";
+import { hasPermission, type Permission } from "@/lib/permissions";
+import { useState, type ReactNode } from "react";
 
 type AccountResource = "staff" | "runners" | "partners";
 type LifecycleResource = "states" | "cities" | "zones" | "markets" | "hubs";
@@ -22,6 +27,67 @@ type LifecycleAction = {
   description: string;
   destructive?: boolean;
 };
+
+const hiddenFields = new Set(["id", "_id", "__v", "status"]);
+
+function labelFor(key: string) {
+  return key
+    .replace(/Id$/, " ID")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replaceAll("_", " ")
+    .replace(/^./, (letter) => letter.toUpperCase());
+}
+
+function displayValue(value: unknown): ReactNode {
+  if (value === null || value === undefined || value === "") return "Not set";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "number") return new Intl.NumberFormat("en-NG").format(value);
+  if (typeof value === "string") {
+    if (/^\d{4}-\d{2}-\d{2}T/.test(value)) return new Date(value).toLocaleString("en-NG");
+    return value.replaceAll("_", " ");
+  }
+  if (Array.isArray(value)) {
+    if (!value.length) return "None";
+    return value.map((entry) => typeof entry === "object" ? objectSummary(entry as Record<string, unknown>) : String(entry)).join(", ");
+  }
+  if (typeof value === "object") return objectSummary(value as Record<string, unknown>);
+  return String(value);
+}
+
+function objectSummary(value: Record<string, unknown>) {
+  const preferred = ["name", "title", "publicId", "code", "email", "phone", "address", "line1"];
+  const parts = preferred
+    .filter((key) => value[key])
+    .map((key) => String(value[key]));
+  if (parts.length) return parts.join(" · ");
+  return Object.entries(value)
+    .filter(([, entry]) => ["string", "number", "boolean"].includes(typeof entry))
+    .slice(0, 4)
+    .map(([key, entry]) => `${labelFor(key)}: ${String(entry)}`)
+    .join(" · ") || "Configured";
+}
+
+function recordName(record: Record<string, unknown> | undefined, fallback: string) {
+  if (!record) return fallback;
+  const fullName = [record.firstName, record.lastName].filter(Boolean).join(" ");
+  return String(record.name || record.businessName || record.title || fullName || record.publicId || fallback);
+}
+
+function groupRecord(record: Record<string, unknown>) {
+  const identityKeys = new Set(["publicId", "code", "email", "phone", "accountType", "type"]);
+  const auditKeys = new Set(["createdAt", "updatedAt", "lastLoginAt", "invitedAt", "activatedAt", "suspendedAt"]);
+  const identity: DefinitionItem[] = [];
+  const operations: DefinitionItem[] = [];
+  const audit: DefinitionItem[] = [];
+  Object.entries(record).forEach(([key, value]) => {
+    if (hiddenFields.has(key)) return;
+    const item = { label: labelFor(key), value: displayValue(value) };
+    if (identityKeys.has(key)) identity.push(item);
+    else if (auditKeys.has(key) || key.endsWith("At")) audit.push(item);
+    else operations.push(item);
+  });
+  return { identity, operations, audit };
+}
 
 export function PlatformDetailPage({
   title,
@@ -42,8 +108,23 @@ export function PlatformDetailPage({
   const [action, setAction] = useState<LifecycleAction | null>(null);
   const [reason, setReason] = useState("");
   const [acting, setActing] = useState(false);
+  const { data: admin } = useAdminSession();
   const query = useApiQuery<Record<string, unknown>>(["platform-detail", endpoint, params.id], `${endpoint}/${params.id}`);
   const status = String(query.data?.status || "");
+  const accountManagePermission: Permission | undefined = accountResource === "staff"
+    ? "staff.suspend"
+    : accountResource === "runners"
+      ? "runners.manage"
+      : accountResource === "partners"
+        ? "partners.manage"
+        : undefined;
+  const invitationPermission: Permission | undefined = accountResource === "staff" ? "staff.create" : accountManagePermission;
+  const lifecycleManagePermission: Permission | undefined = lifecycleResource
+    ? `${lifecycleResource}.manage` as Permission
+    : undefined;
+  const canManageAccount = accountManagePermission ? hasPermission(admin, accountManagePermission) : false;
+  const canManageInvitation = invitationPermission ? hasPermission(admin, invitationPermission) : false;
+  const canManageLifecycle = lifecycleManagePermission ? hasPermission(admin, lifecycleManagePermission) : false;
   async function resendInvitation() {
     setSending(true);
     try {
@@ -95,15 +176,27 @@ export function PlatformDetailPage({
               label: "Revoke sessions",
               title: "Revoke all active sessions?",
               description: "The staff member must sign in again on every device.",
+            }, {
+              suffix: "archive",
+              label: "Archive account",
+              title: "Archive this staff account?",
+              description: "The account will be disabled, sessions revoked, and its history preserved.",
+              destructive: true,
             }] : []),
           ]
-        : status === "suspended"
+      : status === "suspended"
           ? [{
               suffix: "reactivate",
               label: "Reactivate account",
               title: "Reactivate this account?",
               description: "The account will regain access within its assigned scope.",
-            }]
+            }, ...(accountResource === "staff" ? [{
+              suffix: "archive",
+              label: "Archive account",
+              title: "Archive this staff account?",
+              description: "The account will be disabled, sessions revoked, and its history preserved.",
+              destructive: true,
+            }] : [])]
           : []
     : [];
   const lifecycleActions: LifecycleAction[] = lifecycleResource
@@ -126,42 +219,62 @@ export function PlatformDetailPage({
     : [];
   const actions = [...accountActions, ...lifecycleActions];
 
+  const groups = groupRecord(query.data || {});
+  const name = recordName(query.data, title);
+
   return (
-    <div className="p-2 md:p-4">
-      <div className="flex items-center justify-between gap-3">
-        <Button variant="ghost" onClick={() => router.back()}><ArrowLeft /> Back</Button>
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          {invitationAction && status === "invited" ? (
-            <Button variant="outline" disabled={sending} onClick={resendInvitation}>
+    <div className="space-y-5 pb-10">
+      <PageHeader
+        title={name}
+        description={query.data?.publicId ? `${title} · ${String(query.data.publicId)}` : title}
+        actions={
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {status ? <StatusBadge status={status} /> : null}
+            <Button variant="outline" size="sm" onClick={() => router.back()}><ArrowLeft /> Back</Button>
+          {invitationAction && canManageInvitation && status === "invited" ? (
+            <Button size="sm" variant="outline" disabled={sending} onClick={resendInvitation}>
               {sending ? <HookLoader size="button" /> : <><Mail /> Resend invitation</>}
             </Button>
           ) : null}
-          {actions.map((item) => (
+          {(canManageAccount || canManageLifecycle) && actions.map((item) => (
             <Button
               key={item.suffix}
+              size="sm"
               variant={item.destructive ? "destructive" : "outline"}
               onClick={() => setAction(item)}
             >
-              {["suspend", "deactivate"].includes(item.suffix) ? <Ban /> : item.suffix === "cancel-invitation" ? <ShieldX /> : item.suffix === "revoke-sessions" ? <KeyRound /> : <RotateCcw />}
+              {["suspend", "deactivate"].includes(item.suffix) ? <Ban /> : item.suffix === "archive" ? <Archive /> : item.suffix === "cancel-invitation" ? <ShieldX /> : item.suffix === "revoke-sessions" ? <KeyRound /> : <RotateCcw />}
               {item.label}
             </Button>
           ))}
-        </div>
-      </div>
-      <Card className="mt-3 rounded-lg shadow-none">
-        <CardHeader><CardTitle>{title}</CardTitle></CardHeader>
-        <CardContent>
-          {query.isLoading ? <div className="flex min-h-52 items-center justify-center"><HookLoader /></div> : query.isError ? (
-            <p className="text-sm text-destructive">The record could not be loaded.</p>
-          ) : (
-            <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
-              {Object.entries(query.data || {}).filter(([, value]) => value === null || ["string", "number", "boolean"].includes(typeof value)).map(([key, value]) => (
-                <div key={key} className="border-b pb-3"><dt className="text-xs font-medium uppercase text-muted-foreground">{key.replace(/([A-Z])/g, " $1")}</dt><dd className="mt-1 text-sm">{String(value ?? "—")}</dd></div>
-              ))}
-            </dl>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        }
+      />
+      <QueryState loading={query.isLoading} error={query.error} loadingLabel={`Loading ${title.toLowerCase()}`} onRetry={() => query.refetch()}>
+        {query.data ? (
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.55fr)]">
+            <div className="space-y-4">
+              {groups.operations.length ? (
+                <DetailSection title="Operational overview" description="Current configuration and assignment context for this record.">
+                  <DefinitionGrid items={groups.operations} columns={2} />
+                </DetailSection>
+              ) : null}
+            </div>
+            <div className="space-y-4">
+              {groups.identity.length ? (
+                <DetailSection title="Identity" description="Stable identifiers and contact information.">
+                  <DefinitionGrid items={groups.identity} columns={1} />
+                </DetailSection>
+              ) : null}
+              {groups.audit.length ? (
+                <DetailSection title="Record activity" description="Lifecycle dates recorded by the platform.">
+                  <DefinitionGrid items={groups.audit} columns={1} />
+                </DetailSection>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+      </QueryState>
       <Dialog open={Boolean(action)} onOpenChange={(open) => {
         if (!open && !acting) {
           setAction(null);

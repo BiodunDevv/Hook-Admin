@@ -1,8 +1,12 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000/api/v1";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 const ACCESS_TOKEN_KEY = "hook_admin_token";
 const REFRESH_TOKEN_KEY = "hook_admin_refresh_token";
 const ADMIN_USER_KEY = "hook_admin_user";
+
+function notifyAuthChanged() {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("hook-auth-changed"));
+}
 
 export interface AdminUser {
   id: string;
@@ -76,6 +80,7 @@ export function setSession(session: AuthSession) {
   localStorage.setItem(ACCESS_TOKEN_KEY, session.accessToken);
   localStorage.setItem(REFRESH_TOKEN_KEY, session.refreshToken);
   localStorage.setItem(ADMIN_USER_KEY, JSON.stringify(session.user));
+  notifyAuthChanged();
 }
 
 export function setToken(token: string) {
@@ -87,6 +92,7 @@ export function clearSession() {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(ADMIN_USER_KEY);
+  notifyAuthChanged();
 }
 
 export const clearToken = clearSession;
@@ -125,23 +131,33 @@ async function parseResponse<T>(res: Response): Promise<T> {
   return payload.data as T;
 }
 
+let refreshInFlight: Promise<string | null> | null = null;
+
 async function refreshAccessToken(): Promise<string | null> {
+  if (refreshInFlight) return refreshInFlight;
+
   const refreshToken = getRefreshToken();
   if (!refreshToken) return null;
 
-  try {
-    const res = await fetch(`${API_BASE}/auth/refresh`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken }),
-    });
-    const session = await parseResponse<AuthSession>(res);
-    setSession(session);
-    return session.accessToken;
-  } catch {
-    clearSession();
-    return null;
-  }
+  refreshInFlight = (async () => {
+    try {
+      const res = await fetch(`${API_BASE}/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken }),
+      });
+      const session = await parseResponse<AuthSession>(res);
+      setSession(session);
+      return session.accessToken;
+    } catch {
+      clearSession();
+      return null;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+
+  return refreshInFlight;
 }
 
 export async function apiRequest<T>(
@@ -201,6 +217,13 @@ export function apiPost<T>(path: string, body?: unknown): Promise<T> {
 export function apiPatch<T>(path: string, body?: unknown): Promise<T> {
   return apiRequest<T>(path, {
     method: "PATCH",
+    body: body ? JSON.stringify(body) : undefined,
+  });
+}
+
+export function apiDelete<T>(path: string, body?: unknown): Promise<T> {
+  return apiRequest<T>(path, {
+    method: "DELETE",
     body: body ? JSON.stringify(body) : undefined,
   });
 }

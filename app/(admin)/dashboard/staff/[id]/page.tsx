@@ -1,5 +1,5 @@
-import { PlatformDetailPage } from "@/components/platform/PlatformDetailPage";
+import { StaffDetailWorkspace } from "@/components/staff/StaffDetailWorkspace";
 
 export default function StaffDetailPage() {
-  return <PlatformDetailPage title="Staff account details" endpoint="/admin/staff" invitationAction accountResource="staff" />;
+  return <StaffDetailWorkspace />;
 }

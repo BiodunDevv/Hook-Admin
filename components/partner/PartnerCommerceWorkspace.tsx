@@ -44,9 +44,11 @@ type StateGroup = {
   subtotalMinor: number;
   checkoutEligible: boolean;
   blockingReasons?: string[];
-  items: BasketItem[];
+  itemIds?: string[];
+  items?: BasketItem[];
 };
 type AssistedBasket = {
+  items?: BasketItem[];
   itemCount: number;
   subtotalMinor: number;
   stateGroups: StateGroup[];
@@ -384,13 +386,15 @@ export function PartnerCommerceWorkspace({
         ) : (
           <div className="space-y-4">
             <div className="flex items-center justify-between rounded-md border bg-background px-4 py-3"><div><p className="text-xs text-muted-foreground">Customer</p><p className="font-medium">{`${selectedCustomer.firstName || ""} ${selectedCustomer.lastName || ""}`.trim()}</p></div><Badge variant="secondary">{basket.data?.itemCount || 0} items</Badge></div>
-            {basket.data?.stateGroups.map((group) => (
+            {basket.data?.stateGroups.map((group) => {
+              const groupItems = getBasketGroupItems(basket.data, group);
+              return (
               <Card key={group.stateId}>
                 <CardHeader className="flex-row items-center justify-between"><div><CardTitle className="text-base">State basket</CardTitle><p className="text-xs text-muted-foreground">{group.stateId}</p></div><p className="font-semibold">{money(group.subtotalMinor)}</p></CardHeader>
                 <CardContent className="space-y-3">
-                  {group.items.map((item) => (
+                  {groupItems.map((item) => (
                     <div key={String(item.publicId || item.id)} className="flex items-center gap-3 border-t pt-3 first:border-0 first:pt-0">
-                      <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{String(item.product?.title || "Product")}</p><p className="text-xs text-muted-foreground">{money(Number(item.totalPriceMinor || 0))}</p></div>
+                      <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{String(item.product?.title || "Product")}</p><p className="text-xs text-muted-foreground">{money(Number(item.unitPriceMinor || 0))} each · {money(Number(item.totalPriceMinor || 0))} line total</p></div>
                       <div className="flex items-center gap-1"><Button size="icon-sm" variant="outline" aria-label="Decrease quantity" disabled={busyItem === item.publicId || Number(item.quantity || 1) <= 1} onClick={() => changeQuantity(item, Number(item.quantity || 1) - 1)}><Minus /></Button><span className="w-7 text-center text-sm">{item.quantity || 1}</span><Button size="icon-sm" variant="outline" aria-label="Increase quantity" disabled={busyItem === item.publicId} onClick={() => changeQuantity(item, Number(item.quantity || 1) + 1)}><Plus /></Button><Button size="icon-sm" variant="ghost" aria-label="Remove product" disabled={busyItem === item.publicId} onClick={() => removeItem(item)}><Trash2 /></Button></div>
                     </div>
                   ))}
@@ -398,7 +402,8 @@ export function PartnerCommerceWorkspace({
                   <Button className="w-full" variant="brand" disabled={!group.checkoutEligible || checkoutBusy} onClick={() => prepareCheckout(group)}>{checkoutBusy ? <HookLoader size="button" /> : "Continue to prepaid checkout"}</Button>
                 </CardContent>
               </Card>
-            ))}
+              );
+            })}
           </div>
         )}
         <Dialog open={Boolean(checkoutPreview)} onOpenChange={(open) => !open && !checkoutBusy && setCheckoutPreview(null)}>
@@ -503,6 +508,17 @@ export function PartnerCommerceWorkspace({
         </Card>
       </div>
     </section>
+  );
+}
+
+function getBasketGroupItems(
+  basket: AssistedBasket | undefined,
+  group: StateGroup,
+): BasketItem[] {
+  if (group.items?.length) return group.items;
+  const ids = new Set((group.itemIds || []).map(String));
+  return (basket?.items || []).filter((item) =>
+    ids.has(String(item.publicId || item.id || "")),
   );
 }
 

@@ -20,7 +20,6 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { HookLoader } from "@/components/shared/HookLoader";
-import { cn } from "@/lib/utils";
 import { useApiQuery } from "@/lib/query";
 
 interface ApiOrder {
@@ -48,15 +47,6 @@ interface OrdersTableProps {
   onPageChange: (page: number) => void;
 }
 
-const paymentColors: Record<string, string> = {
-  PAID: "text-emerald-600",
-  SUCCESSFUL: "text-emerald-600",
-  PENDING: "text-amber-600",
-  UNPAID: "text-red-500",
-  FAILED: "text-red-500",
-  REFUNDED: "text-zinc-400",
-};
-
 export function OrdersTable({
   queryKey,
   path,
@@ -80,8 +70,8 @@ export function OrdersTable({
   return (
     <>
       <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
+        <Table className="min-w-[1120px]">
+          <TableHeader className="sticky top-0 z-10">
             <TableRow className="border-b border-zinc-100 bg-zinc-50">
               {[
                 "No",
@@ -96,7 +86,7 @@ export function OrdersTable({
               ].map((header) => (
                 <TableHead
                   key={header}
-                  className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-400"
+                  className={`px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-400 ${header === "Amount" ? "text-right" : ""}`}
                 >
                   {header}
                 </TableHead>
@@ -213,19 +203,11 @@ export function OrdersTable({
                   <TableCell className="px-4 py-3">
                     <StatusBadge status={order.status} />
                   </TableCell>
-                  <TableCell className="px-4 py-3 font-semibold text-zinc-900">
+                  <TableCell className="px-4 py-3 text-right font-semibold tabular-nums text-zinc-900">
                     ₦{Number(order.total || 0).toLocaleString()}
                   </TableCell>
                   <TableCell className="px-4 py-3">
-                    <span
-                      className={cn(
-                        "text-[11px] font-bold uppercase",
-                        paymentColors[order.paymentStatus?.toUpperCase()] ||
-                          "text-zinc-500",
-                      )}
-                    >
-                      {order.paymentStatus}
-                    </span>
+                    <StatusBadge status={order.paymentStatus} />
                   </TableCell>
                   <TableCell className="px-4 py-3 text-zinc-400">
                     {order.logistics?.estimatedDeliveryAt ? "Scheduled" : "-"}

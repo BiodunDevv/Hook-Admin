@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { Hash, Map, MapPin, Shield, ScrollText, Users, Waypoints } from "lucide-react";
+import { Hash, Map, MapPin, Shield, ScrollText, Users, Waypoints, Truck } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/shared/PageHeader";
 
 const links = [
   ["Staff", "/dashboard/staff", Users], ["Roles and permissions", "/dashboard/administration/roles", Shield],
   ["Operation States", "/dashboard/administration/states", Map], ["Operation Cities", "/dashboard/administration/cities", MapPin],
-  ["Service Zones", "/dashboard/administration/zones", Waypoints], ["Audit Logs", "/dashboard/administration/audit-logs", ScrollText],
+  ["Service Zones", "/dashboard/administration/zones", Waypoints], ["Delivery Coverage & Fees", "/dashboard/administration/delivery", Truck], ["Audit Logs", "/dashboard/administration/audit-logs", ScrollText],
   ["Public ID counters", "/dashboard/administration/public-ids", Hash],
 ] as const;
 
