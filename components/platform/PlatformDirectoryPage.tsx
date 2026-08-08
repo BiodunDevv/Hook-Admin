@@ -45,6 +45,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { AdminWorkflowSheet } from "@/components/shared/AdminWorkflowSheet";
 import { QueryState } from "@/components/shared/QueryState";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PermissionGuard } from "@/components/auth/PermissionGuard";
@@ -306,6 +307,7 @@ export function PlatformDirectoryPage({
   const [assignmentValue, setAssignmentValue] = useState<FormValue>(assignment?.field.type === "multi-select" ? [] : "");
   const [assignmentReason, setAssignmentReason] = useState("");
   const [actingId, setActingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [values, setValues] = useState<FormValues>({});
   const query = useApiQuery<PageData>(
     ["platform", endpoint, pageSize],
@@ -375,6 +377,7 @@ export function PlatformDirectoryPage({
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const body = buildBody(form);
+    setSaving(true);
     try {
       if (editingRow) {
         await apiPatch(`${endpoint}/${editingRow.publicId || editingRow.id}`, body);
@@ -387,13 +390,15 @@ export function PlatformDirectoryPage({
       setEditingRow(null);
       setValues({});
       setEditReason("");
-      query.refetch();
+      await query.refetch();
     } catch (error) {
       toast.error(
         error instanceof Error
           ? error.message.replace(/^\d+:\s*/, "")
           : "Unable to save record",
       );
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -604,22 +609,37 @@ export function PlatformDirectoryPage({
           </QueryState>
         </CardContent>
       </Card>
-      <Dialog
+      <AdminWorkflowSheet
         open={open}
         onOpenChange={(next) => {
-          setOpen(next);
-          if (!next) {
+          if (!next && !saving) {
+            setOpen(false);
             setValues({});
             setEditingRow(null);
             setEditReason("");
           }
         }}
+        title={`${editingRow ? "Edit" : "Add"} ${title.replace(/s$/, "")}`}
+        description={editingRow
+          ? "Update the record details. The backend validates relationships, scope, and lifecycle rules."
+          : `Create a ${title.replace(/s$/, "").toLowerCase()} for the current operational workspace.`}
+        footer={(
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={saving}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" form="platform-directory-form" variant="brand" disabled={saving}>
+              {saving ? "Saving..." : editingRow ? "Save changes" : "Create"}
+            </Button>
+          </>
+        )}
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editingRow ? "Edit" : "Add"} {title.replace(/s$/, "")}</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={save} className="space-y-4">
+          <form id="platform-directory-form" onSubmit={save} className="space-y-5">
             {fields.map((field) => (
               <div key={field.key} className="space-y-1.5">
                 <Label htmlFor={field.key}>{field.label}</Label>
@@ -676,27 +696,14 @@ export function PlatformDirectoryPage({
                 )}
               </div>
             ))}
-            <DialogFooter>
-              {editingRow ? (
-                <div className="space-y-1.5">
-                  <Label htmlFor="directory-edit-reason">Audit reason</Label>
-                  <Input id="directory-edit-reason" name="reason" value={editReason} onChange={(event) => setEditReason(event.target.value)} placeholder="Optional reason for this change" maxLength={500} />
-                </div>
-              ) : null}
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" variant="brand">
-                {editingRow ? "Save changes" : "Create"}
-              </Button>
-            </DialogFooter>
+            {editingRow ? (
+              <div className="space-y-1.5 border-t pt-5">
+                <Label htmlFor="directory-edit-reason">Audit reason</Label>
+                <Input id="directory-edit-reason" name="reason" value={editReason} onChange={(event) => setEditReason(event.target.value)} placeholder="Optional reason for this change" maxLength={500} />
+              </div>
+            ) : null}
           </form>
-        </DialogContent>
-      </Dialog>
+      </AdminWorkflowSheet>
       <Dialog open={Boolean(lifecycleRow)} onOpenChange={(next) => { if (!next && !actingId) { setLifecycleRow(null); setLifecycleReason(""); setLifecycleMode("status"); } }}>
         <DialogContent>
           <DialogHeader>
@@ -713,44 +720,51 @@ export function PlatformDirectoryPage({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <Dialog open={Boolean(assignmentRow)} onOpenChange={(next) => { if (!next && !actingId) { setAssignmentRow(null); setAssignmentReason(""); setAssignmentValue(assignment?.field.type === "multi-select" ? [] : ""); } }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{assignment?.label}</DialogTitle>
-            <DialogDescription>Choose a compatible record and provide a reason. The backend will validate state ownership before saving.</DialogDescription>
-          </DialogHeader>
-          {assignment ? (
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor={`assignment-${assignment.field.key}`}>{assignment.field.label}</Label>
-                {assignment.field.type === "multi-select" ? (
-                  <RelatedMultiSelect
-                    field={assignment.field}
-                    value={Array.isArray(assignmentValue) ? assignmentValue : []}
-                    values={{}}
-                    onChange={setAssignmentValue}
-                  />
-                ) : (
-                  <RelatedSelect
-                    field={assignment.field}
-                    value={typeof assignmentValue === "string" ? assignmentValue : undefined}
-                    values={{}}
-                    onChange={setAssignmentValue}
-                  />
-                )}
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="assignment-reason">Reason</Label>
-                <Input id="assignment-reason" value={assignmentReason} onChange={(event) => setAssignmentReason(event.target.value)} placeholder="Add an operational reason" minLength={3} maxLength={500} />
-              </div>
-            </div>
-          ) : null}
-          <DialogFooter>
+      <AdminWorkflowSheet
+        open={Boolean(assignmentRow)}
+        onOpenChange={(next) => {
+          if (!next && !actingId) {
+            setAssignmentRow(null);
+            setAssignmentReason("");
+            setAssignmentValue(assignment?.field.type === "multi-select" ? [] : "");
+          }
+        }}
+        title={assignment?.label || "Assignment"}
+        description="Choose a compatible record and provide a reason. The backend validates state ownership before saving."
+        footer={(
+          <>
             <Button type="button" variant="outline" disabled={Boolean(actingId)} onClick={() => setAssignmentRow(null)}>Cancel</Button>
             <Button type="button" variant="brand" disabled={Boolean(actingId) || !assignmentValue || (Array.isArray(assignmentValue) && !assignmentValue.length) || assignmentReason.trim().length < 3} onClick={() => void saveAssignment()}>{actingId ? "Saving..." : "Save assignment"}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </>
+        )}
+      >
+        {assignment ? (
+          <div className="space-y-5">
+            <div className="space-y-1.5">
+              <Label htmlFor={`assignment-${assignment.field.key}`}>{assignment.field.label}</Label>
+              {assignment.field.type === "multi-select" ? (
+                <RelatedMultiSelect
+                  field={assignment.field}
+                  value={Array.isArray(assignmentValue) ? assignmentValue : []}
+                  values={{}}
+                  onChange={setAssignmentValue}
+                />
+              ) : (
+                <RelatedSelect
+                  field={assignment.field}
+                  value={typeof assignmentValue === "string" ? assignmentValue : undefined}
+                  values={{}}
+                  onChange={setAssignmentValue}
+                />
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="assignment-reason">Reason</Label>
+              <Input id="assignment-reason" value={assignmentReason} onChange={(event) => setAssignmentReason(event.target.value)} placeholder="Add an operational reason" minLength={3} maxLength={500} />
+            </div>
+          </div>
+        ) : null}
+      </AdminWorkflowSheet>
     </div>
   );
 }

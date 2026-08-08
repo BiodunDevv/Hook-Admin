@@ -23,14 +23,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -53,6 +45,7 @@ import { useApiQuery, useAdminSession } from "@/lib/query";
 import { apiPost, apiPatch, apiRequest } from "@/lib/api";
 import { hasPermission } from "@/lib/permissions";
 import { PermissionGuard } from "@/components/auth/PermissionGuard";
+import { AdminWorkflowSheet } from "@/components/shared/AdminWorkflowSheet";
 import { toast } from "sonner";
 
 interface CategoryManager {
@@ -91,7 +84,7 @@ function managerInitials(manager: CategoryManager) {
   return name.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase() || "?";
 }
 
-// ─── Create / Edit dialog ────────────────────────────────────────────────────
+// ─── Create / Edit sheet ─────────────────────────────────────────────────────
 
 function CategoryDialog({
   category,
@@ -174,19 +167,34 @@ function CategoryDialog({
     }
   }
 
-  return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Category" : "Create Category"}</DialogTitle>
-          <DialogDescription>
-            {isEdit
-              ? `Update "${category!.name}" — changes apply across the whole organization.`
-              : "This category becomes available organization-wide for products and staff assignment."}
-          </DialogDescription>
-        </DialogHeader>
+  const close = () => {
+    if (!loading && !uploading) onClose();
+  };
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+  return (
+    <AdminWorkflowSheet
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) close();
+      }}
+      title={isEdit ? "Edit category" : "Create category"}
+      description={isEdit
+        ? `Update "${category!.name}". Changes apply across the catalog.`
+        : "Create a reusable category for the Hook catalog."}
+      footer={(
+        <>
+          <Button type="button" variant="outline" onClick={close} disabled={loading || uploading}>
+            Cancel
+          </Button>
+          <Button type="submit" form="category-form" variant="brand" disabled={loading || uploading}>
+            {loading
+              ? <HookLoader size="button" label={isEdit ? "Saving..." : "Creating..."} />
+              : isEdit ? "Save changes" : "Create category"}
+          </Button>
+        </>
+      )}
+    >
+        <form id="category-form" onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-1.5">
             <Label htmlFor="name">Name *</Label>
             <Input
@@ -281,19 +289,8 @@ function CategoryDialog({
             />
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
-              Cancel
-            </Button>
-            <Button type="submit" variant="brand" disabled={loading}>
-              {loading
-                ? <HookLoader size="button" label={isEdit ? "Saving..." : "Creating..."} />
-                : isEdit ? "Save Changes" : "Create Category"}
-            </Button>
-          </DialogFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+    </AdminWorkflowSheet>
   );
 }
 

@@ -18,6 +18,7 @@ export interface ProductSubmission {
   basicTitle: string;
   status: "draft" | "submitted" | "in_review" | "changes_requested" | "approved" | "rejected";
   marketId: string;
+  marketVendorId?: string;
   sourceStateId: string;
   categorySuggestionId: string;
   notes?: string;
@@ -80,4 +81,3 @@ export function money(minor?: number, currency = "NGN") {
     maximumFractionDigits: 2,
   }).format((minor || 0) / 100);
 }
-

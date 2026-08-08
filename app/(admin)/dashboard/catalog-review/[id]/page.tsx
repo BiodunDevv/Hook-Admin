@@ -9,9 +9,9 @@ import { apiPost } from "@/lib/api";
 import { money, type ProductSubmission } from "@/lib/catalog";
 import { useApiQuery } from "@/lib/query";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { CatalogStatusBadge } from "@/components/catalog/CatalogStatusBadge";
+import { AdminWorkflowSheet } from "@/components/shared/AdminWorkflowSheet";
 import { HookLoader } from "@/components/shared/HookLoader";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { QueryState } from "@/components/shared/QueryState";
@@ -60,6 +60,29 @@ export default function CatalogReviewDetailPage() {
       </div></DetailSection>
     </div> : null}
     </QueryState>
-    <Dialog open={Boolean(decision)} onOpenChange={(open) => !open && setDecision(null)}><DialogContent><DialogHeader><DialogTitle className="capitalize">{decision?.replace("-", " ")}</DialogTitle><DialogDescription>Give a clear operational reason. This decision is audited.</DialogDescription></DialogHeader><Textarea value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Reason and actionable feedback" /><DialogFooter><Button variant="outline" onClick={() => setDecision(null)}>Cancel</Button><Button disabled={pending || reason.trim().length < 5} onClick={decide}>{pending ? <HookLoader size="button" /> : "Confirm decision"}</Button></DialogFooter></DialogContent></Dialog>
+    <AdminWorkflowSheet
+      open={Boolean(decision)}
+      onOpenChange={(open) => {
+        if (!open && !pending) {
+          setDecision(null);
+          setReason("");
+        }
+      }}
+      title={decision?.replace("-", " ") || "Review decision"}
+      description="Give a clear operational reason. This decision is version-checked and audited."
+      footer={(
+        <>
+          <Button variant="outline" disabled={pending} onClick={() => { setDecision(null); setReason(""); }}>Cancel</Button>
+          <Button type="submit" form="review-decision-form" variant={decision === "reject" ? "destructive" : "brand"} disabled={pending || reason.trim().length < 5}>
+            {pending ? <HookLoader size="button" /> : "Confirm decision"}
+          </Button>
+        </>
+      )}
+    >
+      <form id="review-decision-form" onSubmit={(event) => { event.preventDefault(); void decide(); }} className="space-y-4">
+        <Textarea autoFocus value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Reason and actionable feedback" className="min-h-32" maxLength={1000} />
+        <p className="text-xs leading-5 text-muted-foreground">Use specific feedback when requesting changes so the Runner can resolve the submission without another review cycle.</p>
+      </form>
+    </AdminWorkflowSheet>
   </div>;
 }

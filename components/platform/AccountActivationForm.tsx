@@ -15,9 +15,9 @@ import { apiPost } from "@/lib/api";
 type AccountType = "staff" | "runner" | "partner";
 
 const destinations: Record<AccountType, string> = {
-  staff: "/login",
-  runner: "/runner/login",
-  partner: "/partner/login",
+  staff: "/auth/login",
+  runner: "/auth/login",
+  partner: "/auth/login",
 };
 
 export function AccountActivationForm({ accountType }: { accountType: AccountType }) {

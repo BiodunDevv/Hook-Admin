@@ -104,8 +104,8 @@ export function isAuthenticated(): boolean {
 function redirectToLogin() {
   if (!isBrowser()) return;
   const next = window.location.pathname + window.location.search;
-  if (!window.location.pathname.startsWith("/login")) {
-    window.location.href = `/login?next=${encodeURIComponent(next)}`;
+  if (window.location.pathname !== "/auth/login") {
+    window.location.href = `/auth/login?next=${encodeURIComponent(next)}`;
   }
 }
 
@@ -228,47 +228,36 @@ export function apiDelete<T>(path: string, body?: unknown): Promise<T> {
   });
 }
 
-export async function loginAdmin(email: string, password: string) {
+export async function loginAccount(email: string, password: string) {
   const session = await apiRequest<AuthSession>(
-    "/admin/auth/login",
+    "/auth/login",
     {
       method: "POST",
       body: JSON.stringify({ email, password }),
     },
     { auth: false },
   );
-  if (session.user.accountType !== "staff" && !["support", "admin", "super_admin"].includes(session.user.role)) {
-    throw new Error("403: Staff access required");
-  }
-  setSession(session);
-  return session;
-}
-
-export async function loginPlatformAccount(
-  email: string,
-  password: string,
-  accountType: "runner" | "partner",
-) {
-  const session = await apiRequest<AuthSession>(
-    `/${accountType}/auth/login`,
-    { method: "POST", body: JSON.stringify({ email, password }) },
-    { auth: false },
+  const isLegacyStaff = ["support", "admin", "super_admin"].includes(
+    session.user.role,
   );
-  if (session.user.accountType !== accountType) {
-    throw new Error(`403: ${accountType === "runner" ? "Runner" : "Hook Partner"} access required`);
+  if (
+    !["staff", "runner", "partner"].includes(session.user.accountType || "") &&
+    !isLegacyStaff
+  ) {
+    throw new Error("403: Use the Hook mobile app to access your customer account");
   }
   setSession(session);
   return session;
 }
 
-export async function logoutAdmin() {
+export async function logoutAccount() {
   const accessToken = getAccessToken();
   const refreshToken = getRefreshToken();
   if (!accessToken && !refreshToken) {
     throw new Error("401: Authentication token required");
   }
   await apiRequest<{ loggedOut: boolean }>(
-    "/admin/auth/logout",
+    "/auth/logout",
     {
       method: "POST",
       body: JSON.stringify({ refreshToken: refreshToken || undefined }),
@@ -278,9 +267,9 @@ export async function logoutAdmin() {
   clearSession();
 }
 
-export async function requestAdminPasswordReset(email: string) {
+export async function requestPasswordReset(email: string) {
   return apiRequest<{ sent: boolean } | { message: string }>(
-    "/admin/auth/password/forgot",
+    "/auth/password/forgot",
     {
       method: "POST",
       body: JSON.stringify({ email }),
@@ -289,9 +278,9 @@ export async function requestAdminPasswordReset(email: string) {
   );
 }
 
-export async function resetAdminPassword(email: string, code: string, password: string) {
+export async function resetPassword(email: string, code: string, password: string) {
   return apiRequest<{ reset: boolean } | { message: string }>(
-    "/admin/auth/password/reset",
+    "/auth/password/reset",
     {
       method: "POST",
       body: JSON.stringify({ email, code, password }),
@@ -300,24 +289,20 @@ export async function resetAdminPassword(email: string, code: string, password: 
   );
 }
 
-export async function getCurrentAdmin() {
+export async function getCurrentAccount() {
   const user = await apiGet<AdminUser>("/auth/profile");
-  if (user.accountType !== "staff" && !["support", "admin", "super_admin"].includes(user.role)) {
-    clearSession();
-    throw new Error("403: Admin access required");
-  }
   localStorage.setItem(ADMIN_USER_KEY, JSON.stringify(user));
   return user;
 }
 
-export async function ensureAdminSession() {
+export async function ensureAccountSession() {
   if (!getAccessToken() && !getRefreshToken()) return null;
   try {
-    return await getCurrentAdmin();
+    return await getCurrentAccount();
   } catch (error) {
     if (error instanceof Error && error.message.startsWith("401")) {
       const refreshed = await refreshAccessToken();
-      if (refreshed) return getCurrentAdmin();
+      if (refreshed) return getCurrentAccount();
     }
     clearSession();
     throw error;

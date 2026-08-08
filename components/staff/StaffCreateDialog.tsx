@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, ChevronDown, ChevronUp, Headset, Shield, ShieldCheck, UserPlus } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Headset, Shield, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AdminWorkflowSheet } from "@/components/shared/AdminWorkflowSheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -126,10 +126,14 @@ export function StaffCreateDialog({ open, onClose, onSuccess }: { open: boolean;
 
   return (
     <PermissionGuard permission="staff.create">
-      <Dialog open={open} onOpenChange={(next) => { if (!next && !saving) { reset(); onClose(); } }}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
-          <DialogHeader><DialogTitle className="flex items-center gap-2"><span className="grid size-8 place-items-center rounded-lg bg-amber-100 text-amber-700"><UserPlus className="size-4" /></span> Add staff member</DialogTitle><DialogDescription>Create an invitation with a backend-managed role and operational scope. Access is evaluated live from assigned roles.</DialogDescription></DialogHeader>
-          <form onSubmit={submit} className="space-y-5">
+      <AdminWorkflowSheet
+        open={open}
+        onOpenChange={(next) => { if (!next && !saving) { reset(); onClose(); } }}
+        title="Add staff member"
+        description="Create an invitation with a backend-managed role and operational scope. Access is evaluated live from assigned roles."
+        footer={<><Button type="button" variant="outline" onClick={() => { reset(); onClose(); }} disabled={saving}>Cancel</Button><Button type="submit" form="staff-create-form" variant="brand" disabled={saving || rolesQuery.isLoading || !selectedRoleIds.length}>{saving ? <HookLoader size="button" /> : "Create invitation"}</Button></>}
+      >
+          <form id="staff-create-form" onSubmit={submit} className="space-y-5">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5"><Label htmlFor="staff-first-name">First name</Label><Input id="staff-first-name" name="firstName" placeholder="Amina" required /></div>
               <div className="space-y-1.5"><Label htmlFor="staff-last-name">Last name</Label><Input id="staff-last-name" name="lastName" placeholder="Okafor" required /></div>
@@ -143,10 +147,8 @@ export function StaffCreateDialog({ open, onClose, onSuccess }: { open: boolean;
             <div className="space-y-2"><div className="flex items-center justify-between"><Label>Operational scope</Label><span className="text-xs text-muted-foreground">Validated by the backend</span></div><Select value={String(values.scopeType || "global")} onValueChange={(scopeType) => { setValue("scopeType", scopeType); if (scopeType === "global") { setValue("stateIds", []); setValue("hubIds", []); } }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{scopeOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label} · {option.description}</SelectItem>)}</SelectContent></Select></div>
             {values.scopeType !== "global" ? <div className="grid gap-3 sm:grid-cols-2">{locationFields.map((field) => <div key={field.key} className="space-y-1.5"><Label>{field.label}</Label><RelatedMultiSelect field={field} value={Array.isArray(values[field.key]) ? values[field.key] as string[] : []} values={values} onChange={(next) => setValue(field.key, next)} /></div>)}</div> : <div className="rounded-lg border border-dashed bg-muted/30 p-3 text-xs text-muted-foreground">Global scope grants access across all operating states. State and Hub restrictions are intentionally cleared.</div>}
             <div className="rounded-lg border bg-muted/20"><button type="button" className="flex w-full items-center justify-between p-3 text-left" onClick={() => setExpanded((current) => !current)}><span><span className="block text-sm font-medium">Effective permission preview</span><span className="block text-xs text-muted-foreground">Inherited from the selected role{selectedRoleIds.length === 1 ? "" : "s"}; individual permission overrides are not accepted.</span></span>{expanded ? <ChevronUp className="size-4 text-muted-foreground" /> : <ChevronDown className="size-4 text-muted-foreground" />}</button>{expanded ? <div className="flex flex-wrap gap-1.5 border-t p-3">{effectivePermissions.map((permission) => <span key={permission} className="rounded-full border bg-background px-2 py-1 text-[11px] text-muted-foreground">{PERMISSION_LABELS[permission as Permission] || permission}</span>)}{!effectivePermissions.length ? <span className="text-xs text-muted-foreground">Select a role to preview permissions.</span> : null}</div> : null}</div>
-            <DialogFooter><Button type="button" variant="outline" onClick={() => { reset(); onClose(); }} disabled={saving}>Cancel</Button><Button type="submit" variant="brand" disabled={saving || rolesQuery.isLoading || !selectedRoleIds.length}>{saving ? <HookLoader size="button" /> : "Create invitation"}</Button></DialogFooter>
           </form>
-        </DialogContent>
-      </Dialog>
+      </AdminWorkflowSheet>
     </PermissionGuard>
   );
 }

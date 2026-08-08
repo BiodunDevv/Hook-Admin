@@ -1,2 +1,5 @@
-import { PortalOverview } from "@/components/platform/PortalOverview";
-export default function PartnerPage() { return <PortalOverview type="partner" view="dashboard" />; }
+import { redirect } from "next/navigation";
+
+export default function PartnerPage() {
+  redirect("/partner/dashboard");
+}

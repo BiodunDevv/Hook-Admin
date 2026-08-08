@@ -33,6 +33,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { DetailSection } from "@/components/shared/DetailSection";
 import { DefinitionGrid, type DefinitionItem } from "@/components/shared/DefinitionGrid";
+import { AdminWorkflowSheet } from "@/components/shared/AdminWorkflowSheet";
 import { HookLoader } from "@/components/shared/HookLoader";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { QueryState } from "@/components/shared/QueryState";
@@ -408,20 +409,27 @@ export function StaffDetailWorkspace() {
         ) : null}
       </QueryState>
 
-      <Dialog open={editOpen} onOpenChange={(open) => { if (!open && !saving) setEditOpen(false); }}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
-          <DialogHeader><DialogTitle>Edit staff access</DialogTitle><DialogDescription>Update identity, roles, and scope. Backend policies validate every relationship before saving.</DialogDescription></DialogHeader>
-          <form onSubmit={saveEdit} className="space-y-5">
+      <AdminWorkflowSheet
+        open={editOpen}
+        onOpenChange={(open) => { if (!open && !saving) setEditOpen(false); }}
+        title="Edit staff access"
+        description="Update identity, roles, and scope. Backend policies validate every relationship before saving."
+        footer={(
+          <>
+            <Button type="button" variant="outline" onClick={() => setEditOpen(false)} disabled={saving}>Cancel</Button>
+            <Button type="submit" form="staff-access-form" variant="brand" disabled={saving}>{saving ? <HookLoader size="button" /> : "Save changes"}</Button>
+          </>
+        )}
+      >
+          <form id="staff-access-form" onSubmit={saveEdit} className="space-y-5">
             <div className="grid gap-3 sm:grid-cols-2">
               {(["firstName", "lastName", "phone"] as const).map((key) => <div key={key} className="space-y-1.5"><Label htmlFor={`staff-${key}`}>{key === "firstName" ? "First name" : key === "lastName" ? "Last name" : "Phone number"}</Label><Input id={`staff-${key}`} value={String(values[key] || "")} onChange={(event) => setValue(key, event.target.value)} required={key !== "phone"} /></div>)}
             </div>
             <div className="space-y-2"><Label>Operational scope</Label><Select value={String(values.scopeType || "global")} onValueChange={(scopeType) => { setValue("scopeType", scopeType); if (scopeType === "global") { setValue("stateIds", []); setValue("hubIds", []); } }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{scopeOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label} · {option.description}</SelectItem>)}</SelectContent></Select></div>
             {multiSelectFields.map((field) => <div key={field.key} className="space-y-1.5"><Label>{field.label}</Label><RelatedMultiSelect field={field} value={Array.isArray(values[field.key]) ? values[field.key] as string[] : []} values={values} onChange={(value) => setValue(field.key, value)} /></div>)}
             <div className="space-y-1.5"><Label htmlFor="staff-edit-reason">Audit reason</Label><Textarea id="staff-edit-reason" value={String(values.reason || "")} onChange={(event) => setValue("reason", event.target.value)} placeholder="Why is this access or profile change needed?" maxLength={500} required /></div>
-            <DialogFooter><Button type="button" variant="outline" onClick={() => setEditOpen(false)} disabled={saving}>Cancel</Button><Button type="submit" variant="brand" disabled={saving}>{saving ? <HookLoader size="button" /> : "Save changes"}</Button></DialogFooter>
           </form>
-        </DialogContent>
-      </Dialog>
+      </AdminWorkflowSheet>
 
       <Dialog open={Boolean(action)} onOpenChange={(open) => { if (!open && !saving) { setAction(null); setReason(""); } }}>
         <DialogContent>

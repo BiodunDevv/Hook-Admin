@@ -26,7 +26,7 @@ export function ResetPasswordForm() {
     event.preventDefault();
     const nextErrors: typeof errors = {};
     if (!/^\S+@\S+\.\S+$/.test(values.email)) {
-      nextErrors.email = "Please enter a valid admin email address";
+      nextErrors.email = "Please enter a valid Hook account email";
     }
     if (values.code.length < 4) {
       nextErrors.code = "Enter the OTP sent to your email";
@@ -40,7 +40,7 @@ export function ResetPasswordForm() {
     }
     try {
       await reset.mutateAsync(values);
-      router.push("/login");
+      router.push("/auth/login");
     } catch {
       // Mutation errors are displayed globally through Sonner.
     }
@@ -61,7 +61,7 @@ export function ResetPasswordForm() {
 
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="space-y-1.5">
-          <Label htmlFor="reset-email">Admin email</Label>
+          <Label htmlFor="reset-email">Account email</Label>
           <div className="relative">
             <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-400" />
             <Input
@@ -105,7 +105,7 @@ export function ResetPasswordForm() {
           {reset.isPending ? <HookLoader size="button" label="Resetting..." /> : "Reset password"}
         </Button>
         <Button asChild type="button" variant="ghost" className="w-full">
-          <Link href="/login"><ArrowLeft size={15} /> Back to login</Link>
+          <Link href="/auth/login"><ArrowLeft size={15} /> Back to login</Link>
         </Button>
       </form>
     </div>

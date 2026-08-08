@@ -64,6 +64,10 @@ export const ALL_PERMISSIONS = [
   "settings.view",
   "delivery.coverage.view", "delivery.coverage.manage",
   "delivery.pricing.view", "delivery.pricing.manage", "delivery.pricing.preview",
+  "market.vendors.view", "market.vendors.manage", "market.vendors.invite",
+  "market.collections.view", "market.collections.manage",
+  "market.payments.view", "market.payments.reconcile",
+  "catalog.availability.view", "catalog.availability.manage", "catalog.availability.confirm",
 ] as const;
 
 export type Permission = (typeof ALL_PERMISSIONS)[number];
@@ -149,6 +153,16 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   "delivery.pricing.view": "View Delivery Pricing",
   "delivery.pricing.manage": "Manage Delivery Pricing",
   "delivery.pricing.preview": "Preview Delivery Pricing",
+  "market.vendors.view": "View Market Suppliers",
+  "market.vendors.manage": "Manage Market Suppliers",
+  "market.vendors.invite": "Invite Market Suppliers",
+  "market.collections.view": "View Supplier Collections",
+  "market.collections.manage": "Manage Supplier Collections",
+  "market.payments.view": "View Supplier Payment Status",
+  "market.payments.reconcile": "Reconcile Supplier Payments",
+  "catalog.availability.view": "View Availability Checks",
+  "catalog.availability.manage": "Request Availability Checks",
+  "catalog.availability.confirm": "Confirm Product Availability",
 };
 
 export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] = [
@@ -200,6 +214,8 @@ export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] =
       "commerce.outbox.view", "commerce.settings.view", "commerce.settings.manage",
       "settings.view", "settings.manage",
       "delivery.coverage.view", "delivery.coverage.manage", "delivery.pricing.view", "delivery.pricing.manage", "delivery.pricing.preview",
+      "market.vendors.view", "market.vendors.manage", "market.vendors.invite", "market.collections.view", "market.collections.manage",
+      "market.payments.view", "market.payments.reconcile", "catalog.availability.view", "catalog.availability.manage", "catalog.availability.confirm",
     ],
   },
 ];

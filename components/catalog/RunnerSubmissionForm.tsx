@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { HookLoader } from "@/components/shared/HookLoader";
 
 interface MarketOption { publicId: string; name: string }
+interface MarketVendorOption { publicId: string; businessName: string; contactName: string; status: string }
 interface CategoryOption { publicId: string; name: string }
 interface UploadIntent {
   uploadIntentId: string;
@@ -41,6 +42,7 @@ interface MediaReadiness {
 
 interface FormState {
   marketId: string;
+  marketVendorId: string;
   categorySuggestionId: string;
   basicTitle: string;
   notes: string;
@@ -55,6 +57,7 @@ interface FormState {
 function initialValue(submission?: ProductSubmission): FormState {
   return {
     marketId: submission?.marketId || "",
+    marketVendorId: submission?.marketVendorId || "",
     categorySuggestionId: submission?.categorySuggestionId || "",
     basicTitle: submission?.basicTitle || "",
     notes: submission?.notes || "",
@@ -93,6 +96,12 @@ export function RunnerSubmissionForm({
     staleTime: 60_000,
     retry: 1,
   });
+  const vendors = useQuery({
+    queryKey: ["runner", "market-vendors", form.marketId],
+    queryFn: () => apiGet<MarketVendorOption[]>(`/runner/markets/${encodeURIComponent(form.marketId)}/vendors`),
+    enabled: editable && Boolean(form.marketId),
+    staleTime: 30_000,
+  });
   const mediaAvailable = mediaReadiness.data?.available === true;
 
   useEffect(() => {
@@ -105,6 +114,7 @@ export function RunnerSubmissionForm({
 
   const payload = useMemo(() => ({
     marketId: form.marketId,
+    marketVendorId: form.marketVendorId,
     categorySuggestionId: form.categorySuggestionId,
     basicTitle: form.basicTitle.trim(),
     notes: form.notes.trim() || undefined,
@@ -195,7 +205,8 @@ export function RunnerSubmissionForm({
           <FieldGroup>
             <Field><FieldLabel>Product title</FieldLabel><Input disabled={!editable} value={form.basicTitle} onChange={(event) => update("basicTitle", event.target.value)} placeholder="Clear product name" /></Field>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field><FieldLabel>Assigned Market</FieldLabel><Select disabled={!editable} value={form.marketId} onValueChange={(value) => update("marketId", value)}><SelectTrigger><SelectValue placeholder="Select Market" /></SelectTrigger><SelectContent>{markets.map((market) => <SelectItem key={market.publicId} value={market.publicId}>{market.name}</SelectItem>)}</SelectContent></Select></Field>
+              <Field><FieldLabel>Assigned Market</FieldLabel><Select disabled={!editable} value={form.marketId} onValueChange={(value) => { setForm((current) => ({ ...current, marketId: value, marketVendorId: "" })); setDirty(true); }}><SelectTrigger><SelectValue placeholder="Select Market" /></SelectTrigger><SelectContent>{markets.map((market) => <SelectItem key={market.publicId} value={market.publicId}>{market.name}</SelectItem>)}</SelectContent></Select></Field>
+              <Field><FieldLabel>Source supplier</FieldLabel><Select disabled={!editable || !form.marketId || vendors.isLoading} value={form.marketVendorId} onValueChange={(value) => update("marketVendorId", value)}><SelectTrigger><SelectValue placeholder={vendors.isLoading ? "Loading suppliers" : "Select supplier"} /></SelectTrigger><SelectContent>{(vendors.data || []).map((vendor) => <SelectItem key={vendor.publicId} value={vendor.publicId}>{vendor.businessName} · {vendor.contactName}</SelectItem>)}</SelectContent></Select>{form.marketId && !vendors.isLoading && !vendors.data?.length ? <p className="text-xs text-amber-700">Add a supplier from the Market page before saving this submission.</p> : null}</Field>
               <Field><FieldLabel>Suggested category</FieldLabel><Select disabled={!editable} value={form.categorySuggestionId} onValueChange={(value) => update("categorySuggestionId", value)}><SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger><SelectContent>{categories.map((category) => <SelectItem key={category.publicId} value={category.publicId}>{category.name}</SelectItem>)}</SelectContent></Select></Field>
             </div>
             <Field><FieldLabel>Observed market price (NGN)</FieldLabel><Input disabled={!editable} inputMode="decimal" value={form.basePrice} onChange={(event) => update("basePrice", event.target.value.replace(/[^\d.]/g, ""))} placeholder="0.00" /></Field>

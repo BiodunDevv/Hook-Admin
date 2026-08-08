@@ -1,2 +1,5 @@
-import { PortalOverview } from "@/components/platform/PortalOverview";
-export default function RunnerMarketsPage() { return <PortalOverview type="runner" view="markets" />; }
+import { RunnerMarketsWorkspace } from "@/components/runner/RunnerMarketsWorkspace";
+
+export default function RunnerMarketsPage() {
+  return <RunnerMarketsWorkspace />;
+}

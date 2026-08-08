@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { HookLogo } from "@/components/shared/HookLogo";
 import { Button } from "@/components/ui/button";
-import { clearSession, logoutAdmin } from "@/lib/api";
+import { clearSession, logoutAccount } from "@/lib/api";
 import { PortalGuard } from "@/components/platform/PortalGuard";
 
 export function PortalShell({
@@ -21,15 +21,16 @@ export function PortalShell({
   const links =
     type === "runner"
       ? [
-          ["Dashboard", base],
+          ["Dashboard", `${base}/dashboard`],
           ["Fulfilments", `${base}/fulfilments`],
           ["Submissions", `${base}/submissions`],
           ["Assigned Markets", `${base}/markets`],
+          ["Availability checks", `${base}/availability`],
           ["Profile", `${base}/profile`],
           ["Security", `${base}/security`],
         ]
       : [
-          ["Dashboard", base],
+          ["Dashboard", `${base}/dashboard`],
           ["Browse Hook", `${base}/browse`],
           ["Customers", `${base}/customers`],
           ["Assisted Basket", `${base}/basket`],
@@ -39,14 +40,15 @@ export function PortalShell({
           ["Profile", `${base}/profile`],
           ["Security", `${base}/security`],
         ];
-  if (pathname === `${base}/login`) return <>{children}</>;
+  if (pathname === `${base}/activate`) return <>{children}</>;
+
   async function logout() {
     try {
-      await logoutAdmin();
+      await logoutAccount();
     } catch {
       clearSession();
     }
-    router.replace(`/${type}/login`);
+    router.replace("/auth/login");
   }
   return (
     <PortalGuard type={type}>

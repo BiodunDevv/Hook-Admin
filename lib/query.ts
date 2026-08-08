@@ -5,11 +5,11 @@ import {
   apiPatch,
   apiPost,
   clearSession,
-  ensureAdminSession,
-  loginAdmin,
-  logoutAdmin,
-  requestAdminPasswordReset,
-  resetAdminPassword,
+  ensureAccountSession,
+  loginAccount,
+  logoutAccount,
+  requestPasswordReset,
+  resetPassword,
   type AdminUser,
   type AuthSession,
 } from "@/lib/api";
@@ -81,24 +81,28 @@ export function useApiDelete<TData = unknown, TVariables = undefined>(
   });
 }
 
-export function useAdminSession(enabled = true) {
+export function useAccountSession(enabled = true) {
   return useQuery<AdminUser | null>({
-    queryKey: ["auth", "admin-session"],
-    queryFn: ensureAdminSession,
+    queryKey: ["auth", "session"],
+    queryFn: ensureAccountSession,
     enabled,
     retry: false,
   });
 }
 
-export function useAdminLogin() {
+export function useAdminSession(enabled = true) {
+  return useAccountSession(enabled);
+}
+
+export function useAccountLogin() {
   const queryClient = useQueryClient();
   return useMutation<AuthSession, Error, { email: string; password: string }>({
-    mutationFn: ({ email, password }) => loginAdmin(email, password),
+    mutationFn: ({ email, password }) => loginAccount(email, password),
     meta: {
       successMessage: "Signed in successfully",
     },
     onSuccess: (session) => {
-      queryClient.setQueryData(["auth", "admin-session"], session.user);
+      queryClient.setQueryData(["auth", "session"], session.user);
       queryClient.invalidateQueries();
     },
   });
@@ -107,7 +111,7 @@ export function useAdminLogin() {
 export function useLogout() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: logoutAdmin,
+    mutationFn: logoutAccount,
     meta: {
       successMessage: "Signed out successfully",
     },
@@ -120,16 +124,16 @@ export function useLogout() {
 
 export function useForgotPassword() {
   return useMutation<{ sent: boolean } | { message: string }, Error, { email: string }>({
-    mutationFn: ({ email }) => requestAdminPasswordReset(email),
+    mutationFn: ({ email }) => requestPasswordReset(email),
     meta: {
-      successMessage: "If that admin email exists, an OTP has been sent",
+      successMessage: "If that account exists, an OTP has been sent",
     },
   });
 }
 
 export function useResetPassword() {
   return useMutation<{ reset: boolean } | { message: string }, Error, { email: string; code: string; password: string }>({
-    mutationFn: ({ email, code, password }) => resetAdminPassword(email, code, password),
+    mutationFn: ({ email, code, password }) => resetPassword(email, code, password),
     meta: {
       successMessage: "Password reset successfully",
     },

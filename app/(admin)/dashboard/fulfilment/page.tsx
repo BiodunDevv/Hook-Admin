@@ -14,14 +14,6 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -32,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { HookLoader } from "@/components/shared/HookLoader";
+import { AdminWorkflowSheet } from "@/components/shared/AdminWorkflowSheet";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { QueryState } from "@/components/shared/QueryState";
@@ -430,20 +423,24 @@ export default function FulfilmentControlTowerPage() {
         ) : null}
       </QueryState>
 
-      <Dialog
+      <AdminWorkflowSheet
         open={Boolean(selectedTask)}
-        onOpenChange={(open) => !open && setSelectedTask(undefined)}
+        onOpenChange={(open) => {
+          if (!open && pending !== `assign-${identifier(selectedTask)}`) setSelectedTask(undefined);
+        }}
+        title="Reassign fulfilment task"
+        description="Select a compatible Runner and Hub. The change is version-checked and recorded in the audit trail."
+        footer={(
+          <>
+            <Button variant="outline" onClick={() => setSelectedTask(undefined)} disabled={pending === `assign-${identifier(selectedTask)}`}>Cancel</Button>
+            <Button variant="brand" onClick={() => void reassign()} disabled={pending === `assign-${identifier(selectedTask)}`}>
+              {pending === `assign-${identifier(selectedTask)}` ? <HookLoader size="button" variant="dark" /> : "Confirm reassignment"}
+            </Button>
+          </>
+        )}
       >
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Reassign fulfilment task</DialogTitle>
-            <DialogDescription>
-              Select a compatible Runner and Hub. The change is version-checked
-              and recorded in the audit trail.
-            </DialogDescription>
-          </DialogHeader>
           {selectedTask ? (
-            <div className="space-y-4">
+            <div className="space-y-5">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label>Runner</Label>
@@ -527,42 +524,26 @@ export default function FulfilmentControlTowerPage() {
               </div>
             </div>
           ) : null}
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setSelectedTask(undefined)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="brand"
-              onClick={() => void reassign()}
-              disabled={pending === `assign-${identifier(selectedTask)}`}
-            >
-              {pending === `assign-${identifier(selectedTask)}` ? (
-                <HookLoader size="button" variant="dark" />
-              ) : (
-                "Confirm reassignment"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </AdminWorkflowSheet>
 
-      <Dialog
+      <AdminWorkflowSheet
         open={Boolean(selectedException)}
-        onOpenChange={(open) => !open && setSelectedException(undefined)}
+        onOpenChange={(open) => {
+          if (!open && pending !== `exception-${identifier(selectedException)}`) setSelectedException(undefined);
+        }}
+        title="Resolve operational exception"
+        description={`Record the verified outcome for ${identifier(selectedException)}. This action is audited.`}
+        footer={(
+          <>
+            <Button variant="outline" onClick={() => setSelectedException(undefined)} disabled={pending === `exception-${identifier(selectedException)}`}>Cancel</Button>
+            <Button variant="ink" onClick={() => void resolveException()} disabled={pending === `exception-${identifier(selectedException)}`}>
+              {pending === `exception-${identifier(selectedException)}` ? <HookLoader size="button" variant="yellow" /> : "Resolve exception"}
+            </Button>
+          </>
+        )}
       >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Resolve operational exception</DialogTitle>
-            <DialogDescription>
-              Record the verified outcome for {identifier(selectedException)}.
-              This action is audited.
-            </DialogDescription>
-          </DialogHeader>
           {selectedException ? (
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label htmlFor="exception-reason">Resolution note</Label>
               <Textarea
                 id="exception-reason"
@@ -577,29 +558,7 @@ export default function FulfilmentControlTowerPage() {
               />
             </div>
           ) : null}
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setSelectedException(undefined)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="ink"
-              onClick={() => void resolveException()}
-              disabled={
-                pending === `exception-${identifier(selectedException)}`
-              }
-            >
-              {pending === `exception-${identifier(selectedException)}` ? (
-                <HookLoader size="button" variant="yellow" />
-              ) : (
-                "Resolve exception"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </AdminWorkflowSheet>
     </div>
   );
 }

@@ -6,20 +6,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { LockKeyhole, Mail, ShieldCheck } from "lucide-react";
-import { useAdminLogin } from "@/lib/query";
+import { useAccountLogin } from "@/lib/query";
+import type { AuthSession } from "@/lib/api";
 import { HookLoader } from "@/components/shared/HookLoader";
 import { HookLogo } from "@/components/shared/HookLogo";
 
 interface LoginFormProps {
-  onSuccess: () => void;
+  onSuccess: (session: AuthSession) => void;
 }
 
 export function LoginForm({ onSuccess }: LoginFormProps) {
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
-  const login = useAdminLogin();
+  const login = useAccountLogin();
   const [values, setValues] = useState({
-    email: "admin@gmail.com",
-    password: "123456",
+    email: "",
+    password: "",
   });
 
   function validate() {
@@ -39,8 +40,8 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     if (!validate()) return;
 
     try {
-      await login.mutateAsync(values);
-      onSuccess();
+      const session = await login.mutateAsync(values);
+      onSuccess(session);
     } catch {
       // Mutation errors are displayed globally through Sonner.
     }
@@ -57,7 +58,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
           Welcome back
         </h1>
         <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-zinc-500">
-          Sign in to manage Hook operations securely.
+          One secure sign-in for staff, Runners, and Hook Partners.
         </p>
       </div>
 

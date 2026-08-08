@@ -3,10 +3,11 @@
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Eye, Pause, Radio, Save, Sparkles } from "lucide-react";
+import { CalendarClock, Eye, Pause, Radio, Save, Sparkles } from "lucide-react";
 import { apiGet, apiPatch, apiPost } from "@/lib/api";
 import { money, type CommercialProduct } from "@/lib/catalog";
-import { useApiQuery } from "@/lib/query";
+import { useAdminSession, useApiQuery } from "@/lib/query";
+import { hasPermission } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -24,18 +25,23 @@ import { HookLoader } from "@/components/shared/HookLoader";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { QueryState } from "@/components/shared/QueryState";
 import { DetailSection } from "@/components/shared/DetailSection";
+import { AdminWorkflowSheet } from "@/components/shared/AdminWorkflowSheet";
 
 export default function CommercialProductPage() {
   const { id } = useParams<{ id: string }>();
   const query = useApiQuery<CommercialProduct>(["admin", "commercial", id], `/admin/commercial/products/${id}`);
+  const { data: session } = useAdminSession();
   const [pending, setPending] = useState("");
   const [preview, setPreview] = useState<Record<string, unknown> | null>(null);
+  const [availabilityOpen, setAvailabilityOpen] = useState(false);
+  const [availabilityReason, setAvailabilityReason] = useState("");
   const product = query.data;
+  const canManageAvailability = hasPermission(session, "catalog.availability.manage");
 
   async function mutate(label: string, request: () => Promise<unknown>) {
     setPending(label);
-    try { await request(); toast.success("Commercial product updated"); await query.refetch(); }
-    catch (error) { toast.error(error instanceof Error ? error.message.replace(/^\d+:\s*/, "") : "Change could not be saved"); }
+    try { await request(); toast.success("Commercial product updated"); await query.refetch(); return true; }
+    catch (error) { toast.error(error instanceof Error ? error.message.replace(/^\d+:\s*/, "") : "Change could not be saved"); return false; }
     finally { setPending(""); }
   }
 
@@ -95,7 +101,19 @@ export default function CommercialProductPage() {
       setPending("");
     }
   }
-  return <div className="space-y-5 pb-10"><PageHeader title={product?.title || "Commercial product"} description={product?.publicId || "Commercial catalog editor"} actions={product ? <><CatalogStatusBadge status={product.status} /><Button size="sm" variant="outline" onClick={() => void openPreview()} disabled={Boolean(pending)}>{pending === "preview" ? <HookLoader size="button" /> : <><Eye /> Preview</>}</Button>{product.status === "published" ? <Button size="sm" variant="outline" onClick={() => void lifecycle("pause")} disabled={Boolean(pending)}><Pause /> Pause</Button> : <Button size="sm" className="bg-[#FFC809] text-black hover:bg-[#f0bb00]" onClick={() => void lifecycle("publish")} disabled={Boolean(pending)}><Radio /> Publish</Button>}</> : null} />
+  async function requestAvailabilityCheck(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!product || availabilityReason.trim().length < 3) return;
+    const saved = await mutate("availability", () => apiPost(`/admin/commercial/products/${id}/availability-unconfirmed`, {
+      reason: availabilityReason.trim(),
+      version: product.catalogVersion,
+    }));
+    if (saved) {
+      setAvailabilityOpen(false);
+      setAvailabilityReason("");
+    }
+  }
+  return <div className="space-y-5 pb-10"><PageHeader title={product?.title || "Commercial product"} description={product?.publicId || "Commercial catalog editor"} actions={product ? <><CatalogStatusBadge status={product.status} /><Button size="sm" variant="outline" onClick={() => void openPreview()} disabled={Boolean(pending)}>{pending === "preview" ? <HookLoader size="button" /> : <><Eye /> Preview</>}</Button>{canManageAvailability && ["published", "paused"].includes(product.status) ? <Button size="sm" variant="outline" onClick={() => setAvailabilityOpen(true)} disabled={Boolean(pending)}><CalendarClock /> Check availability</Button> : null}{product.status === "published" ? <Button size="sm" variant="outline" onClick={() => void lifecycle("pause")} disabled={Boolean(pending)}><Pause /> Pause</Button> : <Button size="sm" className="bg-[#FFC809] text-black hover:bg-[#f0bb00]" onClick={() => void lifecycle("publish")} disabled={Boolean(pending)}><Radio /> Publish</Button>}</> : null} />
     <QueryState loading={query.isLoading} error={query.error} loadingLabel="Loading commercial product" errorTitle="Commercial product unavailable" onRetry={() => query.refetch()}>
     {product ? <div className="grid items-start gap-4 xl:grid-cols-2">
       <DetailSection title="Customer content" description="Public title, description, and availability messaging."><form onSubmit={contentSubmit}><FieldGroup><Field><FieldLabel>Title</FieldLabel><Input name="title" defaultValue={product.title} /></Field><Field><FieldLabel>Slug</FieldLabel><Input name="slug" defaultValue={product.slug} /></Field><Field><FieldLabel>Description</FieldLabel><Textarea name="description" defaultValue={product.description} className="min-h-32" /></Field><Field><FieldLabel>Availability note</FieldLabel><Input name="availabilityNote" defaultValue="" /></Field><Button className="w-fit" disabled={Boolean(pending)}>{pending === "content" ? <HookLoader size="button" /> : <><Save /> Save content</>}</Button></FieldGroup></form></DetailSection>
@@ -118,6 +136,9 @@ export default function CommercialProductPage() {
         </pre>
       </DialogContent>
     </Dialog>
+    <AdminWorkflowSheet open={availabilityOpen} onOpenChange={(open) => { if (!open && pending !== "availability") setAvailabilityOpen(false); }} title="Request availability check" description="This Product will immediately leave the customer catalog until an assigned Runner confirms its supplier availability." footer={<><Button type="button" variant="outline" disabled={pending === "availability"} onClick={() => setAvailabilityOpen(false)}>Cancel</Button><Button type="submit" form="availability-check-form" variant="brand" disabled={pending === "availability" || availabilityReason.trim().length < 3}>{pending === "availability" ? <HookLoader size="button" /> : "Notify Runner"}</Button></>}>
+      <form id="availability-check-form" onSubmit={requestAvailabilityCheck} className="space-y-4"><div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">The current public status is preserved. A confirmed Product returns only when its commercial publication rules still pass.</div><Field><FieldLabel>Audit reason</FieldLabel><Textarea value={availabilityReason} onChange={(event) => setAvailabilityReason(event.target.value)} placeholder="Why does this Product need a fresh supplier check?" className="min-h-28" required /></Field></form>
+    </AdminWorkflowSheet>
   </div>;
 }
 

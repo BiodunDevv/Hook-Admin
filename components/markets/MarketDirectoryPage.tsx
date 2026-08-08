@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { AdminWorkflowSheet } from "@/components/shared/AdminWorkflowSheet";
 import { QueryState } from "@/components/shared/QueryState";
 import { PermissionGuard } from "@/components/auth/PermissionGuard";
 import { useAdminSession, useApiQuery } from "@/lib/query";
@@ -114,7 +115,40 @@ export function MarketDirectoryPage() {
       </QueryState>
       <MarketFormDialog key={`${editing?.publicId || editing?.id || "new"}-${formOpen ? "open" : "closed"}`} open={formOpen} market={editing} onClose={() => { setFormOpen(false); setEditing(null); }} onSuccess={() => void query.refetch()} />
       <Dialog open={Boolean(lifecycleMarket)} onOpenChange={(next) => { if (!next && !acting) { setLifecycleMarket(null); setLifecycleReason(""); } }}><DialogContent><DialogHeader><DialogTitle>{lifecycleMarket?.status === "active" ? "Deactivate market?" : "Activate market?"}</DialogTitle><DialogDescription>{lifecycleMarket?.status === "active" ? "New operational assignments will stop using this market. Existing history remains intact." : "This market will become available for compatible operations."}</DialogDescription></DialogHeader><div className="space-y-2"><Label htmlFor="market-lifecycle-reason">Audit reason</Label><Input id="market-lifecycle-reason" value={lifecycleReason} onChange={(event) => setLifecycleReason(event.target.value)} placeholder="Add a clear operational reason" minLength={3} maxLength={500} /></div><DialogFooter><Button variant="outline" disabled={acting} onClick={() => setLifecycleMarket(null)}>Cancel</Button><Button variant={lifecycleMarket?.status === "active" ? "destructive" : "brand"} disabled={acting || lifecycleReason.trim().length < 3} onClick={() => void changeLifecycle()}>{acting ? "Saving..." : lifecycleMarket?.status === "active" ? "Deactivate" : "Activate"}</Button></DialogFooter></DialogContent></Dialog>
-      <Dialog open={Boolean(assignmentMarket)} onOpenChange={(next) => { if (!next && !acting) { setAssignmentMarket(null); setAssignmentHub(""); setAssignmentReason(""); } }}><DialogContent><DialogHeader><DialogTitle>Assign Dispatch Hub</DialogTitle><DialogDescription>Choose a Hub in the same State. The backend validates geographic compatibility before saving.</DialogDescription></DialogHeader><div className="space-y-4"><div className="space-y-1.5"><Label>Dispatch Hub</Label><Select value={assignmentHub} onValueChange={setAssignmentHub}><SelectTrigger className="w-full"><SelectValue placeholder="Select a Dispatch Hub" /></SelectTrigger><SelectContent>{hubOptions.map((item) => <SelectItem key={item.publicId || item.id} value={String(item.publicId || item.id)}>{item.name}</SelectItem>)}</SelectContent></Select></div><div className="space-y-1.5"><Label htmlFor="market-assignment-reason">Audit reason</Label><Input id="market-assignment-reason" value={assignmentReason} onChange={(event) => setAssignmentReason(event.target.value)} placeholder="Why is this Hub being assigned?" minLength={3} maxLength={500} /></div></div><DialogFooter><Button variant="outline" disabled={acting} onClick={() => setAssignmentMarket(null)}>Cancel</Button><Button variant="brand" disabled={acting || !assignmentHub || assignmentReason.trim().length < 3} onClick={() => void assignHub()}>{acting ? "Saving..." : "Assign Hub"}</Button></DialogFooter></DialogContent></Dialog>
+      <AdminWorkflowSheet
+        open={Boolean(assignmentMarket)}
+        onOpenChange={(next) => {
+          if (!next && !acting) {
+            setAssignmentMarket(null);
+            setAssignmentHub("");
+            setAssignmentReason("");
+          }
+        }}
+        title="Assign Dispatch Hub"
+        description="Choose a Hub in the same State. The backend validates geographic compatibility before saving."
+        footer={(
+          <>
+            <Button variant="outline" disabled={acting} onClick={() => setAssignmentMarket(null)}>Cancel</Button>
+            <Button variant="brand" disabled={acting || !assignmentHub || assignmentReason.trim().length < 3} onClick={() => void assignHub()}>
+              {acting ? "Saving..." : "Assign Hub"}
+            </Button>
+          </>
+        )}
+      >
+        <div className="space-y-5">
+          <div className="space-y-1.5">
+            <Label>Dispatch Hub</Label>
+            <Select value={assignmentHub} onValueChange={setAssignmentHub}>
+              <SelectTrigger className="w-full"><SelectValue placeholder="Select a Dispatch Hub" /></SelectTrigger>
+              <SelectContent>{hubOptions.map((item) => <SelectItem key={item.publicId || item.id} value={String(item.publicId || item.id)}>{item.name}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="market-assignment-reason">Audit reason</Label>
+            <Input id="market-assignment-reason" value={assignmentReason} onChange={(event) => setAssignmentReason(event.target.value)} placeholder="Why is this Hub being assigned?" minLength={3} maxLength={500} />
+          </div>
+        </div>
+      </AdminWorkflowSheet>
     </div>
   );
 }

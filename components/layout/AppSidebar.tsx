@@ -76,7 +76,7 @@ export default function AppSidebar() {
 
   function handleLogout() {
     logout.mutate(undefined, {
-      onSettled: () => router.push("/login"),
+      onSettled: () => router.push("/auth/login"),
     });
   }
 

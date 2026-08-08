@@ -22,7 +22,7 @@ export function ForgotPasswordForm() {
     event.preventDefault();
     setEmailError("");
     if (!/^\S+@\S+\.\S+$/.test(email)) {
-      setEmailError("Please enter a valid admin email address");
+      setEmailError("Please enter a valid Hook account email");
       return;
     }
     try {
@@ -42,13 +42,13 @@ export function ForgotPasswordForm() {
         </div>
         <h1 className="mt-5 text-2xl font-semibold tracking-tight text-zinc-950">Reset admin password</h1>
         <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-zinc-500">
-          Enter your admin email. If it exists, we will send an OTP to continue.
+          Enter your Hook account email. If it exists, we will send an OTP to continue.
         </p>
       </div>
 
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="space-y-1.5">
-          <Label htmlFor="forgot-email">Admin email</Label>
+          <Label htmlFor="forgot-email">Account email</Label>
           <div className="relative">
             <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-400" />
             <Input
@@ -65,7 +65,7 @@ export function ForgotPasswordForm() {
           {forgot.isPending ? <HookLoader size="button" label="Sending OTP..." /> : "Send OTP"}
         </Button>
         <Button asChild type="button" variant="ghost" className="w-full">
-          <Link href="/login"><ArrowLeft size={15} /> Back to login</Link>
+          <Link href="/auth/login"><ArrowLeft size={15} /> Back to login</Link>
         </Button>
       </form>
     </div>

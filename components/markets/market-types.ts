@@ -26,6 +26,46 @@ export type MarketRecord = {
   operatingHours?: Record<string, unknown>;
   createdAt?: string;
   updatedAt?: string;
+  summary?: {
+    vendors?: number;
+    assignedRunners?: number;
+    products?: number;
+    pendingAvailability?: number;
+    collections?: number;
+  };
+  vendors?: MarketVendorRecord[];
+  assignments?: Array<Record<string, unknown>>;
+  runners?: Array<Record<string, unknown>>;
+  submissions?: Array<Record<string, unknown>>;
+  products?: Array<Record<string, unknown>>;
+  collections?: Array<Record<string, unknown>>;
+};
+
+export type MarketVendorRecord = {
+  id: string;
+  publicId: string;
+  marketId: string;
+  stateId: string;
+  businessName: string;
+  contactName: string;
+  phone: string;
+  email?: string | null;
+  address?: string | null;
+  preferredContactChannel?: string;
+  status?: string;
+  consentAt?: string | null;
+  invitedByRunnerId?: string | null;
+  lastContactedAt?: string | null;
+  notes?: string | null;
+  paymentProfile?: {
+    method?: string;
+    bankName?: string | null;
+    accountName?: string | null;
+    accountNumberLast4?: string | null;
+    verificationStatus?: string;
+  };
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type LookupRecord = {

@@ -7,10 +7,11 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { KpiCard } from "@/components/shared/KpiCard";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { HookLoader } from "@/components/shared/HookLoader";
+import { ImagePreviewDialog } from "@/components/shared/ImagePreviewDialog";
 import { MediaPicker } from "@/components/shared/MediaPicker";
+import { AdminWorkflowSheet } from "@/components/shared/AdminWorkflowSheet";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -34,6 +35,12 @@ interface ProductDetail {
   status: string;
   viewCount: number;
   orderCount: number;
+  availabilityStatus?: string;
+  catalogVersion?: number;
+  marketName?: string;
+  sourceMarketVendorName?: string;
+  sourceMarket?: { name?: string; publicId?: string } | null;
+  sourceMarketVendor?: { businessName?: string; publicId?: string; status?: string } | null;
   images?: string[];
   colors?: string[];
   sizes?: string[];
@@ -96,6 +103,7 @@ export default function ProductDetailPage() {
   const [editColors, setEditColors] = useState<string[]>([]);
   const [editColorValue, setEditColorValue] = useState("#FFC809");
   const [editStatus, setEditStatus] = useState("pending_approval");
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const product = query.data;
   const heroImage = absoluteImageUrl(product?.images?.[0]);
 
@@ -103,7 +111,7 @@ export default function ProductDetailPage() {
     <div className="min-h-[calc(100vh-4rem)] overflow-y-auto p-2 pb-6 sm:p-4 sm:pb-8">
       <PageHeader
         title={product?.title || "Product Detail"}
-        description={`${product?.category?.name || "Category"} • Commercial catalog`}
+        description={product?.hookId || product?.id ? `Commercial catalog · ${product.hookId || product.id}` : "Commercial catalog product"}
         actions={
           <>
             <Button variant="outline" size="sm" onClick={() => router.back()}><ArrowLeft size={15} /> Back</Button>
@@ -135,8 +143,11 @@ export default function ProductDetailPage() {
               <CardContent className="p-0">
                 <div className="relative aspect-square bg-zinc-100">
                   {heroImage ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={heroImage} alt={product.title} className="size-full object-cover" />
+                    <button type="button" onClick={() => setPreviewImage(heroImage)} className="group relative block size-full cursor-zoom-in" aria-label={`Preview ${product.title} image`}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={heroImage} alt={product.title} className="size-full object-cover transition duration-300 group-hover:scale-[1.02]" />
+                      <span className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-full bg-black/65 px-3 py-1.5 text-xs font-medium text-white opacity-0 transition group-hover:opacity-100"><Eye size={13} /> Preview</span>
+                    </button>
                   ) : (
                     <div className="flex size-full items-center justify-center text-sm text-zinc-400">No image</div>
                   )}
@@ -167,8 +178,12 @@ export default function ProductDetailPage() {
                   </div>
                   <div className="grid gap-3 text-sm sm:grid-cols-2">
                     <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
-                      <p className="text-zinc-400">Legacy source</p>
-                      <p className="mt-1 font-medium text-zinc-900">{product.vendor?.businessName || "Hook catalog"}</p>
+                      <p className="text-zinc-400">Source market</p>
+                      <p className="mt-1 font-medium text-zinc-900">{product.sourceMarket?.name || product.marketName || "Not linked"}</p>
+                    </div>
+                    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+                      <p className="text-zinc-400">Supplier</p>
+                      <p className="mt-1 font-medium text-zinc-900">{product.sourceMarketVendor?.businessName || product.sourceMarketVendorName || product.vendor?.businessName || "Not linked"}</p>
                     </div>
                     <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
                       <p className="text-zinc-400">Category</p>
@@ -189,6 +204,14 @@ export default function ProductDetailPage() {
                     <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
                       <p className="text-zinc-400">Sizes</p>
                       <p className="mt-1 font-medium text-zinc-900">{product.sizes?.join(", ") || "None"}</p>
+                    </div>
+                    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+                      <p className="text-zinc-400">Availability</p>
+                      <div className="mt-2"><StatusBadge status={product.availabilityStatus || product.status} /></div>
+                    </div>
+                    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+                      <p className="text-zinc-400">Catalog version</p>
+                      <p className="mt-1 font-medium text-zinc-900">{product.catalogVersion || "—"}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -251,9 +274,12 @@ export default function ProductDetailPage() {
                     <Eye size={15} className="text-zinc-400" />
                   </div>
                   <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-                    {(product.images || []).slice(0, 8).map((src) => (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img key={src} src={absoluteImageUrl(src)} alt={product.title} className="aspect-square rounded-md border border-zinc-200 object-cover" />
+                    {(product.images || []).slice(0, 8).map((src, index) => (
+                      <button key={`${src}-${index}`} type="button" onClick={() => setPreviewImage(absoluteImageUrl(src))} className="group relative aspect-square overflow-hidden rounded-md border border-zinc-200 bg-zinc-100" aria-label={`Preview ${product.title} image ${index + 1}`}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={absoluteImageUrl(src)} alt={product.title} className="size-full object-cover transition duration-300 group-hover:scale-[1.04]" />
+                        <span className="absolute inset-0 grid place-items-center bg-black/0 text-white opacity-0 transition group-hover:bg-black/20 group-hover:opacity-100"><Eye size={16} /></span>
+                      </button>
                     ))}
                     {!product.images?.length && <div className="col-span-full rounded-md border border-zinc-200 bg-zinc-50 p-6 text-center text-sm text-zinc-500">No images uploaded.</div>}
                   </div>
@@ -264,14 +290,27 @@ export default function ProductDetailPage() {
         </div>
       )}
       {product && (
-        <Dialog open={editing} onOpenChange={setEditing}>
-          <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto rounded-lg">
-            <DialogHeader>
-              <DialogTitle>Edit product</DialogTitle>
-              <DialogDescription>Update market price, Hook price, negotiation floor, stock, colors, and product copy.</DialogDescription>
-            </DialogHeader>
+        <AdminWorkflowSheet
+          open={editing}
+          onOpenChange={(open) => {
+            if (!open && !updateProduct.isPending) setEditing(false);
+          }}
+          title="Edit product"
+          description="Update catalog copy, commercial pricing, availability, variants, and media. Pricing rules are validated by the backend."
+          footer={(
+            <>
+              <Button type="button" variant="outline" onClick={() => setEditing(false)} disabled={updateProduct.isPending}>
+                Cancel
+              </Button>
+              <Button type="submit" form="product-edit-form" variant="brand" disabled={updateProduct.isPending}>
+                {updateProduct.isPending ? <HookLoader size="button" label="Saving..." /> : "Save changes"}
+              </Button>
+            </>
+          )}
+        >
             <TooltipProvider>
             <form
+              id="product-edit-form"
               className="grid gap-3 sm:grid-cols-2"
               onSubmit={async (event: FormEvent<HTMLFormElement>) => {
                 event.preventDefault();
@@ -310,12 +349,11 @@ export default function ProductDetailPage() {
                   description="Upload replacement images to Cloudinary or add image links. The first image is the catalog thumbnail."
                 />
               </div>
-              <div className="flex justify-end sm:col-span-2"><Button type="submit" variant="brand" disabled={updateProduct.isPending}>{updateProduct.isPending ? <HookLoader size="button" label="Saving..." /> : "Save changes"}</Button></div>
             </form>
             </TooltipProvider>
-          </DialogContent>
-        </Dialog>
+        </AdminWorkflowSheet>
       )}
+      <ImagePreviewDialog open={Boolean(previewImage)} onOpenChange={(open) => { if (!open) setPreviewImage(null); }} src={previewImage} alt={product?.title || "Product image"} />
     </div>
   );
 }

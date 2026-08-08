@@ -6,26 +6,27 @@ import { useRouter } from "next/navigation";
 import { Logo } from "@/components/logo";
 import { FloatingPaths } from "@/components/floating-paths";
 import { HookLoader } from "@/components/shared/HookLoader";
-import { useAdminSession } from "@/lib/query";
+import { useAccountSession } from "@/lib/query";
+import { dashboardPath } from "@/lib/auth-routing";
 
 const copy = {
-  "/login": {
-    eyebrow: "Admin operations",
-    title: "Secure marketplace control for Hook teams.",
+  "/auth/login": {
+    eyebrow: "Hook operations",
+    title: "One secure workspace for every Hook team.",
     description:
-      "Sign in to manage orders, catalog operations, finance, support, and AI negotiation activity from one protected console.",
-    footer: "Hook admin security layer",
+      "Staff, Runners, and Hook Partners are automatically taken to the workspace assigned to their account.",
+    footer: "Hook identity and access",
   },
   "/forgot-password": {
     eyebrow: "Account recovery",
     title: "Recover access without slowing operations down.",
     description:
-      "Request a one time password for a verified admin account and continue the reset flow securely.",
+      "Request a one time password for your verified Hook account and continue securely.",
     footer: "OTP protected password recovery",
   },
   "/reset-password": {
     eyebrow: "Password reset",
-    title: "Set a fresh admin password with OTP verification.",
+    title: "Set a fresh Hook password with OTP verification.",
     description:
       "Use the code sent to your email to restore access and invalidate old admin sessions.",
     footer: "Hook admin reset workflow",
@@ -35,19 +36,19 @@ const copy = {
 export function AuthShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const session = useAdminSession();
-  const content = copy[pathname as keyof typeof copy] || copy["/login"];
+  const session = useAccountSession();
+  const content = copy[pathname as keyof typeof copy] || copy["/auth/login"];
 
   useEffect(() => {
     if (session.data) {
-      router.replace("/dashboard");
+      router.replace(dashboardPath(session.data));
     }
   }, [router, session.data]);
 
   if (session.isLoading || session.isPending || session.data) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white">
-        <HookLoader size="page" label="Checking admin session..." />
+        <HookLoader size="page" label="Checking your session..." />
       </div>
     );
   }

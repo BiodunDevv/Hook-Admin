@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,6 +12,7 @@ import { MediaPicker } from "@/components/shared/MediaPicker";
 import { useApiQuery } from "@/lib/query";
 import { apiPatch, apiPost } from "@/lib/api";
 import { MarketImage } from "./MarketImage";
+import { AdminWorkflowSheet } from "@/components/shared/AdminWorkflowSheet";
 import type { CollectionResponse, LookupRecord, MarketRecord } from "./market-types";
 import { relationIdentifier } from "./market-types";
 
@@ -105,13 +105,14 @@ export function MarketFormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { if (!next && !saving) onClose(); }}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>{market ? "Edit market" : "Add market"}</DialogTitle>
-          <DialogDescription>Keep the market identity, operating geography, and discovery image accurate for Hook teams.</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={save} className="grid gap-4 sm:grid-cols-2">
+    <AdminWorkflowSheet
+      open={open}
+      onOpenChange={(next) => { if (!next && !saving) onClose(); }}
+      title={market ? "Edit market" : "Add market"}
+      description="Keep the market identity, operating geography, and discovery image accurate for Hook teams."
+      footer={<><Button type="button" variant="outline" disabled={saving} onClick={onClose}>Cancel</Button><Button form="market-form" type="submit" variant="brand" disabled={saving || !form.name.trim() || !form.stateId || !form.cityId || form.address.trim().length < 5}>{saving ? <HookLoader size="button" /> : market ? "Save changes" : "Create market"}</Button></>}
+    >
+        <form id="market-form" onSubmit={save} className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="market-name">Market name</Label><Input id="market-name" value={form.name} onChange={(event) => update("name", event.target.value)} placeholder="e.g. Balogun Market" required /></div>
           <div className="space-y-1.5"><Label>Operation state</Label><Select value={form.stateId} onValueChange={(value) => setForm((current) => ({ ...current, stateId: value, cityId: "", zoneId: "", hubId: "" }))}><SelectTrigger className="w-full"><SelectValue placeholder="Select state" /></SelectTrigger><SelectContent>{stateOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent></Select></div>
           <div className="space-y-1.5"><Label>Operation city</Label><Select value={form.cityId} onValueChange={(value) => setForm((current) => ({ ...current, cityId: value, zoneId: "" }))} disabled={!form.stateId || cities.isLoading}><SelectTrigger className="w-full"><SelectValue placeholder={form.stateId ? "Select city" : "Select state first"} /></SelectTrigger><SelectContent>{cityOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent></Select></div>
@@ -127,9 +128,7 @@ export function MarketFormDialog({
           <div className="space-y-1.5"><Label>Status</Label><Select value={form.status} onValueChange={(value) => update("status", value)}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="active">Active</SelectItem><SelectItem value="inactive">Inactive</SelectItem></SelectContent></Select></div>
           <div className="space-y-1.5"><Label htmlFor="market-notes">Internal notes</Label><Input id="market-notes" value={form.notes} onChange={(event) => update("notes", event.target.value)} placeholder="Optional operations note" /></div>
           {market ? <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="market-reason">Audit reason <span className="font-normal text-muted-foreground">(optional)</span></Label><Textarea id="market-reason" value={form.reason} onChange={(event) => update("reason", event.target.value)} placeholder="Why is this market being changed?" maxLength={500} /></div> : null}
-          <DialogFooter className="sm:col-span-2"><Button type="button" variant="outline" disabled={saving} onClick={onClose}>Cancel</Button><Button type="submit" variant="brand" disabled={saving || !form.name.trim() || !form.stateId || !form.cityId || form.address.trim().length < 5}>{saving ? <HookLoader size="button" /> : market ? "Save changes" : "Create market"}</Button></DialogFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+    </AdminWorkflowSheet>
   );
 }
