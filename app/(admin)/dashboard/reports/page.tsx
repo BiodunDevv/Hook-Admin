@@ -70,7 +70,7 @@ export default function ReportsPage() {
   }, []);
 
   return (
-    <div className="flex flex-col p-2 sm:p-4">
+    <div className="w-full space-y-5 px-4 py-5">
       <PageHeader
         title="Advanced Reports"
         description="Analyze marketplace performance, generate custom insights, and export data."

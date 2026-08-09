@@ -74,7 +74,7 @@ export function MarketDetailWorkspace() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] space-y-5 p-4 pb-10 md:p-5">
+    <div className="w-full space-y-5 px-4 py-5">
       <PageHeader title={market?.name || "Market details"} description={market?.publicId ? `Market workspace · ${market.publicId}` : "Market workspace"} actions={<div className="flex flex-wrap items-center gap-2"><Button variant="outline" size="sm" onClick={() => router.back()}><ArrowLeft /> Back</Button>{market?.status ? <StatusBadge status={market.status} /> : null}{market && canManage ? <PermissionGuard permission="markets.manage"><Button variant="outline" size="sm" onClick={() => setEditing(true)}><Edit3 /> Edit</Button></PermissionGuard> : null}{market && canManage ? <PermissionGuard permission="markets.manage"><Button variant={market.status === "active" ? "destructive" : "brand"} size="sm" onClick={() => setLifecycleOpen(true)}><Power /> {market.status === "active" ? "Deactivate" : "Activate"}</Button></PermissionGuard> : null}</div>} />
       <QueryState loading={query.isLoading} error={query.error} loadingLabel="Loading market workspace" errorTitle="Market details unavailable" onRetry={() => query.refetch()}>
         {market ? <>

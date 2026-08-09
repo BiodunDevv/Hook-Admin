@@ -25,6 +25,7 @@ type OrderDetail = {
   orderCode?: string;
   channel?: string;
   sourceStateId?: string;
+  sourceStateIds?: string[];
   commerceStatus?: string;
   commercePaymentStatus?: string;
   commercePaymentMethod?: string;
@@ -45,14 +46,35 @@ type OrderDetail = {
     productSnapshot?: Record<string, unknown>;
     variantSnapshot?: Record<string, unknown>;
     quoteSnapshot?: Record<string, unknown>;
+    fulfilmentGroupId?: string;
+    deliveryStatus?: string;
+    shipmentId?: string;
   }>;
   payment?: {
     publicId?: string;
+    fulfilmentGroupId?: string;
     commerceStatus?: string;
     gateway?: string;
     transactionRef?: string;
     amountMinor?: number;
   };
+  payments?: Array<{
+    publicId?: string;
+    fulfilmentGroupId?: string;
+    commerceStatus?: string;
+    gateway?: string;
+    transactionRef?: string;
+    amountMinor?: number;
+  }>;
+  fulfilmentGroups?: Array<{
+    publicId: string;
+    sourceStateId: string;
+    subtotalMinor: number;
+    deliveryFeeShareMinor: number;
+    status: string;
+    paymentId?: string;
+    shipmentId?: string;
+  }>;
   timeline?: Array<{
     status?: string;
     at?: string;
@@ -102,7 +124,7 @@ export default function OrderDetailPage() {
   const customer = order.customerSnapshot || {};
   const address = order.addressSnapshot || order.pickupPartnerSnapshot || {};
   return (
-    <div className="space-y-5 pb-10">
+    <div className="w-full space-y-5 px-4 py-5">
       <PageHeader
         title={order.publicId || order.orderCode || order.id}
         description={`${text(order.channel).replaceAll("_", " ")} · ${text(order.deliveryMethod).replaceAll("_", " ")}`}
@@ -116,11 +138,30 @@ export default function OrderDetailPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard icon={Package} label="Order status" value={text(order.commerceStatus).replaceAll("_", " ")} intent="warning" />
         <MetricCard icon={CreditCard} label="Payment status" value={text(order.commercePaymentStatus).replaceAll("_", " ")} intent="success" />
-        <MetricCard icon={MapPin} label="Source state" value={text(order.sourceStateId)} />
+        <MetricCard icon={MapPin} label="Source states" value={String(order.sourceStateIds?.length || (order.sourceStateId ? 1 : 0))} />
         <MetricCard icon={ShieldCheck} label="Order total" value={money(order.totalMinor)} />
       </div>
       <div className="grid gap-5 xl:grid-cols-3">
         <div className="space-y-5 xl:col-span-2">
+          <DetailSection title="Delivery groups" description="Each source state is fulfilled and tracked independently under this customer order." action={<MapPin className="size-4 text-muted-foreground" />} contentClassName="space-y-3">
+            {(order.fulfilmentGroups || []).map((group, index) => (
+              <div key={group.publicId} className="grid gap-3 rounded-md border p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-semibold">Delivery {index + 1}</p>
+                    <StatusBadge status={group.status} />
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">{group.sourceStateId} · {group.publicId}</p>
+                  {group.shipmentId ? <p className="mt-1 text-xs text-muted-foreground">Shipment {group.shipmentId}</p> : null}
+                </div>
+                <div className="text-left sm:text-right">
+                  <p className="font-semibold">{money(group.subtotalMinor + group.deliveryFeeShareMinor)}</p>
+                  <p className="text-xs text-muted-foreground">Includes {money(group.deliveryFeeShareMinor)} delivery</p>
+                </div>
+              </div>
+            ))}
+            {!order.fulfilmentGroups?.length ? <p className="text-sm text-muted-foreground">This legacy order does not have delivery groups.</p> : null}
+          </DetailSection>
           <DetailSection title="Order items" description="Immutable product, variant, quote, and price snapshots captured at checkout." action={<Package className="size-4 text-muted-foreground" />} contentClassName="space-y-3">
               {(order.items || []).map((item) => (
                 <div
@@ -146,6 +187,10 @@ export default function OrderDetailPage() {
                         Negotiated quote applied
                       </Badge>
                     ) : null}
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {item.deliveryStatus ? <StatusBadge status={item.deliveryStatus} /> : null}
+                      {item.fulfilmentGroupId ? <Badge variant="outline">{item.fulfilmentGroupId}</Badge> : null}
+                    </div>
                   </div>
                   <p className="font-semibold">{money(item.totalPriceMinor)}</p>
                 </div>
@@ -190,7 +235,15 @@ export default function OrderDetailPage() {
         <div className="space-y-5">
           <DetailSection title="Customer & policies" description="Identity and accepted policy versions captured for this order." action={<ShieldCheck className="size-4 text-muted-foreground" />}><DefinitionGrid columns={1} items={[{ label: "Customer", value: text(customer.name) }, { label: "Email", value: text(customer.email) }, { label: "Phone", value: text(customer.phone) }, { label: "Policy versions", value: Object.entries(order.policyVersions || {}).map(([key, value]) => `${key} ${value}`).join(" · ") || "Not recorded" }]} /></DetailSection>
           <DetailSection title="Delivery snapshot" description="Immutable destination information used for fulfilment." action={<MapPin className="size-4 text-muted-foreground" />}><DefinitionGrid columns={1} items={[{ label: "Recipient", value: text(address.recipientName || address.name) }, { label: "Address", value: text(address.line1 || address.address) }, { label: "Phone", value: text(address.phone || (address.contact as Record<string, unknown> | undefined)?.phone) }]} /></DetailSection>
-          <DetailSection title="Payment evidence" description="Provider-backed transaction context; status cannot be edited here." action={<CreditCard className="size-4 text-muted-foreground" />}><DefinitionGrid columns={1} items={[{ label: "Method", value: text(order.commercePaymentMethod).replaceAll("_", " ") }, { label: "Provider", value: order.payment?.gateway || "Paystack" }, { label: "Reference", value: text(order.payment?.transactionRef) }, { label: "Status", value: <StatusBadge status={order.payment?.commerceStatus || order.commercePaymentStatus || "PENDING"} /> }, ...(order.podReview ? Object.entries(order.podReview).map(([key, value]) => ({ label: `POD ${key.replace(/([A-Z])/g, " $1")}`, value: text(value) })) : [])]} /></DetailSection>
+          <DetailSection title="Payment evidence" description="Provider-backed payment records. Multi-delivery Pay-at-Handover orders have one payment per delivery." action={<CreditCard className="size-4 text-muted-foreground" />} contentClassName="space-y-3">
+            {(order.payments?.length ? order.payments : order.payment ? [order.payment] : []).map((payment, index) => (
+              <div key={payment.publicId || payment.transactionRef || index} className="rounded-md border p-3">
+                <div className="flex items-center justify-between gap-3"><p className="font-medium">{payment.fulfilmentGroupId ? `Delivery payment` : "Order payment"}</p><StatusBadge status={payment.commerceStatus || "PENDING"} /></div>
+                <p className="mt-2 text-sm font-semibold">{money(payment.amountMinor)}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{payment.gateway || "Paystack"} · {payment.transactionRef || "Reference pending"}</p>
+              </div>
+            ))}
+          </DetailSection>
         </div>
       </div>
     </div>

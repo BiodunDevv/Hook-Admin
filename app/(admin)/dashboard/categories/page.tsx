@@ -492,7 +492,7 @@ export default function CategoriesPage() {
   const withoutManager = all.filter((category) => category.managers.length === 0).length;
 
   return (
-    <div className="p-2 sm:p-4 space-y-5">
+    <div className="w-full space-y-5 px-4 py-5">
       <PageHeader
         title="Categories"
         description="Organization-wide product taxonomy and the staff in charge of each category."

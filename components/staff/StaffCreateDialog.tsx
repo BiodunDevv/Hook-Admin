@@ -1,46 +1,21 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, ChevronDown, ChevronUp, Headset, Shield, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { AdminWorkflowSheet } from "@/components/shared/AdminWorkflowSheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { HookLoader } from "@/components/shared/HookLoader";
 import { PermissionGuard } from "@/components/auth/PermissionGuard";
-import { RelatedMultiSelect, type DirectoryField } from "@/components/platform/PlatformDirectoryPage";
 import { apiPost } from "@/lib/api";
 import { useApiQuery } from "@/lib/query";
-import { PERMISSION_LABELS, type Permission } from "@/lib/permissions";
+import { StaffAccessFields } from "./StaffAccessFields";
 import type { StaffRole } from "./staff-types";
 
 type Values = Record<string, string | string[]>;
 type RoleResponse = StaffRole & { _id?: string };
 type RolesResponse = RoleResponse[];
-
-const scopeOptions = [
-  { value: "global", label: "Global", description: "All permitted operations" },
-  { value: "multi_state", label: "Multiple states", description: "Two or more operating states" },
-  { value: "single_state", label: "Single state", description: "One operating state" },
-  { value: "hub", label: "Dispatch Hub", description: "State and Hub restricted" },
-];
-
-const locationFields: DirectoryField[] = [
-  { key: "stateIds", label: "Operation states", type: "multi-select", optionsEndpoint: "/admin/states" },
-  { key: "hubIds", label: "Dispatch hubs", type: "multi-select", optionsEndpoint: "/admin/hubs", dependsOn: "stateIds", dependsOnKey: "stateId" },
-];
-
-function roleIcon(key: string) {
-  if (key.includes("SUPER")) return ShieldCheck;
-  if (key.includes("SUPPORT")) return Headset;
-  return Shield;
-}
-
-function roleLabel(role: StaffRole) {
-  return role.name || role.key.replaceAll("_", " ");
-}
 
 export function StaffCreateDialog({ open, onClose, onSuccess }: { open: boolean; onClose: () => void; onSuccess: () => Promise<unknown> | unknown }) {
   const rolesQuery = useApiQuery<RolesResponse>(["admin", "roles", "staff-create"], "/admin/roles", open);
@@ -64,18 +39,22 @@ export function StaffCreateDialog({ open, onClose, onSuccess }: { open: boolean;
     [preferredRoleId, roleSelectionTouched, selectedRoles],
   );
 
-  const effectivePermissions = useMemo(() => {
-    const selected = roles.filter((role) => selectedRoleIds.includes(role.id));
-    return [...new Set(selected.flatMap((role) => role.permissionKeys || []))];
-  }, [roles, selectedRoleIds]);
-
   function setValue(key: string, value: string | string[]) {
     setValues((current) => ({ ...current, [key]: value }));
   }
 
-  function toggleRole(id: string) {
+  function changeScope(scopeType: string) {
+    setValues((current) => ({
+      ...current,
+      scopeType,
+      ...(scopeType === "global" || scopeType === "single_state"
+        ? { stateIds: [], hubIds: [] }
+        : {}),
+    }));
+  }
+
+  function updateRoles(next: string[]) {
     setRoleSelectionTouched(true);
-    const next = selectedRoleIds.includes(id) ? selectedRoleIds.filter((value) => value !== id) : [...selectedRoleIds, id];
     setSelectedRoles(next);
     setValues((previous) => ({ ...previous, roleIds: next }));
   }
@@ -143,10 +122,17 @@ export function StaffCreateDialog({ open, onClose, onSuccess }: { open: boolean;
               <div className="space-y-1.5"><Label htmlFor="staff-phone">Phone number</Label><Input id="staff-phone" name="phone" type="tel" placeholder="+234 801 234 5678" required /></div>
             </div>
             <div className="space-y-1.5"><Label htmlFor="staff-password">Temporary password <span className="font-normal text-muted-foreground">(optional)</span></Label><Input id="staff-password" name="password" type="password" minLength={9} placeholder="Leave empty to use the invitation setup flow" /><p className="text-xs text-muted-foreground">The invitation remains the source of truth for account activation.</p></div>
-            <div className="space-y-2"><div className="flex items-center justify-between"><Label>Access roles</Label><span className="text-xs text-muted-foreground">{selectedRoleIds.length} selected</span></div><div className="grid gap-2 sm:grid-cols-2">{roles.map((role) => { const Icon = roleIcon(role.key); const selected = selectedRoleIds.includes(role.id); return <button key={role.id} type="button" onClick={() => toggleRole(role.id)} className={`flex items-start gap-3 rounded-lg border p-3 text-left transition-colors ${selected ? "border-zinc-900 bg-zinc-950 text-white" : "border-border bg-card hover:border-zinc-400"}`}><span className={`mt-0.5 grid size-7 place-items-center rounded-md ${selected ? "bg-amber-400 text-zinc-950" : "bg-muted text-muted-foreground"}`}><Icon className="size-4" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{roleLabel(role)}</span><span className={`mt-0.5 block text-xs ${selected ? "text-zinc-300" : "text-muted-foreground"}`}>{role.description || "Backend-managed operational access"}</span></span>{selected ? <Check className="mt-1 size-4 text-amber-400" /> : null}</button>; })}</div>{rolesQuery.isLoading ? <p className="text-xs text-muted-foreground">Loading available roles...</p> : null}{!rolesQuery.isLoading && !roles.length ? <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">No active roles are available for assignment.</p> : null}</div>
-            <div className="space-y-2"><div className="flex items-center justify-between"><Label>Operational scope</Label><span className="text-xs text-muted-foreground">Validated by the backend</span></div><Select value={String(values.scopeType || "global")} onValueChange={(scopeType) => { setValue("scopeType", scopeType); if (scopeType === "global") { setValue("stateIds", []); setValue("hubIds", []); } }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{scopeOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label} · {option.description}</SelectItem>)}</SelectContent></Select></div>
-            {values.scopeType !== "global" ? <div className="grid gap-3 sm:grid-cols-2">{locationFields.map((field) => <div key={field.key} className="space-y-1.5"><Label>{field.label}</Label><RelatedMultiSelect field={field} value={Array.isArray(values[field.key]) ? values[field.key] as string[] : []} values={values} onChange={(next) => setValue(field.key, next)} /></div>)}</div> : <div className="rounded-lg border border-dashed bg-muted/30 p-3 text-xs text-muted-foreground">Global scope grants access across all operating states. State and Hub restrictions are intentionally cleared.</div>}
-            <div className="rounded-lg border bg-muted/20"><button type="button" className="flex w-full items-center justify-between p-3 text-left" onClick={() => setExpanded((current) => !current)}><span><span className="block text-sm font-medium">Effective permission preview</span><span className="block text-xs text-muted-foreground">Inherited from the selected role{selectedRoleIds.length === 1 ? "" : "s"}; individual permission overrides are not accepted.</span></span>{expanded ? <ChevronUp className="size-4 text-muted-foreground" /> : <ChevronDown className="size-4 text-muted-foreground" />}</button>{expanded ? <div className="flex flex-wrap gap-1.5 border-t p-3">{effectivePermissions.map((permission) => <span key={permission} className="rounded-full border bg-background px-2 py-1 text-[11px] text-muted-foreground">{PERMISSION_LABELS[permission as Permission] || permission}</span>)}{!effectivePermissions.length ? <span className="text-xs text-muted-foreground">Select a role to preview permissions.</span> : null}</div> : null}</div>
+            <StaffAccessFields
+              roles={roles}
+              rolesLoading={rolesQuery.isLoading}
+              selectedRoleIds={selectedRoleIds}
+              values={values}
+              permissionPreviewOpen={expanded}
+              onPermissionPreviewOpenChange={setExpanded}
+              onRolesChange={updateRoles}
+              onScopeChange={changeScope}
+              onValueChange={setValue}
+            />
           </form>
       </AdminWorkflowSheet>
     </PermissionGuard>

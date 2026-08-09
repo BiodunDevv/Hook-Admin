@@ -51,7 +51,7 @@ export default function FinancialsPage() {
   const errorMessage = error instanceof Error ? error.message.replace(/^\d+:\s*/, "") : "";
 
   return (
-    <div className="p-2 sm:p-4">
+    <div className="w-full space-y-5 px-4 py-5">
       <PageHeader
         title="Financial Controls"
         description="Monitor platform revenue, refunds, payment reconciliation, and legacy settlement balances."

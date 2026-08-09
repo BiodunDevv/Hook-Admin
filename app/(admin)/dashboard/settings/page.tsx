@@ -25,7 +25,7 @@ export default function SettingsPage() {
   const [activeSetting, setActiveSetting] = useState("General");
 
   return (
-    <div className="p-2 sm:p-4">
+    <div className="w-full space-y-5 px-4 py-5">
       <PageHeader
         title="Platform Settings"
         description="Manage your enterprise account, security preferences, and team access."

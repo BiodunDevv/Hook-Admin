@@ -56,7 +56,7 @@ export default function StaffPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] space-y-5 p-4 md:p-5">
+    <div className="w-full space-y-5 px-4 py-5">
       <PageHeader title="Staff" description="Manage team identities, role-based access, and operational scope." actions={<PermissionGuard permission="staff.create"><Button variant="brand" onClick={() => setCreateOpen(true)}><Plus /> Add staff member</Button></PermissionGuard>} />
       <StaffOverview staff={staff} />
       <StaffFilters value={filters} onChange={setFilters} />

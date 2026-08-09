@@ -44,7 +44,7 @@ export default function FulfilmentReturnsPage() {
   if (query.isError) return <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-6 text-sm text-destructive">Return requests could not be loaded. Refresh and try again.</div>;
 
   return (
-    <div className="space-y-5 pb-10">
+    <div className="w-full space-y-5 px-4 py-5">
       <PageHeader title="Returns review" description="Review customer issues within the 24-hour delivery or collection policy window, with a recorded decision reason." />
       <Card className="rounded-lg shadow-none">
         <CardHeader><CardTitle className="text-base">Return requests</CardTitle></CardHeader>

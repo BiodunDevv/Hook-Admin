@@ -1,6 +1,7 @@
 export type StaffAction =
   | "suspend"
   | "reactivate"
+  | "restore"
   | "archive"
   | "revoke-sessions"
   | "cancel-invitation";

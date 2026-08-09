@@ -2,6 +2,7 @@ import AppSidebar from "@/components/layout/AppSidebar";
 import Topbar from "@/components/layout/Topbar";
 import { AdminGuard } from "@/components/auth/AdminGuard";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function DashboardLayout({
   children,
@@ -14,9 +15,9 @@ export default function DashboardLayout({
         <AppSidebar />
         <SidebarInset className="min-w-0 overflow-hidden bg-background">
           <Topbar />
-          <main className="flex-1 overflow-y-auto bg-background pt-14">
-            {children}
-          </main>
+          <ScrollArea className="min-h-0 flex-1 bg-background">
+            <main className="min-h-full bg-background pt-14">{children}</main>
+          </ScrollArea>
         </SidebarInset>
       </SidebarProvider>
     </AdminGuard>

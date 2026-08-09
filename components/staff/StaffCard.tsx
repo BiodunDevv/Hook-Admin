@@ -39,7 +39,9 @@ export function StaffCard({ member, currentUserId, onAction, onResend }: { membe
   const status = String(member.status || "unknown").toLowerCase();
   const name = `${member.firstName || ""} ${member.lastName || ""}`.trim() || member.email || "Unnamed staff";
   const roles = member.roles || [];
-  const canLifecycle = !isSelf && status !== "disabled";
+  const isProtected = roles.some((role) => role.key === "SUPER_ADMIN");
+  const canLifecycle = !isSelf && !isProtected;
+  const lifecycleAction: StaffAction = status === "active" ? "suspend" : status === "disabled" ? "restore" : "reactivate";
 
   return (
     <Card className="rounded-xl shadow-none transition-shadow hover:shadow-md">
@@ -54,7 +56,7 @@ export function StaffCard({ member, currentUserId, onAction, onResend }: { membe
             <DropdownMenuContent align="end" className="w-52">
               <DropdownMenuItem asChild><Link href={`/dashboard/staff/${id}`}><Pencil /> View and edit</Link></DropdownMenuItem>
               {status === "invited" ? <><PermissionGuard permission="staff.create"><DropdownMenuItem onSelect={() => onResend(member)}><Mail /> Resend invitation</DropdownMenuItem></PermissionGuard><PermissionGuard permission="staff.suspend"><DropdownMenuItem variant="destructive" onSelect={() => onAction(member, "cancel-invitation")}><Archive /> Cancel invitation</DropdownMenuItem></PermissionGuard></> : null}
-              {canLifecycle ? <PermissionGuard permission="staff.suspend"><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => onAction(member, status === "active" ? "suspend" : "reactivate")}><PowerIcon active={status === "active"} /> {status === "active" ? "Suspend account" : "Reactivate account"}</DropdownMenuItem></PermissionGuard> : null}
+              {canLifecycle ? <PermissionGuard permission="staff.suspend"><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => onAction(member, lifecycleAction)}><PowerIcon active={status === "active"} /> {status === "active" ? "Suspend account" : status === "disabled" ? "Restore account" : "Reactivate account"}</DropdownMenuItem></PermissionGuard> : null}
               {!isSelf && status !== "invited" && status !== "disabled" ? <PermissionGuard permission="staff.revoke_sessions"><DropdownMenuItem onSelect={() => onAction(member, "revoke-sessions")}><KeyRound /> Revoke sessions</DropdownMenuItem></PermissionGuard> : null}
               {!isSelf && status !== "invited" && status !== "disabled" ? <PermissionGuard permission="staff.suspend"><DropdownMenuItem variant="destructive" onSelect={() => onAction(member, "archive")}><Archive /> Archive account</DropdownMenuItem></PermissionGuard> : null}
             </DropdownMenuContent>

@@ -108,7 +108,7 @@ export default function ProductDetailPage() {
   const heroImage = absoluteImageUrl(product?.images?.[0]);
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] overflow-y-auto p-2 pb-6 sm:p-4 sm:pb-8">
+    <div className="min-h-[calc(100vh-4rem)] w-full space-y-5 px-4 py-5">
       <PageHeader
         title={product?.title || "Product Detail"}
         description={product?.hookId || product?.id ? `Commercial catalog · ${product.hookId || product.id}` : "Commercial catalog product"}

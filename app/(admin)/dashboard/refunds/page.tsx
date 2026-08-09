@@ -75,7 +75,7 @@ export default function RefundsPage() {
   }
 
   return (
-    <div className="p-2 sm:p-4">
+    <div className="w-full space-y-5 px-4 py-5">
       <PageHeader title="Refund Operations" description="Review eligible disputes and track provider refunds without exceeding captured funds." />
       <div className="mb-3 flex justify-end">
         <Select value={status} onValueChange={setStatus}>

@@ -203,7 +203,7 @@ export default function DashboardPage() {
   }, [summary]);
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] space-y-4 p-4 md:p-5">
+    <div className="w-full space-y-5 px-4 py-5">
       <PageHeader
         className="mb-0"
         title="Control Tower"

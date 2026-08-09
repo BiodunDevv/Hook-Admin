@@ -1,7 +1,20 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Database, Loader2, MapPin, Plus, Save, SlidersHorizontal } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+  AlertTriangle,
+  Check,
+  CheckCircle2,
+  Clock3,
+  Database,
+  Loader2,
+  MapPin,
+  Plus,
+  RefreshCw,
+  Save,
+  Search,
+  SlidersHorizontal,
+} from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { QueryState } from "@/components/shared/QueryState";
@@ -11,7 +24,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiPatch, apiPost } from "@/lib/api";
 import { useAdminSession, useApiQuery } from "@/lib/query";
 import { hasPermission } from "@/lib/permissions";
@@ -30,7 +58,7 @@ type StateRow = {
 type Rule = {
   publicId: string;
   name: string;
-  scope: "global" | "state" | "zone";
+  scope: "global" | "state";
   scopeId?: string;
   mode: "flat" | "per_km" | "distance_bands";
   flatFeeMinor?: number;
@@ -70,8 +98,14 @@ type PreviewResult = {
   ruleVersion: string;
 };
 
+const pageGutter = "w-full space-y-5 px-4 py-5";
+
 function money(value: number | undefined) {
-  return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(Number(value || 0) / 100);
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    maximumFractionDigits: 0,
+  }).format(Number(value || 0) / 100);
 }
 
 function listOf<T>(value: unknown): T[] {
@@ -91,12 +125,23 @@ function directoryId(row: DirectoryRow) {
 export function DeliveryCoveragePage() {
   const session = useAdminSession();
   const queryClient = useQueryClient();
-  const canManageCoverage = hasPermission(session.data, "delivery.coverage.manage");
-  const canManagePricing = hasPermission(session.data, "delivery.pricing.manage");
+  const canManageCoverage = hasPermission(
+    session.data,
+    "delivery.coverage.manage",
+  );
+  const canManagePricing = hasPermission(
+    session.data,
+    "delivery.pricing.manage",
+  );
   const canPreview = hasPermission(session.data, "delivery.pricing.preview");
-  const query = useApiQuery<DeliveryQueryData>(["admin", "delivery"], "/admin/delivery");
-  const zonesQuery = useApiQuery<unknown>(["admin", "delivery", "zones"], "/admin/zones?limit=100");
-  const hubsQuery = useApiQuery<unknown>(["admin", "delivery", "hubs"], "/admin/hubs?limit=100");
+  const query = useApiQuery<DeliveryQueryData>(
+    ["admin", "delivery"],
+    "/admin/delivery",
+  );
+  const hubsQuery = useApiQuery<unknown>(
+    ["admin", "delivery", "hubs"],
+    "/admin/hubs?limit=100",
+  );
   const [defaultFeeDraft, setDefaultFeeDraft] = useState<string>();
   const [form, setForm] = useState({
     name: "",
@@ -111,59 +156,105 @@ export function DeliveryCoveragePage() {
     bands: "10:2500,25:3000,60:4000",
   });
   const [previewStateId, setPreviewStateId] = useState("");
-  const [previewZoneId, setPreviewZoneId] = useState("none");
   const [previewLatitude, setPreviewLatitude] = useState("6.5244");
   const [previewLongitude, setPreviewLongitude] = useState("3.3792");
   const [previewResult, setPreviewResult] = useState<PreviewResult>();
   const [refreshingCatalog, setRefreshingCatalog] = useState(false);
+  const [stateSearch, setStateSearch] = useState("");
 
   const states = query.data?.states || [];
   const rules = query.data?.rules || [];
-  const zones = listOf<DirectoryRow>(zonesQuery.data);
   const hubs = listOf<DirectoryRow>(hubsQuery.data);
-  const defaultFee = defaultFeeDraft ?? String(Number(query.data?.settings?.defaultDeliveryFeeMinor ?? 300000) / 100);
-  const selectedPreviewStateId = previewStateId || states.find((state) => state.deliveryEnabled)?.publicId || "";
-  const scopeRows: DirectoryRow[] = form.scope === "state" ? states : zones;
+  const defaultFee =
+    defaultFeeDraft ??
+    String(
+      Number(query.data?.settings?.defaultDeliveryFeeMinor ?? 300000) / 100,
+    );
+  const selectedPreviewStateId =
+    previewStateId ||
+    states.find((state) => state.deliveryEnabled)?.publicId ||
+    "";
+  const scopeRows: DirectoryRow[] = states;
+  const filteredStates = useMemo(() => {
+    const value = stateSearch.trim().toLowerCase();
+    if (!value) return states;
+    return states.filter((state) =>
+      `${state.name} ${state.capitalName || ""} ${state.code}`
+        .toLowerCase()
+        .includes(value),
+    );
+  }, [stateSearch, states]);
+  const enabledStateCount = states.filter((state) => state.deliveryEnabled).length;
+  const pausedStateCount = Math.max(states.length - enabledStateCount, 0);
+  const totalLgaCount = states.reduce((total, state) => total + (state.lgaCount || 0), 0);
+  const currentFallbackMinor = Number(
+    query.data?.settings?.defaultDeliveryFeeMinor ?? 300000,
+  );
 
   async function refresh() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["admin", "delivery"] }),
-      queryClient.invalidateQueries({ queryKey: ["admin", "delivery", "zones"] }),
-      queryClient.invalidateQueries({ queryKey: ["admin", "delivery", "hubs"] }),
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "delivery", "hubs"],
+      }),
     ]);
   }
 
   async function toggleState(state: StateRow, enabled: boolean) {
     try {
-      await apiPatch(`/admin/delivery/states/${state.publicId}`, { deliveryEnabled: enabled, reason: enabled ? "Enabled customer delivery coverage" : "Paused customer delivery coverage" });
+      await apiPatch(`/admin/delivery/states/${state.publicId}`, {
+        deliveryEnabled: enabled,
+        reason: enabled
+          ? "Enabled customer delivery coverage"
+          : "Paused customer delivery coverage",
+      });
       toast.success(`${state.name} delivery ${enabled ? "enabled" : "paused"}`);
       await refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not update delivery coverage");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Could not update delivery coverage",
+      );
     }
   }
 
   async function saveDefaultFee() {
     const naira = Number(defaultFee);
-    if (!Number.isFinite(naira) || naira < 0) return toast.error("Enter a valid delivery fallback");
+    if (!Number.isFinite(naira) || naira < 0)
+      return toast.error("Enter a valid delivery fallback");
     try {
-      await apiPatch("/admin/delivery/settings", { defaultDeliveryFeeMinor: Math.round(naira * 100), reason: "Updated global delivery fallback" });
+      await apiPatch("/admin/delivery/settings", {
+        defaultDeliveryFeeMinor: Math.round(naira * 100),
+        reason: "Updated global delivery fallback",
+      });
       toast.success("Global delivery fallback updated");
       setDefaultFeeDraft(undefined);
       await refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not save the delivery fee");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Could not save the delivery fee",
+      );
     }
   }
 
   async function refreshCatalog() {
     setRefreshingCatalog(true);
     try {
-      const result = await apiPost<{ total: number }>("/admin/delivery/locations/refresh", { reason: "Refreshed Nigerian State and LGA catalog" });
+      const result = await apiPost<{ total: number }>(
+        "/admin/delivery/locations/refresh",
+        { reason: "Refreshed Nigerian State and LGA catalog" },
+      );
       toast.success(`Location catalog refreshed: ${result.total} active LGAs`);
       await refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not refresh the location catalog");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Could not refresh the location catalog",
+      );
     } finally {
       setRefreshingCatalog(false);
     }
@@ -175,23 +266,49 @@ export function DeliveryCoveragePage() {
     const baseFee = Number(form.baseFee);
     const feePerKm = Number(form.feePerKm);
     const fallbackFee = Number(form.fallbackFee);
-    const bands = form.bands.split(",").map((item) => item.trim()).filter(Boolean).map((item) => {
-      const [distance, amount] = item.split(":").map(Number);
-      return { upToKm: distance, feeMinor: Math.round(amount * 100) };
-    });
-    if (form.mode === "flat" && (!Number.isFinite(flatFee) || flatFee < 0)) return toast.error("Enter a valid flat fee");
-    if (form.mode === "per_km" && [baseFee, feePerKm, fallbackFee].some((value) => !Number.isFinite(value) || value < 0)) return toast.error("Enter a valid base fee, kilometer rate, and fallback");
-    if (form.mode === "distance_bands" && bands.some((band) => !Number.isFinite(band.upToKm) || !Number.isFinite(band.feeMinor) || band.upToKm <= 0)) return toast.error("Use distance bands like 10:2500,25:3000");
+    const bands = form.bands
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .map((item) => {
+        const [distance, amount] = item.split(":").map(Number);
+        return { upToKm: distance, feeMinor: Math.round(amount * 100) };
+      });
+    if (form.mode === "flat" && (!Number.isFinite(flatFee) || flatFee < 0))
+      return toast.error("Enter a valid flat fee");
+    if (
+      form.mode === "per_km" &&
+      [baseFee, feePerKm, fallbackFee].some(
+        (value) => !Number.isFinite(value) || value < 0,
+      )
+    )
+      return toast.error(
+        "Enter a valid base fee, kilometer rate, and fallback",
+      );
+    if (
+      form.mode === "distance_bands" &&
+      bands.some(
+        (band) =>
+          !Number.isFinite(band.upToKm) ||
+          !Number.isFinite(band.feeMinor) ||
+          band.upToKm <= 0,
+      )
+    )
+      return toast.error("Use distance bands like 10:2500,25:3000");
     try {
       await apiPost("/admin/delivery/rules", {
         name: form.name.trim(),
         scope: form.scope,
         scopeId: form.scope === "global" ? undefined : form.scopeId,
         mode: form.mode,
-        flatFeeMinor: form.mode === "flat" ? Math.round(flatFee * 100) : undefined,
-        baseFeeMinor: form.mode === "per_km" ? Math.round(baseFee * 100) : undefined,
-        feePerKmMinor: form.mode === "per_km" ? Math.round(feePerKm * 100) : undefined,
-        fallbackFeeMinor: form.mode === "per_km" ? Math.round(fallbackFee * 100) : undefined,
+        flatFeeMinor:
+          form.mode === "flat" ? Math.round(flatFee * 100) : undefined,
+        baseFeeMinor:
+          form.mode === "per_km" ? Math.round(baseFee * 100) : undefined,
+        feePerKmMinor:
+          form.mode === "per_km" ? Math.round(feePerKm * 100) : undefined,
+        fallbackFeeMinor:
+          form.mode === "per_km" ? Math.round(fallbackFee * 100) : undefined,
         originHubId: form.originHubId === "none" ? undefined : form.originHubId,
         bands: form.mode === "distance_bands" ? bands : [],
         status: "active",
@@ -201,64 +318,539 @@ export function DeliveryCoveragePage() {
       setForm((current) => ({ ...current, name: "" }));
       await refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not create pricing rule");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Could not create pricing rule",
+      );
     }
   }
 
   async function toggleRule(rule: Rule) {
     try {
-      await apiPatch(`/admin/delivery/rules/${rule.publicId}`, { status: rule.status === "active" ? "inactive" : "active", reason: "Updated delivery pricing rule status" });
+      await apiPatch(`/admin/delivery/rules/${rule.publicId}`, {
+        status: rule.status === "active" ? "inactive" : "active",
+        reason: "Updated delivery pricing rule status",
+      });
       toast.success("Pricing rule status updated");
       await refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not update pricing rule");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Could not update pricing rule",
+      );
     }
   }
 
   async function previewFee() {
-    if (!selectedPreviewStateId) return toast.error("Choose a State for the preview");
+    if (!selectedPreviewStateId)
+      return toast.error("Choose a State for the preview");
     const latitude = Number(previewLatitude);
     const longitude = Number(previewLongitude);
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return toast.error("Enter valid destination coordinates");
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude))
+      return toast.error("Enter valid destination coordinates");
     try {
-      setPreviewResult(await apiPost<PreviewResult>("/admin/delivery/preview", { stateId: selectedPreviewStateId, zoneId: previewZoneId === "none" ? undefined : previewZoneId, coordinates: { latitude, longitude } }));
+      setPreviewResult(
+        await apiPost<PreviewResult>("/admin/delivery/preview", {
+          stateId: selectedPreviewStateId,
+          coordinates: { latitude, longitude },
+        }),
+      );
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not calculate delivery fee");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Could not calculate delivery fee",
+      );
     }
   }
 
-  if (!hasPermission(session.data, "delivery.coverage.view")) return <QueryState empty emptyTitle="Delivery settings unavailable" emptyDescription="Your account does not have access to delivery coverage." />;
-  if (query.isLoading) return <div className="flex min-h-[420px] items-center justify-center"><Loader2 className="animate-spin text-brand-gold" /></div>;
-  if (query.isError) return <QueryState error={query.error} errorTitle="Delivery settings could not load" onRetry={() => void query.refetch()} />;
+  if (!hasPermission(session.data, "delivery.coverage.view"))
+    return (
+      <div className={pageGutter}>
+        <QueryState
+          empty
+          emptyTitle="Delivery settings unavailable"
+          emptyDescription="Your account does not have access to delivery coverage."
+        />
+      </div>
+    );
+  if (query.isLoading)
+    return (
+      <div className={pageGutter}>
+        <QueryState loading loadingLabel="Loading delivery coverage" />
+      </div>
+    );
+  if (query.isError)
+    return (
+      <div className={pageGutter}>
+        <QueryState
+          error={query.error}
+          errorTitle="Delivery settings could not load"
+          onRetry={() => void query.refetch()}
+        />
+      </div>
+    );
 
   return (
-    <div className="space-y-5 p-2 md:p-4">
-      <PageHeader title="Delivery Coverage & Fees" description="Manage nationwide delivery coverage and the pricing customers see at checkout. Markets remain product-source locations." />
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card p-4 shadow-xs">
-        <div><p className="font-semibold">Nigerian location catalog</p><p className="text-sm text-muted-foreground">States, capitals, and LGAs are cached in Hook for fast mobile selection.</p></div>
-        <Button variant="outline" disabled={!canManageCoverage || refreshingCatalog} onClick={() => void refreshCatalog()}>{refreshingCatalog ? <Loader2 className="animate-spin" /> : <Database size={16} />} Refresh locations</Button>
-      </div>
+    <div className={pageGutter}>
+      <PageHeader
+        title="Delivery States & Fees"
+        description="Control where customers can receive Hook orders and how delivery fees are calculated. Market sourcing is managed separately."
+        actions={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!canManageCoverage || refreshingCatalog}
+              onClick={() => void refreshCatalog()}
+            >
+              {refreshingCatalog ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Database className="size-4" />
+              )}
+              Refresh locations
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => void query.refetch()}>
+              <RefreshCw className="size-4" />
+              Refresh
+            </Button>
+          </>
+        }
+      />
 
-      <div className="grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
-        <Card className="shadow-none">
-          <CardHeader className="border-b"><CardTitle className="flex items-center gap-2"><MapPin size={18} /> All Nigerian delivery states <Badge variant="outline">{states.length}</Badge></CardTitle></CardHeader>
-          <CardContent className="grid gap-2 p-4 sm:grid-cols-2 xl:grid-cols-3">
-            {states.map((state) => <div key={state.publicId} className="flex items-center justify-between gap-3 rounded-lg border bg-background p-3">
-              <div className="min-w-0"><p className="truncate text-sm font-semibold">{state.name}</p><p className="truncate text-xs text-muted-foreground">{state.capitalName || "Capital pending"} · {state.lgaCount || 0} LGAs</p><p className="mt-1 text-[11px] text-muted-foreground">{state.deliveryEnabled ? "Available for delivery" : "Paused by Admin"}</p></div>
-              <Switch checked={state.deliveryEnabled} disabled={!canManageCoverage} onCheckedChange={(checked) => void toggleState(state, checked)} aria-label={`Toggle delivery in ${state.name}`} />
-            </div>)}
+      <section className="overflow-hidden rounded-2xl border bg-card shadow-xs">
+        <div className="grid lg:grid-cols-[minmax(0,1fr)_240px]">
+          <div className="border-l-4 border-[#FFC809] p-6 sm:p-8">
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-[#FFF4BD] text-[#8A6900]">
+                <MapPin className="size-5" />
+              </div>
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Customer delivery network</p>
+            </div>
+            <h2 className="mt-5 max-w-2xl text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Delivery coverage across Nigeria</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+              Choose where customers can receive Hook orders and keep the address catalogue ready for quick State and LGA selection. This does not determine where products are sourced.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <span className="rounded-full border bg-background px-3 py-1.5 text-xs font-medium text-foreground">{enabledStateCount} States enabled</span>
+              <span className="rounded-full border bg-background px-3 py-1.5 text-xs font-medium text-foreground">{totalLgaCount} LGAs available</span>
+              <span className="rounded-full border bg-background px-3 py-1.5 text-xs font-medium text-foreground">{money(currentFallbackMinor)} fallback</span>
+            </div>
+          </div>
+          <div className="relative hidden overflow-hidden bg-[#FFC809] lg:block">
+            <div className="absolute -right-16 -top-20 size-64 rounded-full border-[28px] border-white/30" />
+            <div className="absolute -bottom-20 -left-16 size-48 rounded-full border-[20px] border-black/10" />
+            <div className="relative flex h-full min-h-52 items-end p-6">
+              <div className="rounded-xl bg-black px-4 py-3 text-white shadow-sm">
+                <p className="text-xs text-white/60">Coverage status</p>
+                <p className="mt-1 text-lg font-semibold">{pausedStateCount ? `${pausedStateCount} paused` : "Nationwide ready"}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <Card>
+          <CardContent className="flex items-center gap-4 p-5">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700"><CheckCircle2 className="size-5" /></div>
+            <div><p className="text-sm text-muted-foreground">Available for delivery</p><p className="mt-1 text-2xl font-semibold">{enabledStateCount}</p></div>
           </CardContent>
         </Card>
-        <Card className="shadow-none">
-          <CardHeader className="border-b"><CardTitle>Global fallback</CardTitle></CardHeader>
-          <CardContent className="space-y-4 p-4"><p className="text-sm text-muted-foreground">Used when no active State or Zone rule can calculate a route.</p><div className="space-y-2"><Label htmlFor="global-fee">Fallback fee (NGN)</Label><Input id="global-fee" inputMode="decimal" value={defaultFee} onChange={(event) => setDefaultFeeDraft(event.target.value)} disabled={!canManagePricing} /></div><Button className="w-full" variant="brand" disabled={!canManagePricing} onClick={() => void saveDefaultFee()}><Save size={16} /> Save fallback</Button><div className="rounded-lg bg-hook/10 p-3 text-sm"><span className="font-semibold">Current:</span> {money(Number(query.data?.settings?.defaultDeliveryFeeMinor || 0))}</div></CardContent>
+        <Card>
+          <CardContent className="flex items-center gap-4 p-5">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-sky-50 text-sky-700"><Database className="size-5" /></div>
+            <div><p className="text-sm text-muted-foreground">LGAs ready</p><p className="mt-1 text-2xl font-semibold">{totalLgaCount}</p></div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-4 p-5">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-amber-50 text-amber-700"><Clock3 className="size-5" /></div>
+            <div><p className="text-sm text-muted-foreground">Paused States</p><p className="mt-1 text-2xl font-semibold">{pausedStateCount}</p></div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-4 p-5">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-violet-50 text-violet-700"><SlidersHorizontal className="size-5" /></div>
+            <div><p className="text-sm text-muted-foreground">Global fallback</p><p className="mt-1 text-2xl font-semibold">{money(currentFallbackMinor)}</p></div>
+          </CardContent>
         </Card>
       </div>
 
-      {canPreview ? <Card className="shadow-none"><CardHeader className="border-b"><CardTitle>Delivery fee preview</CardTitle></CardHeader><CardContent className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-5"><div className="space-y-2"><Label>State</Label><Select value={selectedPreviewStateId} onValueChange={setPreviewStateId}><SelectTrigger><SelectValue placeholder="Choose State" /></SelectTrigger><SelectContent>{states.filter((state) => state.deliveryEnabled).map((state) => <SelectItem key={state.publicId} value={state.publicId}>{state.name}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Service Zone</Label><Select value={previewZoneId} onValueChange={setPreviewZoneId}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">State / global rule</SelectItem>{zones.map((zone) => <SelectItem key={zone.publicId || zone.id} value={zone.publicId || zone.id || "unknown"}>{zone.name}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Latitude</Label><Input value={previewLatitude} inputMode="decimal" onChange={(event) => setPreviewLatitude(event.target.value)} /></div><div className="space-y-2"><Label>Longitude</Label><Input value={previewLongitude} inputMode="decimal" onChange={(event) => setPreviewLongitude(event.target.value)} /></div><div className="flex items-end"><Button className="w-full" variant="brand" onClick={() => void previewFee()}><MapPin size={16} /> Calculate</Button></div>{previewResult ? <div className="rounded-lg bg-hook/10 p-3 text-sm md:col-span-2 xl:col-span-5"><span className="font-semibold">Estimated fee:</span> {money(previewResult.feeMinor)} · {previewResult.scope} · {String(previewResult.mode).replace("_", " ")}{previewResult.distanceKm != null ? ` · ${previewResult.distanceKm} km (${previewResult.billableKm || Math.ceil(previewResult.distanceKm)} billable)` : " · fallback applied"}{previewResult.baseFeeMinor != null ? ` · base ${money(previewResult.baseFeeMinor)} + ${money(previewResult.feePerKmMinor)}/km` : ""} · {previewResult.ruleVersion}</div> : null}</CardContent></Card> : null}
+      <Tabs defaultValue="coverage" className="gap-5">
+        <div className="flex flex-col gap-3 border-b border-border/70 pb-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Delivery workspace</p>
+            <p className="mt-1 text-xs text-muted-foreground">Manage coverage first, then configure the fee rules used at checkout.</p>
+          </div>
+          <TabsList className="w-full sm:w-auto">
+            <TabsTrigger value="coverage" className="gap-2 px-4"><MapPin className="size-4" /> Coverage</TabsTrigger>
+            <TabsTrigger value="pricing" className="gap-2 px-4"><SlidersHorizontal className="size-4" /> Pricing</TabsTrigger>
+          </TabsList>
+        </div>
 
-      <Card className="shadow-none"><CardHeader className="border-b"><CardTitle className="flex items-center gap-2"><SlidersHorizontal size={18} /> Pricing rules</CardTitle></CardHeader><CardContent className="space-y-5 p-4">{canManagePricing ? <div className="grid gap-3 rounded-lg border bg-muted/20 p-4 md:grid-cols-2 xl:grid-cols-6"><div className="space-y-2 xl:col-span-2"><Label>Rule name</Label><Input value={form.name} placeholder="Nationwide per-kilometer delivery" onChange={(event) => setForm({ ...form, name: event.target.value })} /></div><div className="space-y-2"><Label>Scope</Label><Select value={form.scope} onValueChange={(value: Rule["scope"]) => setForm({ ...form, scope: value, scopeId: "" })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="global">Global</SelectItem><SelectItem value="state">State</SelectItem><SelectItem value="zone">Service Zone</SelectItem></SelectContent></Select></div><div className="space-y-2"><Label>Scope target</Label><Select value={form.scopeId || "none"} onValueChange={(value) => setForm({ ...form, scopeId: value === "none" ? "" : value })} disabled={form.scope === "global"}><SelectTrigger><SelectValue placeholder={form.scope === "global" ? "Not needed" : "Choose target"} /></SelectTrigger><SelectContent><SelectItem value="none">Not needed</SelectItem>{scopeRows.map((row) => { const id = directoryId(row); return id ? <SelectItem key={id} value={id}>{row.name}</SelectItem> : null; })}</SelectContent></Select></div><div className="space-y-2"><Label>Mode</Label><Select value={form.mode} onValueChange={(value: Rule["mode"]) => setForm({ ...form, mode: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="per_km">Base + per km</SelectItem><SelectItem value="flat">Flat fee</SelectItem><SelectItem value="distance_bands">Distance bands</SelectItem></SelectContent></Select></div>{form.mode === "flat" ? <div className="space-y-2"><Label>Fee (NGN)</Label><Input inputMode="decimal" value={form.flatFee} onChange={(event) => setForm({ ...form, flatFee: event.target.value })} /></div> : null}{form.mode === "per_km" ? <><div className="space-y-2"><Label>Base fee (NGN)</Label><Input inputMode="decimal" value={form.baseFee} onChange={(event) => setForm({ ...form, baseFee: event.target.value })} /></div><div className="space-y-2"><Label>Rate per km (NGN)</Label><Input inputMode="decimal" value={form.feePerKm} onChange={(event) => setForm({ ...form, feePerKm: event.target.value })} /></div><div className="space-y-2"><Label>Fallback (NGN)</Label><Input inputMode="decimal" value={form.fallbackFee} onChange={(event) => setForm({ ...form, fallbackFee: event.target.value })} /></div><div className="space-y-2"><Label>Origin Hub</Label><Select value={form.originHubId} onValueChange={(value) => setForm({ ...form, originHubId: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">Automatic state Hub</SelectItem>{hubs.map((hub) => { const id = directoryId(hub); return id ? <SelectItem key={id} value={id}>{hub.name}</SelectItem> : null; })}</SelectContent></Select></div></> : null}{form.mode === "distance_bands" ? <div className="space-y-2 md:col-span-2 xl:col-span-4"><Label>Distance bands</Label><Input value={form.bands} onChange={(event) => setForm({ ...form, bands: event.target.value })} placeholder="10:2500,25:3000,60:4000" /><p className="text-xs text-muted-foreground">Format: kilometres:fee in NGN, ordered from nearest to farthest.</p></div> : null}<div className="flex items-end"><Button variant="brand" className="w-full" onClick={() => void createRule()}><Plus size={16} /> Add rule</Button></div></div> : null}<div className="divide-y rounded-lg border">{rules.map((rule) => <div key={rule.publicId} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="font-semibold">{rule.name}</p><Badge variant={rule.status === "active" ? "default" : "secondary"}>{rule.status}</Badge><Badge variant="outline">{rule.scope} · {rule.mode.replace("_", " ")}</Badge></div><p className="mt-1 text-xs text-muted-foreground">{rule.mode === "per_km" ? `${money(rule.baseFeeMinor)} base + ${money(rule.feePerKmMinor)}/km · fallback ${money(rule.fallbackFeeMinor)}` : rule.mode === "flat" ? money(rule.flatFeeMinor) : `${rule.bands?.length || 0} distance bands`} · v{rule.version}</p></div>{canManagePricing ? <Button size="sm" variant="outline" onClick={() => void toggleRule(rule)}>{rule.status === "active" ? "Pause" : "Activate"}</Button> : null}</div>)}{!rules.length ? <div className="p-8 text-center text-sm text-muted-foreground">No pricing rules configured. The global fallback remains active.</div> : null}</div></CardContent></Card>
-      <div className="flex items-center gap-2 text-xs text-muted-foreground"><Check size={14} className="text-emerald-600" /> Delivery coverage is independent from Market sourcing availability.</div>
+        <TabsContent value="coverage" className="mt-0 space-y-6">
+          {pausedStateCount > 0 ? (
+            <div className="flex items-start gap-3 rounded-xl border border-[#F0D979] bg-[#FFF9DC] px-4 py-3 text-sm text-[#665100]">
+              <Clock3 className="mt-0.5 size-4 shrink-0" />
+              <p><span className="font-semibold">Some delivery coverage is paused.</span> New addresses and checkout are blocked for those States until coverage is enabled again.</p>
+            </div>
+          ) : null}
+
+          <Card className="gap-0">
+            <CardHeader className="gap-4 border-b sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardTitle>Delivery State directory</CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">Enable or pause customer delivery by State. This does not change Market sourcing.</p>
+              </div>
+              <div className="relative w-full sm:w-72">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input value={stateSearch} onChange={(event) => setStateSearch(event.target.value)} placeholder="Search State or capital" className="pl-9" />
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table className="min-w-[760px]">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12 text-center">#</TableHead>
+                      <TableHead>State</TableHead>
+                      <TableHead>Capital</TableHead>
+                      <TableHead>LGAs</TableHead>
+                      <TableHead>Coverage</TableHead>
+                      <TableHead className="text-right">Delivery</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredStates.map((state, index) => (
+                      <TableRow key={state.publicId}>
+                        <TableCell className="text-center text-xs text-muted-foreground">{index + 1}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="flex size-9 items-center justify-center rounded-xl bg-muted text-xs font-bold">{state.code}</div>
+                            <div><p className="font-medium">{state.name}</p><p className="text-xs text-muted-foreground">{state.publicId}</p></div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{state.capitalName || "Not recorded"}</TableCell>
+                        <TableCell><span className="font-medium">{state.lgaCount || 0}</span><span className="ml-1 text-xs text-muted-foreground">active</span></TableCell>
+                        <TableCell>
+                          <Badge variant={state.deliveryEnabled ? "default" : "outline"}>
+                            {state.deliveryEnabled ? <CheckCircle2 className="size-3" /> : <AlertTriangle className="size-3" />}
+                            {state.deliveryEnabled ? "Available" : "Paused"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-3">
+                            <span className="hidden text-xs text-muted-foreground sm:inline">{state.deliveryEnabled ? "Enabled" : "Paused"}</span>
+                            <Switch checked={Boolean(state.deliveryEnabled)} disabled={!canManageCoverage} onCheckedChange={(enabled) => void toggleState(state, enabled)} aria-label={`${state.deliveryEnabled ? "Pause" : "Enable"} delivery in ${state.name}`} />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              {!filteredStates.length ? <div className="px-6 py-12 text-center text-sm text-muted-foreground">No States match your search.</div> : null}
+            </CardContent>
+          </Card>
+
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Check size={14} className="text-emerald-600" /> Delivery coverage is independent from Market sourcing availability.
+          </div>
+        </TabsContent>
+
+        <TabsContent value="pricing" className="mt-0 space-y-6">
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Card className="gap-0">
+          <CardHeader className="border-b">
+            <CardTitle>Global fallback delivery fee</CardTitle>
+            <p className="text-sm text-muted-foreground">Used when no active State pricing rule can calculate a route.</p>
+          </CardHeader>
+          <CardContent className="space-y-4 p-5">
+            <div className="space-y-2">
+              <Label htmlFor="global-fee">Fallback fee (NGN)</Label>
+              <Input id="global-fee" inputMode="decimal" value={defaultFee} onChange={(event) => setDefaultFeeDraft(event.target.value)} disabled={!canManagePricing} />
+            </div>
+            <Button className="w-full" variant="brand" disabled={!canManagePricing} onClick={() => void saveDefaultFee()}>
+              <Save className="size-4" /> Save fallback
+            </Button>
+            <div className="rounded-xl bg-hook/10 p-3 text-sm">
+              <span className="font-semibold">Current fallback:</span> {money(currentFallbackMinor)}
+            </div>
+          </CardContent>
+        </Card>
+
+        {canPreview ? (
+          <Card className="gap-0">
+            <CardHeader className="border-b">
+              <CardTitle>Delivery fee preview</CardTitle>
+              <p className="text-sm text-muted-foreground">Test the fee returned for a destination before publishing a pricing rule.</p>
+            </CardHeader>
+            <CardContent className="grid gap-3 p-5 sm:grid-cols-2">
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Delivery State</Label>
+                <Select value={selectedPreviewStateId} onValueChange={setPreviewStateId}>
+                  <SelectTrigger><SelectValue placeholder="Choose State" /></SelectTrigger>
+                  <SelectContent>
+                    {states.filter((state) => state.deliveryEnabled).map((state) => (
+                      <SelectItem key={state.publicId} value={state.publicId}>{state.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2"><Label>Latitude</Label><Input value={previewLatitude} inputMode="decimal" onChange={(event) => setPreviewLatitude(event.target.value)} /></div>
+              <div className="space-y-2"><Label>Longitude</Label><Input value={previewLongitude} inputMode="decimal" onChange={(event) => setPreviewLongitude(event.target.value)} /></div>
+              <Button className="sm:col-span-2" variant="brand" onClick={() => void previewFee()}><MapPin className="size-4" /> Calculate fee</Button>
+              {previewResult ? (
+                <div className="grid gap-3 rounded-xl bg-hook/10 p-4 text-sm sm:col-span-2 sm:grid-cols-2">
+                  <div><p className="text-xs text-muted-foreground">Estimated fee</p><p className="mt-1 text-xl font-semibold">{money(previewResult.feeMinor)}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Pricing rule</p><p className="mt-1 font-medium capitalize">{previewResult.scope} · {String(previewResult.mode).replace("_", " ")}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Distance</p><p className="mt-1 font-medium">{previewResult.distanceKm != null ? `${previewResult.distanceKm} km · ${previewResult.billableKm || Math.ceil(previewResult.distanceKm)} billable` : "Fallback applied"}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Rule version</p><p className="mt-1 font-medium">{previewResult.ruleVersion}</p></div>
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+        ) : null}
+      </div>
+
+      <Card className="gap-0">
+        <CardHeader className="border-b">
+          <CardTitle className="flex items-center gap-2"><SlidersHorizontal className="size-4" /> Pricing rules</CardTitle>
+          <p className="text-sm text-muted-foreground">State rules take priority over the global fallback when calculating delivery.</p>
+        </CardHeader>
+        <CardContent className="space-y-5 p-5">
+          {canManagePricing ? (
+            <div className="grid gap-3 rounded-lg border bg-muted/20 p-4 md:grid-cols-2 xl:grid-cols-6">
+              <div className="space-y-2 xl:col-span-2">
+                <Label>Rule name</Label>
+                <Input
+                  value={form.name}
+                  placeholder="Nationwide per-kilometer delivery"
+                  onChange={(event) =>
+                    setForm({ ...form, name: event.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Scope</Label>
+                <Select
+                  value={form.scope}
+                  onValueChange={(value: Rule["scope"]) =>
+                    setForm({ ...form, scope: value, scopeId: "" })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="global">Global</SelectItem>
+                    <SelectItem value="state">State</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Scope target</Label>
+                <Select
+                  value={form.scopeId || "none"}
+                  onValueChange={(value) =>
+                    setForm({ ...form, scopeId: value === "none" ? "" : value })
+                  }
+                  disabled={form.scope === "global"}
+                >
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        form.scope === "global" ? "Not needed" : "Choose target"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Not needed</SelectItem>
+                    {scopeRows.map((row) => {
+                      const id = directoryId(row);
+                      return id ? (
+                        <SelectItem key={id} value={id}>
+                          {row.name}
+                        </SelectItem>
+                      ) : null;
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Mode</Label>
+                <Select
+                  value={form.mode}
+                  onValueChange={(value: Rule["mode"]) =>
+                    setForm({ ...form, mode: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="per_km">Base + per km</SelectItem>
+                    <SelectItem value="flat">Flat fee</SelectItem>
+                    <SelectItem value="distance_bands">
+                      Distance bands
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {form.mode === "flat" ? (
+                <div className="space-y-2">
+                  <Label>Fee (NGN)</Label>
+                  <Input
+                    inputMode="decimal"
+                    value={form.flatFee}
+                    onChange={(event) =>
+                      setForm({ ...form, flatFee: event.target.value })
+                    }
+                  />
+                </div>
+              ) : null}
+              {form.mode === "per_km" ? (
+                <>
+                  <div className="space-y-2">
+                    <Label>Base fee (NGN)</Label>
+                    <Input
+                      inputMode="decimal"
+                      value={form.baseFee}
+                      onChange={(event) =>
+                        setForm({ ...form, baseFee: event.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Rate per km (NGN)</Label>
+                    <Input
+                      inputMode="decimal"
+                      value={form.feePerKm}
+                      onChange={(event) =>
+                        setForm({ ...form, feePerKm: event.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Fallback (NGN)</Label>
+                    <Input
+                      inputMode="decimal"
+                      value={form.fallbackFee}
+                      onChange={(event) =>
+                        setForm({ ...form, fallbackFee: event.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Origin Hub</Label>
+                    <Select
+                      value={form.originHubId}
+                      onValueChange={(value) =>
+                        setForm({ ...form, originHubId: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">
+                          Automatic state Hub
+                        </SelectItem>
+                        {hubs.map((hub) => {
+                          const id = directoryId(hub);
+                          return id ? (
+                            <SelectItem key={id} value={id}>
+                              {hub.name}
+                            </SelectItem>
+                          ) : null;
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              ) : null}
+              {form.mode === "distance_bands" ? (
+                <div className="space-y-2 md:col-span-2 xl:col-span-4">
+                  <Label>Distance bands</Label>
+                  <Input
+                    value={form.bands}
+                    onChange={(event) =>
+                      setForm({ ...form, bands: event.target.value })
+                    }
+                    placeholder="10:2500,25:3000,60:4000"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Format: kilometres:fee in NGN, ordered from nearest to
+                    farthest.
+                  </p>
+                </div>
+              ) : null}
+              <div className="flex items-end">
+                <Button
+                  variant="brand"
+                  className="w-full"
+                  onClick={() => void createRule()}
+                >
+                  <Plus size={16} /> Add rule
+                </Button>
+              </div>
+            </div>
+          ) : null}
+          <div className="divide-y rounded-lg border">
+            {rules.map((rule) => (
+              <div
+                key={rule.publicId}
+                className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-semibold">{rule.name}</p>
+                    <Badge
+                      variant={
+                        rule.status === "active" ? "default" : "secondary"
+                      }
+                    >
+                      {rule.status}
+                    </Badge>
+                    <Badge variant="outline">
+                      {rule.scope} · {rule.mode.replace("_", " ")}
+                    </Badge>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {rule.mode === "per_km"
+                      ? `${money(rule.baseFeeMinor)} base + ${money(rule.feePerKmMinor)}/km · fallback ${money(rule.fallbackFeeMinor)}`
+                      : rule.mode === "flat"
+                        ? money(rule.flatFeeMinor)
+                        : `${rule.bands?.length || 0} distance bands`}{" "}
+                    · v{rule.version}
+                  </p>
+                </div>
+                {canManagePricing ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void toggleRule(rule)}
+                  >
+                    {rule.status === "active" ? "Pause" : "Activate"}
+                  </Button>
+                ) : null}
+              </div>
+            ))}
+            {!rules.length ? (
+              <div className="p-8 text-center text-sm text-muted-foreground">
+                No pricing rules configured. The global fallback remains active.
+              </div>
+            ) : null}
+          </div>
+        </CardContent>
+      </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

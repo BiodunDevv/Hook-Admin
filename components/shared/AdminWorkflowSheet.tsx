@@ -1,8 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { PanelRightOpen } from "lucide-react";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 export function AdminWorkflowSheet({
@@ -24,21 +24,17 @@ export function AdminWorkflowSheet({
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className={cn("w-full gap-0 overflow-hidden border-l bg-background p-0 shadow-2xl sm:max-w-2xl xl:max-w-3xl 2xl:max-w-4xl", className)}>
-        <SheetHeader className="sticky top-0 z-10 border-b bg-background/95 px-7 py-6 shadow-sm backdrop-blur">
-          <div className="flex items-start gap-3 pr-10">
-            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#fff4b8] text-[#806300] ring-1 ring-[#f0d76a]">
-              <PanelRightOpen className="size-5" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#9a7800]">Hook workflow</p>
-              <SheetTitle className="mt-1 text-xl tracking-tight">{title}</SheetTitle>
-              {description ? <SheetDescription className="mt-1.5 max-w-2xl leading-5">{description}</SheetDescription> : null}
-            </div>
+      <SheetContent side="right" className={cn("min-h-0 w-full gap-0 overflow-hidden border-l bg-background p-0 shadow-2xl sm:w-[min(45vw,52rem)] sm:max-w-none", className)}>
+        <SheetHeader className="sticky top-0 z-10 border-b bg-background/95 px-4 py-4 shadow-sm backdrop-blur sm:px-6">
+          <div className="min-w-0 pr-10">
+            <SheetTitle className="text-lg font-semibold tracking-normal">{title}</SheetTitle>
+            {description ? <SheetDescription className="mt-1 line-clamp-2 max-w-2xl text-xs leading-4 sm:text-sm">{description}</SheetDescription> : null}
           </div>
         </SheetHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto px-7 py-7">{children}</div>
-        {footer ? <SheetFooter className="sticky bottom-0 z-10 border-t bg-background/95 px-7 py-5 shadow-[0_-8px_20px_-18px_rgba(0,0,0,0.3)] backdrop-blur sm:flex-row sm:justify-end">{footer}</SheetFooter> : null}
+        <ScrollArea className="h-0 min-h-0 flex-1 overflow-hidden">
+          <div className="min-h-full px-4 py-5 sm:px-6">{children}</div>
+        </ScrollArea>
+        {footer ? <SheetFooter className="sticky bottom-0 z-10 flex-row justify-end border-t bg-background/95 px-4 py-4 shadow-[0_-8px_20px_-18px_rgba(0,0,0,0.3)] backdrop-blur sm:px-6 [&>button]:min-w-0 [&>button]:flex-1 sm:[&>button]:flex-none">{footer}</SheetFooter> : null}
       </SheetContent>
     </Sheet>
   );

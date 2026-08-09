@@ -14,6 +14,7 @@ import { useState } from "react";
 const ACTION_META: Record<StaffAction, { title: string; description: string; confirm: string; destructive?: boolean; icon: typeof Ban }> = {
   suspend: { title: "Suspend staff account?", description: "The account will lose access immediately. Existing sessions will be revoked.", confirm: "Suspend account", destructive: true, icon: Ban },
   reactivate: { title: "Reactivate staff account?", description: "The account will be allowed to sign in again within its assigned scope.", confirm: "Reactivate account", icon: RotateCcw },
+  restore: { title: "Restore archived staff account?", description: "The account will return to active status with its assigned roles and operational scope.", confirm: "Restore account", icon: RotateCcw },
   archive: { title: "Archive staff account?", description: "The account will be disabled and retained for audit history. This cannot be used to remove a Super Admin.", confirm: "Archive account", destructive: true, icon: Archive },
   "revoke-sessions": { title: "Revoke all sessions?", description: "Every active device for this staff member will need to authenticate again.", confirm: "Revoke sessions", icon: KeyRound },
   "cancel-invitation": { title: "Cancel staff invitation?", description: "The invitation will stop working and the account will remain in the audit history.", confirm: "Cancel invitation", destructive: true, icon: Mail },

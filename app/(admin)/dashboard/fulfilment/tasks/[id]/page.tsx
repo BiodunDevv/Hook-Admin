@@ -50,7 +50,7 @@ export default function FulfilmentTaskDetailPage({ params }: { params: Promise<{
   ] as const;
 
   return (
-    <div className="space-y-5 pb-10">
+    <div className="w-full space-y-5 px-4 py-5">
       <PageHeader title={task.publicId || id} description="Scoped fulfilment task detail. Reassignment remains available from the control tower." actions={<Button variant="outline" asChild><Link href="/dashboard/fulfilment"><ArrowLeft /> Control tower</Link></Button>} />
       <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
         <Card className="rounded-lg shadow-none"><CardHeader><CardTitle className="flex items-center gap-2 text-base"><Box className="size-4" /> Operational snapshot</CardTitle></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2"><div><p className="text-xs text-muted-foreground">Status</p><Badge className="mt-1">{label(task.status)}</Badge></div><div><p className="text-xs text-muted-foreground">Order</p><p className="mt-1 text-sm font-medium">{detail.order?.publicId || "-"}</p></div><div><p className="text-xs text-muted-foreground">Market</p><p className="mt-1 text-sm font-medium">{task.marketId || "-"}</p></div><div><p className="text-xs text-muted-foreground">Runner</p><p className="mt-1 text-sm font-medium">{task.runnerId || "Unassigned"}</p></div><div><p className="text-xs text-muted-foreground">Dispatch Hub</p><p className="mt-1 text-sm font-medium">{task.hubId || "Unassigned"}</p></div><div><p className="text-xs text-muted-foreground">Task version</p><p className="mt-1 text-sm font-medium">{task.version || 1}</p></div></CardContent></Card>

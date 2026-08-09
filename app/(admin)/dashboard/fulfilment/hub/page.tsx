@@ -120,7 +120,7 @@ export default function FulfilmentHubPage() {
 
   const data = query.data;
   return (
-    <div className="space-y-5 pb-10">
+    <div className="w-full space-y-5 px-4 py-5">
       <PageHeader title="Dispatch Hub workspace" description="Receive Runner packages, complete visible quality checks, and prepare complete State Orders for dispatch." />
 
       <Card className="rounded-lg shadow-none">

@@ -81,7 +81,7 @@ export default function AINegotiationPage() {
   const selectedNegotiation = rows.find((r) => r.id === (activeSession || rows[0]?.id));
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] flex-col overflow-hidden p-2 sm:p-4">
+    <div className="flex h-[calc(100vh-3.5rem)] w-full flex-col overflow-hidden px-4 py-5">
       <PageHeader
         title="AI Negotiation Engine"
         description="Monitor automated haggling, configure margin floors, and step in when needed."

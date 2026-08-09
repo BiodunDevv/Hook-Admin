@@ -91,7 +91,7 @@ export default function FulfilmentShipmentsPage() {
   const simulationEnabled = readinessQuery.data?.providers?.some((item) => item.name === "simulated" && item.enabled) ?? false;
 
   return (
-    <div className="space-y-5 pb-10">
+    <div className="w-full space-y-5 px-4 py-5">
       <PageHeader title="Shipments" description="Book sealed parcels through the controlled manual logistics path and advance status only through valid transitions. GIG and Fez remain disabled until verified." />
 
       <Card className="rounded-lg shadow-none">

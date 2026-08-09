@@ -65,7 +65,7 @@ export default function NewProductPage() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] overflow-y-auto p-2 pb-6 sm:p-4 sm:pb-8">
+    <div className="min-h-[calc(100vh-4rem)] w-full space-y-5 px-4 py-5">
       <PageHeader
         title="Create Product"
         description="Add inventory to Hook's commercial catalog."

@@ -216,7 +216,7 @@ export function CommerceOperationsPage({
 
   if (view === "settings")
     return (
-      <div className="p-4 md:p-6">
+      <div className="w-full space-y-5 px-4 py-5">
         <PageHeader
           title="Commerce Settings"
           description="Super Admin controls for checkout policy and Pay-at-Handover eligibility."
@@ -277,7 +277,7 @@ export function CommerceOperationsPage({
     );
 
   return (
-    <div className="p-4 md:p-6">
+    <div className="w-full space-y-5 px-4 py-5">
       <PageHeader
         title={
           view === "pod"

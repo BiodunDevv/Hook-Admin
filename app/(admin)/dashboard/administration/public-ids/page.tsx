@@ -13,7 +13,7 @@ type Counter = { id: string; prefix: string; year: number; sequence: number; upd
 export default function PublicIdsPage() {
   const query = useApiQuery<Counter[]>(["platform", "public-id-counters"], "/admin/public-id-counters");
   return (
-    <div className="p-2 md:p-4">
+    <div className="w-full space-y-5 px-4 py-5">
       <PageHeader
         title="Public ID counters"
         description="Inspect annual Hook ID sequences. Repairs require a reason and are audited through the API."

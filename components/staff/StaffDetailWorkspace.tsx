@@ -29,7 +29,6 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { DetailSection } from "@/components/shared/DetailSection";
 import { DefinitionGrid, type DefinitionItem } from "@/components/shared/DefinitionGrid";
@@ -38,10 +37,10 @@ import { HookLoader } from "@/components/shared/HookLoader";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { QueryState } from "@/components/shared/QueryState";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { RelatedMultiSelect, type DirectoryField } from "@/components/platform/PlatformDirectoryPage";
 import { apiPatch, apiPost } from "@/lib/api";
 import { hasPermission, PERMISSION_LABELS, type Permission } from "@/lib/permissions";
 import { useAdminSession, useApiQuery } from "@/lib/query";
+import { StaffAccessFields } from "./StaffAccessFields";
 import type { StaffRole } from "./staff-types";
 
 type Values = Record<string, string | string[]>;
@@ -99,25 +98,24 @@ type AuditEvent = {
 };
 
 type AuditResponse = { data: AuditEvent[] };
+type RoleOption = {
+  _id?: string;
+  id?: string;
+  publicId?: string;
+  key?: string;
+  name?: string;
+  description?: string;
+  permissionKeys?: string[];
+  isActive?: boolean;
+};
+type RoleOptionsResponse = RoleOption[] | { data?: RoleOption[] };
 
-const multiSelectFields: DirectoryField[] = [
-  { key: "roleIds", label: "Roles", type: "multi-select", optionsEndpoint: "/admin/roles" },
-  { key: "stateIds", label: "Operation states", type: "multi-select", optionsEndpoint: "/admin/states" },
-  { key: "hubIds", label: "Dispatch hubs", type: "multi-select", optionsEndpoint: "/admin/hubs", dependsOn: "stateIds", dependsOnKey: "stateId" },
-];
-
-const scopeOptions = [
-  { value: "global", label: "Global", description: "All permitted operations" },
-  { value: "multi_state", label: "Multiple states", description: "Two or more operating states" },
-  { value: "single_state", label: "Single state", description: "One operating state" },
-  { value: "hub", label: "Dispatch Hub", description: "State and Hub restricted" },
-];
-
-type StaffAction = "suspend" | "reactivate" | "archive" | "revoke-sessions" | "cancel-invitation";
+type StaffAction = "suspend" | "reactivate" | "restore" | "archive" | "revoke-sessions" | "cancel-invitation";
 
 const actionCopy: Record<StaffAction, { label: string; title: string; description: string; destructive?: boolean }> = {
   suspend: { label: "Suspend account", title: "Suspend this staff account?", description: "Access will be blocked immediately and active sessions will be revoked.", destructive: true },
   reactivate: { label: "Reactivate account", title: "Reactivate this staff account?", description: "The account will be allowed to sign in again within its assigned scope." },
+  restore: { label: "Restore account", title: "Restore this archived staff account?", description: "The account will return to active status with its assigned roles and operational scope." },
   archive: { label: "Archive account", title: "Archive this staff account?", description: "The account will be disabled and retained for audit history.", destructive: true },
   "revoke-sessions": { label: "Revoke sessions", title: "Revoke all active sessions?", description: "Every active device will need to authenticate again." },
   "cancel-invitation": { label: "Cancel invitation", title: "Cancel this staff invitation?", description: "The activation link will stop working and the invited account will be disabled.", destructive: true },
@@ -185,8 +183,10 @@ export function StaffDetailWorkspace() {
   const [action, setAction] = useState<StaffAction | null>(null);
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
+  const [permissionsExpanded, setPermissionsExpanded] = useState(false);
   const [values, setValues] = useState<Values>({});
   const query = useApiQuery<StaffDetail>(["admin", "staff", params.id], `/admin/staff/${params.id}`, Boolean(params.id));
+  const roleOptionsQuery = useApiQuery<RoleOptionsResponse>(["admin", "roles", "staff-edit"], "/admin/roles?limit=100", editOpen);
   const staff = query.data;
   const status = String(staff?.status || "unknown").toLowerCase();
   const name = fullName(staff);
@@ -220,8 +220,33 @@ export function StaffDetailWorkspace() {
     });
     return [...groups.entries()];
   }, [permissions]);
-  const lifecycleAction: StaffAction | null = canSuspend && status === "active" ? "suspend" : canSuspend && status === "suspended" ? "reactivate" : null;
+  const lifecycleAction: StaffAction | null = canSuspend && status === "active" ? "suspend" : canSuspend && status === "suspended" ? "reactivate" : canSuspend && status === "disabled" ? "restore" : null;
   const auditEvents = auditQuery.data?.data || [];
+  const roleOptions = useMemo<StaffRole[]>(
+    () => {
+      const options = Array.isArray(roleOptionsQuery.data) ? roleOptionsQuery.data : roleOptionsQuery.data?.data || [];
+      return options
+        .filter((role) => role.isActive !== false)
+        .flatMap((role) => {
+          const id = role.id || role._id || role.publicId;
+          if (!id) return [];
+          const key = role.key || String(id);
+          return [{
+            id: String(id),
+            key,
+            name: role.name || humanize(key),
+            description: role.description,
+            permissionKeys: role.permissionKeys,
+            isActive: role.isActive,
+          }];
+        });
+    },
+    [roleOptionsQuery.data],
+  );
+  const selectedRoleIds = useMemo(
+    () => Array.isArray(values.roleIds) ? values.roleIds : [],
+    [values.roleIds],
+  );
 
   function beginEdit() {
     setValues({
@@ -234,11 +259,22 @@ export function StaffDetailWorkspace() {
       hubIds: staff?.hubIds?.map(String) || [],
       reason: "",
     });
+    setPermissionsExpanded(false);
     setEditOpen(true);
   }
 
   function setValue(key: string, value: string | string[]) {
     setValues((current) => ({ ...current, [key]: value }));
+  }
+
+  function changeScope(scopeType: string) {
+    setValues((current) => ({
+      ...current,
+      scopeType,
+      ...(scopeType === "global" || scopeType === "single_state"
+        ? { stateIds: [], hubIds: [] }
+        : {}),
+    }));
   }
 
   function validateScope() {
@@ -262,7 +298,14 @@ export function StaffDetailWorkspace() {
     if (auditReason.length < 3) return toast.error("Add a reason for this access change");
     setSaving(true);
     try {
-      await apiPatch(`/admin/staff/${params.id}`, { ...values, reason: auditReason });
+      const scopeType = String(values.scopeType || "global");
+      const editableValues: Values = {
+        ...values,
+        stateIds: scopeType === "global" ? [] : Array.isArray(values.stateIds) ? values.stateIds : [],
+        hubIds: scopeType === "hub" && Array.isArray(values.hubIds) ? values.hubIds : [],
+      };
+      delete editableValues.email;
+      await apiPatch(`/admin/staff/${params.id}`, { ...editableValues, reason: auditReason });
       toast.success("Staff account updated");
       setEditOpen(false);
       await query.refetch();
@@ -316,7 +359,7 @@ export function StaffDetailWorkspace() {
   ]);
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] space-y-5 pb-10">
+    <div className="w-full space-y-5 px-4 py-5">
       <PageHeader
         title="Staff profile"
         description="Review identity, access boundaries, security activity, and audited account actions."
@@ -413,7 +456,7 @@ export function StaffDetailWorkspace() {
         open={editOpen}
         onOpenChange={(open) => { if (!open && !saving) setEditOpen(false); }}
         title="Edit staff access"
-        description="Update identity, roles, and scope. Backend policies validate every relationship before saving."
+        description="Update this staff member’s identity, roles, and operational scope. Access is evaluated live from assigned roles."
         footer={(
           <>
             <Button type="button" variant="outline" onClick={() => setEditOpen(false)} disabled={saving}>Cancel</Button>
@@ -423,10 +466,23 @@ export function StaffDetailWorkspace() {
       >
           <form id="staff-access-form" onSubmit={saveEdit} className="space-y-5">
             <div className="grid gap-3 sm:grid-cols-2">
-              {(["firstName", "lastName", "phone"] as const).map((key) => <div key={key} className="space-y-1.5"><Label htmlFor={`staff-${key}`}>{key === "firstName" ? "First name" : key === "lastName" ? "Last name" : "Phone number"}</Label><Input id={`staff-${key}`} value={String(values[key] || "")} onChange={(event) => setValue(key, event.target.value)} required={key !== "phone"} /></div>)}
+              {(["firstName", "lastName"] as const).map((key) => <div key={key} className="space-y-1.5"><Label htmlFor={`staff-${key}`}>{key === "firstName" ? "First name" : "Last name"}</Label><Input id={`staff-${key}`} value={String(values[key] || "")} onChange={(event) => setValue(key, event.target.value)} required /></div>)}
             </div>
-            <div className="space-y-2"><Label>Operational scope</Label><Select value={String(values.scopeType || "global")} onValueChange={(scopeType) => { setValue("scopeType", scopeType); if (scopeType === "global") { setValue("stateIds", []); setValue("hubIds", []); } }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{scopeOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label} · {option.description}</SelectItem>)}</SelectContent></Select></div>
-            {multiSelectFields.map((field) => <div key={field.key} className="space-y-1.5"><Label>{field.label}</Label><RelatedMultiSelect field={field} value={Array.isArray(values[field.key]) ? values[field.key] as string[] : []} values={values} onChange={(value) => setValue(field.key, value)} /></div>)}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5"><Label htmlFor="staff-email">Work email</Label><Input id="staff-email" value={String(values.email || account?.email || staff?.email || "")} type="email" readOnly className="bg-muted/40" /></div>
+              <div className="space-y-1.5"><Label htmlFor="staff-phone">Phone number</Label><Input id="staff-phone" value={String(values.phone || "")} onChange={(event) => setValue("phone", event.target.value)} type="tel" required /></div>
+            </div>
+            <StaffAccessFields
+              roles={roleOptions}
+              rolesLoading={roleOptionsQuery.isLoading}
+              selectedRoleIds={selectedRoleIds}
+              values={values}
+              permissionPreviewOpen={permissionsExpanded}
+              onPermissionPreviewOpenChange={setPermissionsExpanded}
+              onRolesChange={(roleIds) => setValue("roleIds", roleIds)}
+              onScopeChange={changeScope}
+              onValueChange={setValue}
+            />
             <div className="space-y-1.5"><Label htmlFor="staff-edit-reason">Audit reason</Label><Textarea id="staff-edit-reason" value={String(values.reason || "")} onChange={(event) => setValue("reason", event.target.value)} placeholder="Why is this access or profile change needed?" maxLength={500} required /></div>
           </form>
       </AdminWorkflowSheet>

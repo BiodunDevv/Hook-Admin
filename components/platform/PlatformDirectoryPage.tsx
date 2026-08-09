@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Archive, ChevronsUpDown, Link2, Mail, MoreHorizontal, Pencil, Plus, Power } from "lucide-react";
+import { Archive, Check, ChevronsUpDown, Link2, Mail, MoreHorizontal, Pencil, Plus, Power } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -61,7 +61,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-type Option = { value: string; label: string };
+type Option = { value: string; label: string; group?: string };
 type Field = {
   key: string;
   label: string;
@@ -88,7 +88,7 @@ type Row = Record<string, unknown> & {
   status?: string;
   name?: string;
 };
-type PageData = { data: Row[]; total: number };
+type PageData = { data?: Row[]; total?: number } | Row[];
 type FormValue = string | string[];
 type FormValues = Record<string, FormValue>;
 
@@ -98,30 +98,78 @@ function selectedDependency(values: FormValues, key?: string) {
   return Array.isArray(value) ? value : value ? [value] : [];
 }
 
+function responseRows(data: PageData | undefined): Row[] {
+  return Array.isArray(data) ? data : data?.data || [];
+}
+
+function normalizeOptions(options: Option[]): Option[] {
+  const seen = new Set<string>();
+
+  return options.flatMap((option) => {
+    const rawValue: unknown = option?.value;
+    const value = rawValue === null || rawValue === undefined ? "" : String(rawValue).trim();
+
+    if (!value || value === "undefined" || value === "null" || seen.has(value)) {
+      return [];
+    }
+
+    seen.add(value);
+    const label = option.label === undefined || option.label === null
+      ? value
+      : String(option.label).trim() || value;
+
+    return [{ ...option, value, label }];
+  });
+}
+
+function displayValue(value: unknown) {
+  if (Array.isArray(value)) {
+    return value.length ? `${value.length} permissions` : "No permissions";
+  }
+  if (value === null || value === undefined || value === "") return "—";
+  return String(value);
+}
+
 function useRelatedOptions(field: Field, values: FormValues) {
   const dependencies = selectedDependency(values, field.dependsOn);
-  const query = useApiQuery<PageData | Row[]>(
+  const query = useApiQuery<PageData>(
     ["platform-options", field.optionsEndpoint, ...dependencies],
     `${field.optionsEndpoint}?limit=100`,
     Boolean(field.optionsEndpoint) &&
       (!field.dependsOn || dependencies.length > 0),
   );
-  const rows = Array.isArray(query.data) ? query.data : query.data?.data || [];
+  const rows = responseRows(query.data);
   const filtered = dependencies.length
     ? rows.filter((row) =>
         dependencies.includes(
-          String(row[field.dependsOnKey || `${field.dependsOn}Id`] || ""),
+          String(row[field.dependsOnKey || `${field.dependsOn}Id`] ?? ""),
         ),
       )
     : rows;
-  const options =
-    field.options ||
-    filtered.map((row) => ({
-      value: String(row[field.optionValueKey || "id"] || row.id),
-      label: String(
-        row[field.optionLabelKey || "name"] || row.publicId || row.id || "Unnamed record",
-      ),
-    }));
+  const relatedOptions = filtered.flatMap((row) => {
+    const rawValue =
+      row[field.optionValueKey || "id"] ?? row.id ?? row.publicId ?? row.key;
+
+    if (rawValue === null || rawValue === undefined || String(rawValue).trim() === "") {
+      return [];
+    }
+
+    const value = String(rawValue).trim();
+    const rawLabel =
+      row[field.optionLabelKey || "name"] ??
+      row.name ??
+      row.publicId ??
+      row.key ??
+      row.id ??
+      value;
+
+    return [{
+      value,
+      label: String(rawLabel).trim() || value,
+      group: typeof row.domain === "string" ? row.domain : undefined,
+    }];
+  });
+  const options = normalizeOptions(field.options || relatedOptions);
   return { options, query, dependencies };
 }
 
@@ -188,6 +236,14 @@ export function RelatedMultiSelect({
   const selectedLabels = options
     .filter((option) => value.includes(option.value))
     .map((option) => option.label);
+  const groupedOptions = Object.entries(
+    options.reduce<Record<string, Option[]>>((groups, option) => {
+      const group = option.group || "Available options";
+      (groups[group] ||= []).push(option);
+      return groups;
+    }, {}),
+  );
+  const isPermissionPicker = field.key === "permissionKeys";
 
   return (
     <>
@@ -212,7 +268,9 @@ export function RelatedMultiSelect({
                 ? "Loading options..."
                 : field.dependsOn && !dependencies.length
                   ? `Select ${field.dependsOn.replace(/Ids?$/, "")} first`
-                  : selectedLabels.length
+                  : isPermissionPicker && value.length
+                    ? `${value.length} permission${value.length === 1 ? "" : "s"} selected`
+                    : selectedLabels.length
                     ? selectedLabels.join(", ")
                     : `Select ${field.label.toLowerCase()}`}
             </span>
@@ -221,35 +279,62 @@ export function RelatedMultiSelect({
         </PopoverTrigger>
         <PopoverContent
           align="start"
-          className="w-[var(--radix-popover-trigger-width)] gap-0 p-0"
+          className="max-h-[calc(100dvh-2rem)] w-[var(--radix-popover-trigger-width)] gap-0 overflow-hidden p-0"
         >
-          <Command>
+          <Command className="h-[min(24rem,calc(100dvh-8rem))] max-h-none">
             <CommandInput
               placeholder={`Search ${field.label.toLowerCase()}...`}
             />
-            <CommandList>
+            <CommandList
+              className="h-[min(18rem,calc(100dvh-11rem))] max-h-none flex-none overflow-y-scroll overscroll-contain touch-pan-y"
+              onWheel={(event) => event.stopPropagation()}
+            >
               <CommandEmpty>No matching options.</CommandEmpty>
-              <CommandGroup>
-                {options.map((option) => {
-                  const selected = value.includes(option.value);
-                  return (
-                    <CommandItem
-                      key={option.value}
-                      value={`${option.label} ${option.value}`}
-                      data-checked={selected}
-                      onSelect={() =>
-                        onChange(
-                          selected
-                            ? value.filter((item) => item !== option.value)
-                            : [...value, option.value],
-                        )
-                      }
-                    >
-                      <span className="truncate">{option.label}</span>
-                    </CommandItem>
-                  );
-                })}
-              </CommandGroup>
+              {isPermissionPicker
+                ? groupedOptions.map(([group, groupOptions]) => (
+                    <CommandGroup key={group} heading={group.replaceAll("_", " ")}>
+                      {groupOptions.map((option) => {
+                        const selected = value.includes(option.value);
+                        return (
+                          <CommandItem
+                            key={option.value}
+                            value={`${option.label} ${option.value}`}
+                            onSelect={() =>
+                              onChange(
+                                selected
+                                  ? value.filter((item) => item !== option.value)
+                                  : [...value, option.value],
+                              )
+                            }
+                          >
+                            <span className="truncate">{option.label}</span>
+                            <Check className={cn("ml-auto size-4", selected ? "opacity-100" : "opacity-0")} />
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  ))
+                : <CommandGroup>
+                    {options.map((option) => {
+                      const selected = value.includes(option.value);
+                      return (
+                        <CommandItem
+                          key={option.value}
+                          value={`${option.label} ${option.value}`}
+                          onSelect={() =>
+                            onChange(
+                              selected
+                                ? value.filter((item) => item !== option.value)
+                                : [...value, option.value],
+                            )
+                          }
+                        >
+                          <span className="truncate">{option.label}</span>
+                          <Check className={cn("ml-auto size-4", selected ? "opacity-100" : "opacity-0")} />
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>}
             </CommandList>
           </Command>
         </PopoverContent>
@@ -313,7 +398,8 @@ export function PlatformDirectoryPage({
     ["platform", endpoint, pageSize],
     `${endpoint}?limit=${pageSize}`,
   );
-  const rows = query.data?.data || [];
+  const rows = responseRows(query.data);
+  const total = Array.isArray(query.data) ? rows.length : query.data?.total ?? rows.length;
 
   function formValue(field: Field, row: Row) {
     const value = row[field.key];
@@ -484,7 +570,7 @@ export function PlatformDirectoryPage({
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] space-y-4 p-4 md:p-5">
+    <div className="w-full space-y-5 px-4 py-5">
       <PageHeader
         className="mb-0"
         title={title}
@@ -512,7 +598,7 @@ export function PlatformDirectoryPage({
               Operational directory
             </p>
             <p className="text-xs text-muted-foreground">
-              {query.data?.total ?? 0} records in the current scope
+              {total} records in the current scope
             </p>
           </div>
           {query.isFetching && !query.isLoading ? (
@@ -567,7 +653,7 @@ export function PlatformDirectoryPage({
                           key={column.key}
                           className="max-w-72 truncate px-4 text-sm text-muted-foreground"
                         >
-                          {String(row[column.key] ?? "—")}
+                          {displayValue(row[column.key])}
                         </TableCell>
                       ))}
                       <TableCell className="px-4">
