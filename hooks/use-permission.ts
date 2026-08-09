@@ -5,8 +5,7 @@ import { hasPermission, isSuperAdmin, isAdmin, type Permission } from "@/lib/per
 
 /**
  * Returns whether the current user has a given permission.
- * Super admins and admins always return true.
- * Support staff only return true if the permission is in their assigned list.
+ * Permissions come from the backend's live Role evaluation.
  */
 export function usePermission(permission: Permission): boolean {
   const { data: session } = useAdminSession();

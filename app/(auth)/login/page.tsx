@@ -1,32 +1,17 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { LoginForm } from "@/components/auth/LoginForm";
-import { HookLoader } from "@/components/shared/HookLoader";
-
-function LoginContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
-  function handleSuccess() {
-    const next = searchParams.get("next");
-    router.replace(next && next.startsWith("/") ? next : "/dashboard");
-  }
-
-  return <LoginForm onSuccess={handleSuccess} />;
+interface LegacyLoginPageProps {
+  searchParams: Promise<{ next?: string | string[] }>;
 }
 
-export default function LoginPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-[420px] items-center justify-center">
-          <HookLoader size="page" label="Loading login..." />
-        </div>
-      }
-    >
-      <LoginContent />
-    </Suspense>
+export default async function LegacyLoginPage({
+  searchParams,
+}: LegacyLoginPageProps) {
+  const params = await searchParams;
+  const next = Array.isArray(params.next) ? params.next[0] : params.next;
+  redirect(
+    next
+      ? `/auth/login?next=${encodeURIComponent(next)}`
+      : "/auth/login",
   );
 }

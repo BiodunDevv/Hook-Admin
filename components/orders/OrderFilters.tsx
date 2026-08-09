@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, ListFilter, ReceiptText, Store, X } from "lucide-react";
+import { ChevronDown, ListFilter, ReceiptText, X } from "lucide-react";
 
 const STATUS_OPTIONS = [
   { label: "All orders", value: "all" },
@@ -36,12 +36,9 @@ interface OrderFiltersProps {
   search: string;
   status: string;
   paymentStatus: string;
-  boothId?: string;
-  booths?: Array<{ id: string; name: string }>;
   onSearchChange: (value: string) => void;
   onStatusChange: (value: string) => void;
   onPaymentStatusChange: (value: string) => void;
-  onBoothChange?: (value: string) => void;
   onClear: () => void;
 }
 
@@ -49,15 +46,12 @@ export function OrderFilters({
   search,
   status,
   paymentStatus,
-  boothId = "all",
-  booths = [],
   onSearchChange,
   onStatusChange,
   onPaymentStatusChange,
-  onBoothChange,
   onClear,
 }: OrderFiltersProps) {
-  const activeFilterCount = [search, status !== "all" ? status : "", paymentStatus !== "all" ? paymentStatus : "", boothId !== "all" ? boothId : ""].filter(Boolean).length;
+  const activeFilterCount = [search, status !== "all" ? status : "", paymentStatus !== "all" ? paymentStatus : ""].filter(Boolean).length;
   const statusLabel = STATUS_OPTIONS.find((option) => option.value === status)?.label || "All orders";
   const paymentLabel = PAYMENT_OPTIONS.find((option) => option.value === paymentStatus)?.label || "All payments";
 
@@ -94,8 +88,6 @@ export function OrderFilters({
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
-
-          {booths.length > 0 && onBoothChange ? <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" variant="outline" size="sm" className="justify-between gap-2 text-zinc-700"><Store size={14} /><span className="max-w-32 truncate">{booths.find((booth) => booth.id === boothId)?.name || "All booths"}</span><ChevronDown size={13} className="text-zinc-400" /></Button></DropdownMenuTrigger><DropdownMenuContent align="start" className="w-56"><DropdownMenuLabel>Sales channel</DropdownMenuLabel><DropdownMenuSeparator /><DropdownMenuRadioGroup value={boothId} onValueChange={onBoothChange}><DropdownMenuRadioItem value="all">All booths</DropdownMenuRadioItem>{booths.map((booth) => <DropdownMenuRadioItem key={booth.id} value={booth.id}>{booth.name}</DropdownMenuRadioItem>)}</DropdownMenuRadioGroup></DropdownMenuContent></DropdownMenu> : null}
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

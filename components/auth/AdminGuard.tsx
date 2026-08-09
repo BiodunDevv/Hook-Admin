@@ -2,19 +2,23 @@
 
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { useAdminSession } from "@/lib/query";
+import { dashboardPath, isStaffUser } from "@/lib/auth-routing";
+import { useAccountSession } from "@/lib/query";
 import { HookLoader } from "@/components/shared/HookLoader";
 
 export function AdminGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const session = useAdminSession();
+  const session = useAccountSession();
+  const valid = isStaffUser(session.data);
 
   useEffect(() => {
-    if (session.isError || (session.isSuccess && !session.data)) {
-      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+    if (session.isSuccess && session.data && !valid) {
+      router.replace(dashboardPath(session.data));
+    } else if (session.isError || (session.isSuccess && !session.data)) {
+      router.replace(`/auth/login?next=${encodeURIComponent(pathname)}`);
     }
-  }, [pathname, router, session.data, session.isError, session.isSuccess]);
+  }, [pathname, router, session.data, session.isError, session.isSuccess, valid]);
 
   if (session.isLoading || session.isPending) {
     return (
@@ -24,7 +28,7 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!session.data) return null;
+  if (!valid) return null;
 
   return children;
 }

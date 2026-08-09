@@ -11,8 +11,7 @@ interface PermissionGuardProps {
 
 /**
  * Renders children only if the current user has the required permission.
- * Super admins and admins always pass through.
- * Support staff only see children if their permissions list includes the key.
+ * Visibility follows the backend's live Role evaluation.
  * Falls back to nothing (or a custom fallback) when access is denied.
  */
 export function PermissionGuard({ permission, children, fallback = null }: PermissionGuardProps) {

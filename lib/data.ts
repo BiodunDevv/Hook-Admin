@@ -6,5 +6,5 @@ export interface StatCardData {
   delta: string;
   trend: Trend;
   caption: string;
-  sparkline: number[];
+  sparkline?: number[];
 }
