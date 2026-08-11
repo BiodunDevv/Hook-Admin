@@ -15,7 +15,7 @@ import {
 
 const STATUS_OPTIONS = [
   { label: "All products", value: "all" },
-  { label: "Approved", value: "approved" },
+  { label: "Active", value: "approved" },
   { label: "Pending review", value: "pending_approval" },
   { label: "Rejected", value: "rejected" },
   { label: "Sold out", value: "sold_out" },

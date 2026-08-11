@@ -24,6 +24,7 @@ interface MediaPickerProps {
   label?: string;
   description?: string;
   uploadFieldName?: string;
+  uploadPath?: string;
   className?: string;
 }
 
@@ -43,6 +44,7 @@ export function MediaPicker({
   label = "Images",
   description = "Upload files to Cloudinary or paste direct image links.",
   uploadFieldName = "images",
+  uploadPath = "/upload/images",
   className,
 }: MediaPickerProps) {
   const [linkValue, setLinkValue] = useState("");
@@ -65,7 +67,7 @@ export function MediaPicker({
 
     try {
       setIsUploading(true);
-      const uploaded = await apiRequest<MediaValue[]>("/upload/images", {
+      const uploaded = await apiRequest<MediaValue[]>(uploadPath, {
         method: "POST",
         body: formData,
       });
@@ -83,7 +85,7 @@ export function MediaPicker({
     const links = splitLinks(linkValue);
     if (!links.length) return;
     try {
-      const normalized = await apiRequest<MediaValue[]>("/upload/images", {
+      const normalized = await apiRequest<MediaValue[]>(uploadPath, {
         method: "POST",
         body: JSON.stringify({ imageUrls: links }),
       });

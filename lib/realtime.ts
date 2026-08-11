@@ -26,6 +26,10 @@ function invalidateForEvent(queryClient: QueryClient, event: string) {
     queryClient.invalidateQueries({ queryKey: ["home-content"] });
     queryClient.invalidateQueries({ queryKey: ["admin", "markets"] });
     queryClient.invalidateQueries({ queryKey: ["admin", "market"] });
+    queryClient.invalidateQueries({ queryKey: ["admin", "commercial"] });
+    queryClient.invalidateQueries({ queryKey: ["admin", "catalog-review"] });
+    queryClient.invalidateQueries({ queryKey: ["runner", "availability-checks"] });
+    queryClient.invalidateQueries({ queryKey: ["runner", "markets"] });
     queryClient.invalidateQueries({ queryKey: ["markets"] });
   }
   if (event === "notification.created" || event === "notification.updated") {
