@@ -20,7 +20,6 @@ import { PermissionGuard } from "@/components/auth/PermissionGuard";
 import { useAdminSession, useApiQuery } from "@/lib/query";
 import { apiPost } from "@/lib/api";
 import { hasPermission } from "@/lib/permissions";
-import { MarketFormDialog } from "./MarketFormDialog";
 import { MarketImage } from "./MarketImage";
 import { MarketVendorEditSheet } from "./MarketVendorEditSheet";
 import { VendorCollectionReconcileSheet, type ReconcileCollection } from "./VendorCollectionReconcileSheet";
@@ -42,7 +41,6 @@ export function MarketDetailWorkspace() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const { data: session } = useAdminSession();
-  const [editing, setEditing] = useState(false);
   const [lifecycleOpen, setLifecycleOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [acting, setActing] = useState(false);
@@ -75,12 +73,12 @@ export function MarketDetailWorkspace() {
 
   return (
     <div className="w-full space-y-5 px-4 py-5">
-      <PageHeader title={market?.name || "Market details"} description={market?.publicId ? `Market workspace · ${market.publicId}` : "Market workspace"} actions={<div className="flex flex-wrap items-center gap-2"><Button variant="outline" size="sm" onClick={() => router.back()}><ArrowLeft /> Back</Button>{market?.status ? <StatusBadge status={market.status} /> : null}{market && canManage ? <PermissionGuard permission="markets.manage"><Button variant="outline" size="sm" onClick={() => setEditing(true)}><Edit3 /> Edit</Button></PermissionGuard> : null}{market && canManage ? <PermissionGuard permission="markets.manage"><Button variant={market.status === "active" ? "destructive" : "brand"} size="sm" onClick={() => setLifecycleOpen(true)}><Power /> {market.status === "active" ? "Deactivate" : "Activate"}</Button></PermissionGuard> : null}</div>} />
+      <PageHeader title={market?.name || "Market details"} description={market?.publicId ? `Market workspace · ${market.publicId}` : "Market workspace"} actions={<div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap"><Button variant="outline" size="sm" onClick={() => router.back()}><ArrowLeft /> Back</Button>{market?.status ? <div className="flex items-center justify-end sm:justify-start"><StatusBadge status={market.status} /></div> : null}{market && canManage ? <PermissionGuard permission="markets.manage"><Button asChild variant="outline" size="sm"><Link href={`/dashboard/markets/${market.publicId || market.id}/edit`}><Edit3 /> Edit</Link></Button></PermissionGuard> : null}{market && canManage ? <PermissionGuard permission="markets.manage"><Button variant={market.status === "active" ? "destructive" : "brand"} size="sm" onClick={() => setLifecycleOpen(true)}><Power /> {market.status === "active" ? "Deactivate" : "Activate"}</Button></PermissionGuard> : null}</div>} />
       <QueryState loading={query.isLoading} error={query.error} loadingLabel="Loading market workspace" errorTitle="Market details unavailable" onRetry={() => query.refetch()}>
         {market ? <>
           <Card className="overflow-hidden rounded-xl shadow-none">
-            <div className="grid lg:grid-cols-[minmax(0,1.25fr)_minmax(340px,0.75fr)]">
-              <div className="relative min-h-64 bg-muted lg:min-h-80">
+            <div className="grid xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
+              <div className="relative aspect-[16/10] min-h-56 bg-muted sm:aspect-[16/8] xl:aspect-auto xl:min-h-[520px]">
                 <MarketImage src={market.imageUrl} alt={`${market.name} market`} className="size-full" />
               </div>
               <div className="flex flex-col justify-between gap-6 p-5 md:p-7">
@@ -97,12 +95,12 @@ export function MarketDetailWorkspace() {
                     </div>
                     <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-[#fff4b8] text-[#806300]"><MapPin className="size-4" /></span>
                   </div>
-                  <dl className="grid grid-cols-2 gap-x-5 gap-y-4 text-sm">
+                  <dl className="grid gap-x-5 gap-y-4 text-sm sm:grid-cols-2">
                     <div><dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Operation State</dt><dd className="mt-1 font-medium">{market.stateName || market.state?.name || "Not assigned"}</dd></div>
                     <div><dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Operation City</dt><dd className="mt-1 font-medium">{market.cityName || market.city?.name || "Not assigned"}</dd></div>
                     <div><dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Service Zone</dt><dd className="mt-1 font-medium">{market.zoneName || market.zone?.name || "Not assigned"}</dd></div>
                     <div><dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Dispatch Hub</dt><dd className="mt-1 truncate font-medium">{market.hubName || market.hub?.name || "Not assigned"}</dd></div>
-                    <div className="col-span-2"><dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Address</dt><dd className="mt-1 font-medium">{market.address || "Not recorded"}</dd></div>
+                    <div className="sm:col-span-2"><dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Address</dt><dd className="mt-1 font-medium">{market.address || "Not recorded"}</dd></div>
                     <div><dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Coordinates</dt><dd className="mt-1 font-medium">{market.coordinates?.lat !== undefined && market.coordinates?.lng !== undefined ? `${market.coordinates.lat}, ${market.coordinates.lng}` : "Not recorded"}</dd></div>
                     <div><dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Market ID</dt><dd className="mt-1 font-mono text-xs font-medium">{market.publicId || market.id}</dd></div>
                   </dl>
@@ -114,7 +112,7 @@ export function MarketDetailWorkspace() {
               </div>
             </div>
           </Card>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+          <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 lg:grid-cols-5">
             {[
               [Users, "Vendors", market.summary?.vendors ?? market.vendors?.length ?? 0, "bg-[#fff8dc] text-[#8a6900]"],
               [Users, "Assigned Runners", market.summary?.assignedRunners ?? market.runners?.length ?? 0, "bg-blue-50 text-blue-700"],
@@ -127,7 +125,7 @@ export function MarketDetailWorkspace() {
             })}
           </div>
           <div className="overflow-hidden rounded-xl border bg-background shadow-none">
-            <div className="flex gap-1 overflow-x-auto border-b p-2">
+            <div className="flex gap-1 overflow-x-auto border-b p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {[['vendors', 'Vendors'], ['products', 'Products'], ['runners', 'Runners'], ['collections', 'Collections']].map(([value, label]) => <button key={value} type="button" onClick={() => setActiveTab(value)} className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition ${activeTab === value ? "bg-[#fff4b8] text-[#6d5600]" : "text-muted-foreground hover:bg-muted"}`}>{label}</button>)}
             </div>
             {activeTab === "vendors" ? <VendorList vendors={market.vendors || []} canManage={canManageVendors} onEdit={setEditingVendor} /> : null}
@@ -143,7 +141,6 @@ export function MarketDetailWorkspace() {
           </Card>
         </> : null}
       </QueryState>
-      {market ? <MarketFormDialog key={`${market.publicId || market.id}-${editing ? "open" : "closed"}`} open={editing} market={market} onClose={() => setEditing(false)} onSuccess={() => void query.refetch()} /> : null}
       <MarketVendorEditSheet key={editingVendor?.publicId || "vendor-edit-closed"} vendor={editingVendor} open={Boolean(editingVendor)} onClose={() => setEditingVendor(null)} onSuccess={() => void query.refetch()} />
       <VendorCollectionReconcileSheet key={reconcilingCollection?.publicId || "collection-reconcile-closed"} collection={reconcilingCollection} open={Boolean(reconcilingCollection)} onClose={() => setReconcilingCollection(null)} onSuccess={() => void query.refetch()} />
       <ImagePreviewDialog open={Boolean(previewImage)} onOpenChange={(open) => { if (!open) setPreviewImage(null); }} src={previewImage?.src} alt={previewImage?.alt || "Product image"} />
@@ -248,21 +245,41 @@ function RunnerList({ runners, assignments }: { runners: Array<Record<string, un
 
 function CollectionList({ collections, vendors, canReconcile, onReconcile }: { collections: Array<Record<string, unknown>>; vendors: MarketVendorRecord[]; canReconcile: boolean; onReconcile: (collection: ReconcileCollection) => void }) {
   const vendorMap = new Map(vendors.map((vendor) => [vendor.id, vendor.businessName]));
+  const details = (collection: Record<string, unknown>) => {
+    const id = String(collection.publicId || collection.id || "collection");
+    const paymentStatus = String(collection.paymentStatus || "unpaid");
+    const payment = collection.payment as { amountMinor?: number; method?: string; reference?: string } | null | undefined;
+    return {
+      id,
+      title: String(collection.productTitleSnapshot || "Collected product"),
+      supplier: String(collection.marketVendorName || vendorMap.get(String(collection.marketVendorId || "")) || "Not linked"),
+      quantity: String(collection.quantity || 0),
+      cost: `₦${(Number(collection.actualCostMinor || 0) / 100).toLocaleString("en-NG")}`,
+      payment,
+      paymentStatus,
+      paymentMethod: String(payment?.method || "").replaceAll("_", " "),
+      collectedAt: collection.createdAt ? new Date(String(collection.createdAt)).toLocaleDateString("en-NG", { day: "2-digit", month: "short", year: "numeric" }) : "Not recorded",
+    };
+  };
   return (
-    <div className="overflow-x-auto">
-      <Table className="min-w-[1100px]">
-        <TableHeader><TableRow><TableHead className="w-12">#</TableHead><TableHead>Product</TableHead><TableHead>Supplier</TableHead><TableHead>Quantity</TableHead><TableHead>Cost</TableHead><TableHead>Payment record</TableHead><TableHead>Payment check</TableHead><TableHead>Collected</TableHead><TableHead className="w-36 text-right">Action</TableHead></TableRow></TableHeader>
-        <TableBody>
-          {!collections.length ? <EmptyTable colSpan={9} message="No collection records yet." /> : collections.map((collection, index) => {
-            const id = String(collection.publicId || collection.id || "collection");
-            const vendorId = String(collection.marketVendorId || "");
-            const paymentStatus = String(collection.paymentStatus || "unpaid");
-            const payment = collection.payment as { amountMinor?: number; method?: string; reference?: string } | null | undefined;
-            const paymentMethod = String(payment?.method || "").replaceAll("_", " ");
-            return <TableRow key={id}><TableCell className="tabular-nums text-muted-foreground">{index + 1}</TableCell><TableCell className="min-w-48 font-medium">{String(collection.productTitleSnapshot || "Collected product")}</TableCell><TableCell className="text-sm text-muted-foreground">{String(collection.marketVendorName || vendorMap.get(vendorId) || "Not linked")}</TableCell><TableCell className="tabular-nums">{String(collection.quantity || 0)}</TableCell><TableCell className="whitespace-nowrap font-semibold">₦{(Number(collection.actualCostMinor || 0) / 100).toLocaleString("en-NG")}</TableCell><TableCell className="min-w-36 text-sm">{payment ? <div><p className="font-medium">₦{(Number(payment.amountMinor || 0) / 100).toLocaleString("en-NG")}</p><p className="mt-1 capitalize text-xs text-muted-foreground">{paymentMethod || "Payment"}{payment.reference ? ` · ${payment.reference}` : ""}</p></div> : <span className="text-muted-foreground">Not recorded</span>}</TableCell><TableCell><div className="space-y-1"><StatusBadge status={paymentStatus} /><p className="text-xs text-muted-foreground">{paymentLabel(paymentStatus)}</p></div></TableCell><TableCell className="whitespace-nowrap text-sm text-muted-foreground">{dateLabel(String(collection.createdAt || ""))}</TableCell><TableCell className="text-right">{canReconcile && paymentStatus !== "unpaid" ? <Button size="sm" variant="outline" onClick={() => onReconcile({ publicId: id, productTitleSnapshot: String(collection.productTitleSnapshot || "Collected product"), paymentStatus })}>Review payment</Button> : <span className="text-sm text-muted-foreground">—</span>}</TableCell></TableRow>;
-          })}
-        </TableBody>
-      </Table>
-    </div>
+    <>
+      <div className="divide-y md:hidden">
+        {!collections.length ? <p className="px-4 py-10 text-center text-sm text-muted-foreground">No collection records yet.</p> : collections.map((collection, index) => {
+          const item = details(collection);
+          return <div key={item.id} className="space-y-4 p-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-xs text-muted-foreground">Collection {index + 1}</p><p className="mt-1 truncate font-semibold">{item.title}</p><p className="mt-1 truncate text-xs text-muted-foreground">{item.supplier}</p></div><StatusBadge status={item.paymentStatus} /></div><div className="grid grid-cols-3 gap-3 rounded-lg bg-muted/50 p-3 text-sm"><div><p className="text-xs text-muted-foreground">Quantity</p><p className="mt-1 font-semibold tabular-nums">{item.quantity}</p></div><div><p className="text-xs text-muted-foreground">Cost</p><p className="mt-1 font-semibold">{item.cost}</p></div><div><p className="text-xs text-muted-foreground">Collected</p><p className="mt-1 text-xs font-medium">{item.collectedAt}</p></div></div><div className="flex items-center justify-between gap-3"><div className="min-w-0 text-xs text-muted-foreground"><p>{paymentLabel(item.paymentStatus)}</p>{item.payment ? <p className="mt-1 truncate capitalize">{item.paymentMethod || "Payment"}{item.payment.reference ? ` · ${item.payment.reference}` : ""}</p> : null}</div>{canReconcile && item.paymentStatus !== "unpaid" ? <Button size="sm" variant="outline" className="shrink-0" onClick={() => onReconcile({ publicId: item.id, productTitleSnapshot: item.title, paymentStatus: item.paymentStatus })}>Review payment</Button> : null}</div></div>;
+        })}
+      </div>
+      <div className="hidden overflow-x-auto md:block">
+        <Table className="min-w-[760px] table-fixed">
+          <TableHeader><TableRow><TableHead className="w-12">#</TableHead><TableHead className="w-[27%]">Product</TableHead><TableHead className="w-20">Qty</TableHead><TableHead className="w-28">Cost</TableHead><TableHead>Payment</TableHead><TableHead className="w-28">Collected</TableHead><TableHead className="sticky right-0 w-36 bg-background text-right">Action</TableHead></TableRow></TableHeader>
+          <TableBody>
+            {!collections.length ? <EmptyTable colSpan={7} message="No collection records yet." /> : collections.map((collection, index) => {
+              const item = details(collection);
+              return <TableRow key={item.id}><TableCell className="tabular-nums text-muted-foreground">{index + 1}</TableCell><TableCell><div className="min-w-0"><p className="truncate font-medium">{item.title}</p><p className="mt-1 truncate text-xs text-muted-foreground">{item.supplier}</p></div></TableCell><TableCell className="tabular-nums">{item.quantity}</TableCell><TableCell className="whitespace-nowrap font-semibold">{item.cost}</TableCell><TableCell><div className="min-w-0 space-y-1"><StatusBadge status={item.paymentStatus} /><p className="truncate text-xs text-muted-foreground">{paymentLabel(item.paymentStatus)}</p>{item.payment ? <p className="truncate text-xs capitalize text-muted-foreground">{item.paymentMethod || "Payment"}{item.payment.reference ? ` · ${item.payment.reference}` : ""}</p> : null}</div></TableCell><TableCell className="text-xs text-muted-foreground">{item.collectedAt}</TableCell><TableCell className="sticky right-0 bg-background text-right shadow-[-8px_0_12px_-12px_rgba(0,0,0,0.35)]">{canReconcile && item.paymentStatus !== "unpaid" ? <Button size="sm" variant="outline" onClick={() => onReconcile({ publicId: item.id, productTitleSnapshot: item.title, paymentStatus: item.paymentStatus })}>Review payment</Button> : <span className="text-sm text-muted-foreground">—</span>}</TableCell></TableRow>;
+            })}
+          </TableBody>
+        </Table>
+      </div>
+    </>
   );
 }
