@@ -91,7 +91,7 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="w-full space-y-5 px-4 py-5">
+    <div className="w-full min-w-0 space-y-5 overflow-x-hidden px-4 py-5">
       <PageHeader
         className="mb-0"
         title="Orders"
@@ -114,7 +114,7 @@ export default function OrdersPage() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid min-w-0 grid-cols-1 gap-3 min-[420px]:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           icon={WalletCards}
           tone="blue"
@@ -145,7 +145,7 @@ export default function OrdersPage() {
         />
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-card">
+      <div className="min-w-0 overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-card">
         <OrderFilters
           search={search}
           status={status}

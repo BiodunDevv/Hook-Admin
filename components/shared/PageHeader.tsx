@@ -1,3 +1,8 @@
+"use client";
+
+import { ArrowLeft } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface PageHeaderProps {
@@ -13,6 +18,11 @@ export function PageHeader({
   actions,
   className,
 }: PageHeaderProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const dashboardSegments = pathname.split("/").filter(Boolean).slice(1);
+  const isDepthPage = dashboardSegments.length > 1;
+
   return (
     <div
       className={cn(
@@ -21,11 +31,18 @@ export function PageHeader({
       )}
     >
       <div className="min-w-0">
-        <h1 className="text-lg font-semibold leading-tight tracking-normal text-foreground">
-          {title}
-        </h1>
+        <div className="flex min-w-0 items-center gap-2.5">
+          {isDepthPage ? (
+            <Button type="button" variant="outline" size="icon-sm" className="shrink-0 rounded-full" aria-label="Go back" onClick={() => router.back()}>
+              <ArrowLeft className="size-4" />
+            </Button>
+          ) : null}
+          <h1 className="min-w-0 truncate text-lg font-semibold leading-tight tracking-normal text-foreground">
+            {title}
+          </h1>
+        </div>
         {description && (
-          <p className="mt-1 max-w-3xl text-sm leading-5 text-muted-foreground">
+          <p className={cn("mt-1 max-w-3xl text-sm leading-5 text-muted-foreground", isDepthPage && "pl-10")}>
             {description}
           </p>
         )}

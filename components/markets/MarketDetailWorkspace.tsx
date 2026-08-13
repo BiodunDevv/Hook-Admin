@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Clock3, Edit3, Eye, MapPin, Power, Users, Package, WalletCards, Phone, Mail, CheckCircle2, AlertTriangle } from "lucide-react";
+import { useParams } from "next/navigation";
+import { Clock3, Edit3, Eye, MapPin, Power, Users, Package, WalletCards, Phone, Mail, CheckCircle2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -39,7 +39,6 @@ function absoluteImageUrl(value?: unknown) {
 
 export function MarketDetailWorkspace() {
   const params = useParams<{ id: string }>();
-  const router = useRouter();
   const { data: session } = useAdminSession();
   const [lifecycleOpen, setLifecycleOpen] = useState(false);
   const [reason, setReason] = useState("");
@@ -72,16 +71,16 @@ export function MarketDetailWorkspace() {
   }
 
   return (
-    <div className="w-full space-y-5 px-4 py-5">
-      <PageHeader title={market?.name || "Market details"} description={market?.publicId ? `Market workspace · ${market.publicId}` : "Market workspace"} actions={<div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap"><Button variant="outline" size="sm" onClick={() => router.back()}><ArrowLeft /> Back</Button>{market?.status ? <div className="flex items-center justify-end sm:justify-start"><StatusBadge status={market.status} /></div> : null}{market && canManage ? <PermissionGuard permission="markets.manage"><Button asChild variant="outline" size="sm"><Link href={`/dashboard/markets/${market.publicId || market.id}/edit`}><Edit3 /> Edit</Link></Button></PermissionGuard> : null}{market && canManage ? <PermissionGuard permission="markets.manage"><Button variant={market.status === "active" ? "destructive" : "brand"} size="sm" onClick={() => setLifecycleOpen(true)}><Power /> {market.status === "active" ? "Deactivate" : "Activate"}</Button></PermissionGuard> : null}</div>} />
+    <div className="w-full min-w-0 space-y-5 overflow-x-hidden px-4 py-5">
+      <PageHeader title={market?.name || "Market details"} description={market?.publicId ? `Market workspace · ${market.publicId}` : "Market workspace"} actions={<div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">{market?.status ? <StatusBadge status={market.status} /> : null}{market && canManage ? <PermissionGuard permission="markets.manage"><Button asChild variant="outline" size="sm"><Link href={`/dashboard/markets/${market.publicId || market.id}/edit`}><Edit3 /> Edit</Link></Button></PermissionGuard> : null}{market && canManage ? <PermissionGuard permission="markets.manage"><Button variant={market.status === "active" ? "destructive" : "brand"} size="sm" onClick={() => setLifecycleOpen(true)}><Power /> {market.status === "active" ? "Deactivate" : "Activate"}</Button></PermissionGuard> : null}</div>} />
       <QueryState loading={query.isLoading} error={query.error} loadingLabel="Loading market workspace" errorTitle="Market details unavailable" onRetry={() => query.refetch()}>
         {market ? <>
-          <Card className="overflow-hidden rounded-xl shadow-none">
-            <div className="grid xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
-              <div className="relative aspect-[16/10] min-h-56 bg-muted sm:aspect-[16/8] xl:aspect-auto xl:min-h-[520px]">
+          <Card className="min-w-0 overflow-hidden rounded-xl shadow-none">
+            <div className="grid min-w-0 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+              <div className="relative aspect-[16/9] max-h-[360px] min-h-52 overflow-hidden bg-muted sm:aspect-[16/7] xl:aspect-auto xl:max-h-none xl:min-h-[460px]">
                 <MarketImage src={market.imageUrl} alt={`${market.name} market`} className="size-full" />
               </div>
-              <div className="flex flex-col justify-between gap-6 p-5 md:p-7">
+              <div className="flex min-w-0 flex-col justify-between gap-6 p-4 sm:p-5 md:p-7">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Market operations</p>
                   <h2 className="mt-2 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">{market.name}</h2>
@@ -95,7 +94,7 @@ export function MarketDetailWorkspace() {
                     </div>
                     <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-[#fff4b8] text-[#806300]"><MapPin className="size-4" /></span>
                   </div>
-                  <dl className="grid gap-x-5 gap-y-4 text-sm sm:grid-cols-2">
+                  <dl className="grid min-w-0 gap-x-5 gap-y-4 text-sm sm:grid-cols-2">
                     <div><dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Operation State</dt><dd className="mt-1 font-medium">{market.stateName || market.state?.name || "Not assigned"}</dd></div>
                     <div><dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Operation City</dt><dd className="mt-1 font-medium">{market.cityName || market.city?.name || "Not assigned"}</dd></div>
                     <div><dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Service Zone</dt><dd className="mt-1 font-medium">{market.zoneName || market.zone?.name || "Not assigned"}</dd></div>
@@ -112,7 +111,7 @@ export function MarketDetailWorkspace() {
               </div>
             </div>
           </Card>
-          <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 lg:grid-cols-5">
+          <div className="grid min-w-0 grid-cols-2 gap-3 lg:grid-cols-5">
             {[
               [Users, "Vendors", market.summary?.vendors ?? market.vendors?.length ?? 0, "bg-[#fff8dc] text-[#8a6900]"],
               [Users, "Assigned Runners", market.summary?.assignedRunners ?? market.runners?.length ?? 0, "bg-blue-50 text-blue-700"],
@@ -121,10 +120,10 @@ export function MarketDetailWorkspace() {
               [WalletCards, "Collections", market.summary?.collections ?? market.collections?.length ?? 0, "bg-violet-50 text-violet-700"],
             ].map(([Icon, label, value, tone]) => {
               const MetricIcon = Icon as typeof Users;
-              return <Card key={String(label)} className="rounded-xl shadow-none"><CardContent className="p-4"><span className={`grid size-8 place-items-center rounded-lg ${tone}`}><MetricIcon className="size-4" /></span><p className="mt-3 text-2xl font-semibold tabular-nums">{String(value)}</p><p className="text-xs text-muted-foreground">{String(label)}</p></CardContent></Card>;
+              return <Card key={String(label)} className="min-w-0 rounded-xl shadow-none last:col-span-2 lg:last:col-span-1"><CardContent className="min-w-0 p-3 sm:p-4"><span className={`grid size-8 place-items-center rounded-lg ${tone}`}><MetricIcon className="size-4" /></span><p className="mt-3 text-2xl font-semibold tabular-nums">{String(value)}</p><p className="truncate text-xs text-muted-foreground">{String(label)}</p></CardContent></Card>;
             })}
           </div>
-          <div className="overflow-hidden rounded-xl border bg-background shadow-none">
+          <div className="min-w-0 overflow-hidden rounded-xl border bg-background shadow-none">
             <div className="flex gap-1 overflow-x-auto border-b p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {[['vendors', 'Vendors'], ['products', 'Products'], ['runners', 'Runners'], ['collections', 'Collections']].map(([value, label]) => <button key={value} type="button" onClick={() => setActiveTab(value)} className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition ${activeTab === value ? "bg-[#fff4b8] text-[#6d5600]" : "text-muted-foreground hover:bg-muted"}`}>{label}</button>)}
             </div>
@@ -166,7 +165,11 @@ function paymentLabel(value?: string) {
 
 function VendorList({ vendors, canManage, onEdit }: { vendors: MarketVendorRecord[]; canManage: boolean; onEdit: (vendor: MarketVendorRecord) => void }) {
   return (
-    <div className="overflow-x-auto">
+    <>
+    <div className="divide-y md:hidden">
+      {!vendors.length ? <p className="p-8 text-center text-sm text-muted-foreground">No suppliers have been invited to this Market yet.</p> : vendors.map((vendor, index) => <article key={vendor.publicId} className="min-w-0 space-y-3 p-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-xs text-muted-foreground">Supplier {index + 1}</p><p className="mt-1 truncate font-semibold">{vendor.businessName}</p><p className="mt-1 truncate text-xs text-muted-foreground">{vendor.contactName} · {vendor.phone}</p></div><StatusBadge status={vendor.status || "pending"} /></div><div className="flex items-center justify-between gap-3 rounded-lg bg-muted/40 p-3 text-xs"><span className="truncate text-muted-foreground">Payment {vendor.paymentProfile?.verificationStatus || "unverified"}</span>{canManage ? <Button size="sm" variant="outline" onClick={() => onEdit(vendor)}><Edit3 /> Edit</Button> : null}</div></article>)}
+    </div>
+    <div className="hidden min-w-0 overflow-x-auto md:block">
       <Table className="min-w-[860px]">
         <TableHeader><TableRow><TableHead className="w-12">#</TableHead><TableHead>Supplier</TableHead><TableHead>Contact</TableHead><TableHead>Status</TableHead><TableHead>Payment details</TableHead><TableHead>Last contacted</TableHead><TableHead className="w-16 text-right">Action</TableHead></TableRow></TableHeader>
         <TableBody>
@@ -184,12 +187,20 @@ function VendorList({ vendors, canManage, onEdit }: { vendors: MarketVendorRecor
         </TableBody>
       </Table>
     </div>
+    </>
   );
 }
 
 function ProductList({ products, onPreview }: { products: Array<Record<string, unknown>>; onPreview: (src: string, alt: string) => void }) {
   return (
-    <div className="overflow-x-auto">
+    <>
+    <div className="divide-y md:hidden">
+      {!products.length ? <p className="p-8 text-center text-sm text-muted-foreground">No products have been captured for this Market.</p> : products.map((product, index) => { const id = String(product.publicId || product.id || `product-${index}`); const title = String(product.title || "Untitled product"); const image = Array.isArray(product.images) && typeof product.images[0] === "string" ? absoluteImageUrl(product.images[0]) : ""; return <article key={id} className="flex min-w-0 gap-3 p-4"><button type="button" disabled={!image} onClick={() => image && onPreview(image, title)} className="size-16 shrink-0 overflow-hidden rounded-lg border bg-muted">{image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={image} alt="" className="size-full object-cover" />
+      ) : <Package className="mx-auto size-5 text-muted-foreground" />}</button><div className="min-w-0 flex-1"><p className="text-xs text-muted-foreground">Product {index + 1}</p><p className="mt-1 truncate font-semibold">{title}</p><div className="mt-2 flex flex-wrap gap-2"><StatusBadge status={String(product.availabilityStatus || "unknown")} /><StatusBadge status={String(product.status || "unknown")} /></div></div><Button asChild variant="outline" size="icon-sm"><Link href={`/dashboard/products/${id}`} aria-label={`View ${title}`}><Eye /></Link></Button></article>; })}
+    </div>
+    <div className="hidden min-w-0 overflow-x-auto md:block">
       <Table className="min-w-[900px]">
         <TableHeader><TableRow><TableHead className="w-12">#</TableHead><TableHead>Product</TableHead><TableHead>Supplier</TableHead><TableHead>Availability</TableHead><TableHead>Catalog status</TableHead><TableHead>Updated</TableHead><TableHead className="w-24 text-right">Action</TableHead></TableRow></TableHeader>
         <TableBody>
@@ -222,12 +233,17 @@ function ProductList({ products, onPreview }: { products: Array<Record<string, u
         </TableBody>
       </Table>
     </div>
+    </>
   );
 }
 
 function RunnerList({ runners, assignments }: { runners: Array<Record<string, unknown>>; assignments: Array<Record<string, unknown>> }) {
   return (
-    <div className="overflow-x-auto">
+    <>
+    <div className="divide-y md:hidden">
+      {!runners.length ? <p className="p-8 text-center text-sm text-muted-foreground">No active Runners are assigned to this Market.</p> : runners.map((runner, index) => { const id = String(runner.publicId || runner.id || `runner-${index}`); const name = `${String(runner.firstName || "")} ${String(runner.lastName || "")}`.trim() || String(runner.email || id); const assignmentCount = assignments.filter((item) => item.runnerId === runner.id || item.runnerId === runner._id || item.runnerId === runner.publicId).length; return <article key={id} className="flex min-w-0 items-center justify-between gap-3 p-4"><div className="min-w-0"><p className="truncate font-semibold">{name}</p><p className="mt-1 text-xs text-muted-foreground">{assignmentCount} Market assignment{assignmentCount === 1 ? "" : "s"}</p></div><StatusBadge status={String(runner.status || runner.availability || "active")} /></article>; })}
+    </div>
+    <div className="hidden min-w-0 overflow-x-auto md:block">
       <Table className="min-w-[700px]">
         <TableHeader><TableRow><TableHead className="w-12">#</TableHead><TableHead>Runner</TableHead><TableHead>Status</TableHead><TableHead>Market assignments</TableHead><TableHead>Runner ID</TableHead></TableRow></TableHeader>
         <TableBody>
@@ -240,6 +256,7 @@ function RunnerList({ runners, assignments }: { runners: Array<Record<string, un
         </TableBody>
       </Table>
     </div>
+    </>
   );
 }
 
