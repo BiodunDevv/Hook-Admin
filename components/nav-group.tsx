@@ -9,6 +9,7 @@ import {
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import type { NavGroup as HookNavGroup } from "@/components/layout/nav-items";
 
@@ -19,6 +20,7 @@ function isRouteActive(pathname: string, href: string) {
 
 export function NavGroup({ label, items }: HookNavGroup) {
   const pathname = usePathname();
+  const { isMobile, setOpenMobile } = useSidebar();
 
   return (
     <SidebarGroup className="py-1.5">
@@ -38,7 +40,7 @@ export function NavGroup({ label, items }: HookNavGroup) {
                 tooltip={item.label}
                 className="h-9 data-[active=true]:bg-zinc-950 data-[active=true]:text-white data-[active=true]:hover:bg-zinc-900 [&[data-active=true]>svg]:text-brand-gold"
               >
-                <Link href={item.href}>
+                <Link href={item.href} onClick={() => { if (isMobile) setOpenMobile(false); }}>
                   <Icon />
                   <span>{item.label}</span>
                 </Link>
