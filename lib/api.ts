@@ -233,6 +233,7 @@ export async function loginAccount(email: string, password: string) {
     "/auth/login",
     {
       method: "POST",
+      headers: { "X-Hook-Portal": "staff" },
       body: JSON.stringify({ email, password }),
     },
     { auth: false },

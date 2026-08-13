@@ -136,7 +136,7 @@ export default function ProductsPage() {
         <KpiCard
           label="Total Products"
           value={number(stats.total)}
-          caption={`${number(stats.approved)} approved`}
+          caption={`${number(stats.approved)} active`}
           icon={Boxes}
           tone="blue"
         />

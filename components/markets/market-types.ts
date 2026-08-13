@@ -75,6 +75,7 @@ export type LookupRecord = {
   code?: string;
   stateId?: string;
   cityId?: string;
+  operationsEnabled?: boolean;
 };
 
 export type CollectionResponse<T> = {

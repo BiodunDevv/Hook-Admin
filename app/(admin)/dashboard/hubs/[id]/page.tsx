@@ -1,2 +1,2 @@
-import { PlatformDetailPage } from "@/components/platform/PlatformDetailPage";
-export default function HubDetailPage() { return <PlatformDetailPage title="Dispatch Hub details" endpoint="/admin/hubs" lifecycleResource="hubs" />; }
+import { HubDetailWorkspace } from "@/components/hubs/HubDetailWorkspace";
+export default function HubDetailPage() { return <HubDetailWorkspace />; }

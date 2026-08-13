@@ -48,7 +48,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
   }
 
   return (
-    <div className="mx-auto w-full max-w-md rounded-xl border border-zinc-200 bg-white px-6 py-8 shadow-card sm:px-10 sm:py-10">
+    <div className="mx-auto w-full max-w-md scroll-mb-[40vh] rounded-xl border border-zinc-200 bg-white px-6 py-8 shadow-card sm:px-10 sm:py-10">
       <div className="mb-8 text-center">
         <HookLogo className="justify-center text-4xl" />
         <div className="mx-auto mt-6 flex size-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-800">

@@ -74,6 +74,14 @@ function absoluteImageUrl(url?: string) {
   return `${base}${url}`;
 }
 
+function isActiveProduct(status?: string) {
+  return ["published", "approved", "active"].includes((status || "").toLowerCase());
+}
+
+function canApproveProduct(status?: string) {
+  return !["published", "approved", "active", "disabled"].includes((status || "").toLowerCase());
+}
+
 function PriceLabel({ children, help }: { children: React.ReactNode; help: string }) {
   return (
     <FieldLabel className="items-center">
@@ -120,7 +128,7 @@ export default function ProductDetailPage() {
               {product && product.status !== "disabled" && <Button size="sm" variant="outline" onClick={() => disable.mutate(undefined)}><Ban size={15} /> Disable</Button>}
             </PermissionGuard>
             <PermissionGuard permission="products.review">
-              {product && product.status !== "approved" && <Button size="sm" variant="brand" onClick={() => approve.mutate({ status: "approved" })}><Check size={15} /> Approve</Button>}
+              {product && canApproveProduct(product.status) && <Button size="sm" variant="brand" onClick={() => approve.mutate({ status: "approved" })}><Check size={15} /> Approve</Button>}
             </PermissionGuard>
           </>
         }
@@ -155,7 +163,7 @@ export default function ProductDetailPage() {
                 <div className="space-y-3 p-4 text-sm">
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-zinc-500">Status</span>
-                    <StatusBadge status={product.status} />
+                    <StatusBadge status={isActiveProduct(product.status) ? "active" : product.status} />
                   </div>
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-zinc-500">Hook ID</span>

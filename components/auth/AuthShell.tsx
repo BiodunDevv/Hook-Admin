@@ -54,7 +54,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <main className="grid min-h-screen bg-white lg:grid-cols-[minmax(480px,0.95fr)_minmax(520px,1.05fr)]">
+    <main className="grid min-h-[100dvh] overflow-y-auto bg-white lg:grid-cols-[minmax(480px,0.95fr)_minmax(520px,1.05fr)]">
       <section className="relative hidden min-h-screen overflow-hidden bg-zinc-950 text-white lg:block">
         <div className="absolute inset-x-0 bottom-0 h-[48%] text-brand-gold/30">
           <FloatingPaths position={1} />
@@ -80,7 +80,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
         </div>
       </section>
 
-      <section className="flex min-h-screen items-center justify-center bg-white px-4 py-4">
+      <section className="flex min-h-[100dvh] items-center justify-center overflow-y-auto bg-white px-4 py-8 [scroll-padding-bottom:40vh] sm:py-10">
         <div className="w-full max-w-md">{children}</div>
       </section>
     </main>
