@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useDeferredValue, useMemo, useState } from "react";
 import { Filter, Plus, Search, Store, X } from "lucide-react";
 import { toast } from "sonner";
@@ -17,7 +18,6 @@ import { useAdminSession, useApiQuery } from "@/lib/query";
 import { apiPost } from "@/lib/api";
 import { hasPermission } from "@/lib/permissions";
 import { MarketCard } from "./MarketCard";
-import { MarketFormDialog } from "./MarketFormDialog";
 import { MarketOverview } from "./MarketOverview";
 import type { CollectionResponse, LookupRecord, MarketRecord } from "./market-types";
 
@@ -32,8 +32,6 @@ export function MarketDirectoryPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [state, setState] = useState("all");
-  const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<MarketRecord | null>(null);
   const [lifecycleMarket, setLifecycleMarket] = useState<MarketRecord | null>(null);
   const [lifecycleReason, setLifecycleReason] = useState("");
   const [assignmentMarket, setAssignmentMarket] = useState<MarketRecord | null>(null);
@@ -97,7 +95,7 @@ export function MarketDirectoryPage() {
 
   return (
     <div className="w-full space-y-5 px-4 py-5">
-      <PageHeader title="Markets" description="A visual operating directory for the markets that power Hook catalog capture and fulfilment." actions={<PermissionGuard permission="markets.manage"><Button variant="brand" onClick={() => { setEditing(null); setFormOpen(true); }}><Plus /> Add market</Button></PermissionGuard>} />
+      <PageHeader title="Markets" description="A visual operating directory for the markets that power Hook catalog capture and fulfilment." actions={<PermissionGuard permission="markets.manage"><Button asChild variant="brand"><Link href="/dashboard/markets/new"><Plus /> Add market</Link></Button></PermissionGuard>} />
       <MarketOverview markets={markets} />
       <Card className="rounded-xl shadow-none">
         <CardContent className="flex flex-col gap-3 p-3 lg:flex-row lg:items-center">
@@ -111,9 +109,8 @@ export function MarketDirectoryPage() {
       </Card>
       <QueryState loading={query.isLoading} error={query.error} loadingLabel="Loading market directory" errorTitle="Market directory unavailable" empty={!query.isLoading && !query.isError && !filtered.length} emptyIcon={Store} emptyTitle="No markets found" emptyDescription="Adjust the filters or create a market for this operating network." onRetry={() => query.refetch()}>
         <div className="mb-3 flex items-center justify-between gap-3"><p className="text-sm font-medium text-foreground">Market directory <span className="ml-1 text-xs font-normal text-muted-foreground">{filtered.length} shown</span></p>{query.isFetching ? <span className="text-xs text-muted-foreground">Refreshing...</span> : null}</div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filtered.map((market) => <MarketCard key={market.publicId || market.id} market={market} canManage={canManage} onEdit={(record) => { setEditing(record); setFormOpen(true); }} onLifecycle={setLifecycleMarket} onAssignHub={(record) => { setAssignmentMarket(record); setAssignmentHub(record.hub?.publicId || record.hubId || ""); }} />)}</div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filtered.map((market) => <MarketCard key={market.publicId || market.id} market={market} canManage={canManage} onLifecycle={setLifecycleMarket} onAssignHub={(record) => { setAssignmentMarket(record); setAssignmentHub(record.hub?.publicId || record.hubId || ""); }} />)}</div>
       </QueryState>
-      <MarketFormDialog key={`${editing?.publicId || editing?.id || "new"}-${formOpen ? "open" : "closed"}`} open={formOpen} market={editing} onClose={() => { setFormOpen(false); setEditing(null); }} onSuccess={() => void query.refetch()} />
       <Dialog open={Boolean(lifecycleMarket)} onOpenChange={(next) => { if (!next && !acting) { setLifecycleMarket(null); setLifecycleReason(""); } }}><DialogContent><DialogHeader><DialogTitle>{lifecycleMarket?.status === "active" ? "Deactivate market?" : "Activate market?"}</DialogTitle><DialogDescription>{lifecycleMarket?.status === "active" ? "New operational assignments will stop using this market. Existing history remains intact." : "This market will become available for compatible operations."}</DialogDescription></DialogHeader><div className="space-y-2"><Label htmlFor="market-lifecycle-reason">Audit reason</Label><Input id="market-lifecycle-reason" value={lifecycleReason} onChange={(event) => setLifecycleReason(event.target.value)} placeholder="Add a clear operational reason" minLength={3} maxLength={500} /></div><DialogFooter><Button variant="outline" disabled={acting} onClick={() => setLifecycleMarket(null)}>Cancel</Button><Button variant={lifecycleMarket?.status === "active" ? "destructive" : "brand"} disabled={acting || lifecycleReason.trim().length < 3} onClick={() => void changeLifecycle()}>{acting ? "Saving..." : lifecycleMarket?.status === "active" ? "Deactivate" : "Activate"}</Button></DialogFooter></DialogContent></Dialog>
       <AdminWorkflowSheet
         open={Boolean(assignmentMarket)}

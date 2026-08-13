@@ -13,13 +13,11 @@ import type { MarketRecord } from "./market-types";
 export function MarketCard({
   market,
   canManage,
-  onEdit,
   onLifecycle,
   onAssignHub,
 }: {
   market: MarketRecord;
   canManage: boolean;
-  onEdit: (market: MarketRecord) => void;
   onLifecycle: (market: MarketRecord) => void;
   onAssignHub: (market: MarketRecord) => void;
 }) {
@@ -45,7 +43,7 @@ export function MarketCard({
             <DropdownMenu>
               <DropdownMenuTrigger asChild><Button variant="ghost" size="icon-sm" aria-label={`Actions for ${market.name}`}><MoreHorizontal className="size-4" /></Button></DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                <PermissionGuard permission="markets.manage"><DropdownMenuItem onSelect={() => onEdit(market)}><Pencil /> Edit market</DropdownMenuItem></PermissionGuard>
+                <PermissionGuard permission="markets.manage"><DropdownMenuItem asChild><Link href={`/dashboard/markets/${id}/edit`}><Pencil /> Edit market</Link></DropdownMenuItem></PermissionGuard>
                 <PermissionGuard permission="markets.manage"><DropdownMenuItem onSelect={() => onLifecycle(market)}><Power /> {market.status === "active" ? "Deactivate" : "Activate"}</DropdownMenuItem></PermissionGuard>
                 <PermissionGuard permission="markets.assign_hub"><DropdownMenuItem onSelect={() => onAssignHub(market)}><Building2 /> Assign Dispatch Hub</DropdownMenuItem></PermissionGuard>
               </DropdownMenuContent>

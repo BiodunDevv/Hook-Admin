@@ -81,6 +81,14 @@ function stockTone(quantity = 0) {
   return "text-emerald-600";
 }
 
+function displayStatus(status: string) {
+  return ["published", "approved"].includes(status.toLowerCase()) ? "active" : status;
+}
+
+function canReview(status?: string) {
+  return !["published", "approved", "active", "disabled"].includes((status || "").toLowerCase());
+}
+
 function absoluteImageUrl(url?: string) {
   if (!url) return "";
   if (url.startsWith("http")) return url;
@@ -143,27 +151,30 @@ export function ProductsTable({
 
   return (
     <>
-      <div className="overflow-x-auto">
-        <Table className="min-w-[1240px]">
+      <div className="w-full overflow-x-auto">
+        <Table className="w-full min-w-[760px] table-fixed">
           <TableHeader className="sticky top-0 z-10">
             <TableRow className="border-b border-zinc-100 bg-zinc-50">
               {[
                 "No",
                 "Product",
                 "Category",
-                "Managed By",
-                "Legacy Source",
                 "Hook Price",
                 "Stock",
                 "Status",
-                "Created",
                 "",
               ].map((header) => (
                 <TableHead
                   key={header}
                   className={cn(
                     "px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-400",
-                    header === "Managed By" && "hidden lg:table-cell",
+                    header === "No" && "w-14",
+                    header === "Product" && "w-[34%]",
+                    header === "Category" && "w-[18%]",
+                    header === "Hook Price" && "w-[16%]",
+                    header === "Stock" && "w-[10%]",
+                    header === "Status" && "w-[14%]",
+                    header === "" && "sticky right-0 z-20 w-14 bg-zinc-50 text-right",
                   )}
                 >
                   {header}
@@ -175,7 +186,7 @@ export function ProductsTable({
             {isLoading && (
               <TableRow>
                 <TableCell
-                  colSpan={10}
+                  colSpan={7}
                   className="px-3 py-12 whitespace-normal sm:px-5"
                 >
                   <div className="mx-auto flex max-w-sm items-center justify-center gap-3 rounded-lg border border-zinc-100 bg-zinc-50 p-4 text-sm text-zinc-500">
@@ -188,7 +199,7 @@ export function ProductsTable({
             {errorMessage && (
               <TableRow>
                 <TableCell
-                  colSpan={10}
+                  colSpan={7}
                   className="px-3 py-12 whitespace-normal sm:px-5"
                 >
                   <div className="mx-auto w-full max-w-xl rounded-lg border border-red-200 bg-red-50 p-5 text-center">
@@ -217,7 +228,7 @@ export function ProductsTable({
             {!isLoading && !errorMessage && products.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={10}
+                  colSpan={7}
                   className="px-3 py-14 whitespace-normal sm:px-5 sm:py-16"
                 >
                   <div className="mx-auto flex min-h-56 w-full max-w-2xl flex-col items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 px-5 py-8 text-center sm:px-8">
@@ -243,12 +254,12 @@ export function ProductsTable({
               return (
                 <TableRow
                   key={product.id}
-                  className="border-b border-zinc-100 transition-colors hover:bg-zinc-50"
+                  className="group border-b border-zinc-100 transition-colors hover:bg-zinc-50"
                 >
                   <TableCell className="px-4 py-3 text-xs font-semibold text-zinc-400">
                     {start + index}
                   </TableCell>
-                  <TableCell className="min-w-64 px-4 py-3">
+                  <TableCell className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <Link
                         href={`/dashboard/products/${product.id}`}
@@ -281,26 +292,6 @@ export function ProductsTable({
                   <TableCell className="px-4 py-3 text-zinc-600">
                     {product.category?.name || "Uncategorized"}
                   </TableCell>
-                  <TableCell className="hidden px-4 py-3 lg:table-cell">
-                    {product.managers?.length ? (
-                      <span className="flex items-center gap-1.5">
-                        <span className="truncate text-sm text-zinc-600">
-                          {`${product.managers[0].firstName || ""} ${product.managers[0].lastName || ""}`.trim() ||
-                            product.managers[0].email}
-                        </span>
-                        {product.managers.length > 1 && (
-                          <span className="shrink-0 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-500">
-                            +{product.managers.length - 1}
-                          </span>
-                        )}
-                      </span>
-                    ) : (
-                      <span className="text-sm text-zinc-300">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-zinc-600">
-                    {product.vendor?.businessName || "Hook catalog"}
-                  </TableCell>
                   <TableCell className="px-4 py-3 font-semibold text-zinc-900">
                     {money(product.sellingPrice || 0)}
                   </TableCell>
@@ -321,14 +312,9 @@ export function ProductsTable({
                     )}
                   </TableCell>
                   <TableCell className="px-4 py-3">
-                    <StatusBadge status={product.status} />
+                    <StatusBadge status={displayStatus(product.status)} />
                   </TableCell>
-                  <TableCell className="px-4 py-3 text-zinc-400">
-                    {product.createdAt
-                      ? new Date(product.createdAt).toLocaleDateString()
-                      : "-"}
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-right">
+                  <TableCell className="sticky right-0 z-10 border-l border-zinc-100 bg-white px-3 py-3 text-right group-hover:bg-zinc-50">
                     <Button
                       variant="ghost"
                       size="icon-sm"
@@ -409,20 +395,22 @@ export function ProductsTable({
               </Button>
             </PermissionGuard>
             <PermissionGuard permission="products.review">
-              <Button
-                variant="outline"
-                className="justify-start text-emerald-700"
-                onClick={() => updateProduct("approve")}
-              >
-                <Check size={15} /> Approve product
-              </Button>
-              <Button
-                variant="outline"
-                className="justify-start text-amber-700"
-                onClick={() => updateProduct("reject")}
-              >
-                <XCircle size={15} /> Reject product
-              </Button>
+              {canReview(selectedProduct?.status) ? <>
+                <Button
+                  variant="outline"
+                  className="justify-start text-emerald-700"
+                  onClick={() => updateProduct("approve")}
+                >
+                  <Check size={15} /> Approve product
+                </Button>
+                <Button
+                  variant="outline"
+                  className="justify-start text-amber-700"
+                  onClick={() => updateProduct("reject")}
+                >
+                  <XCircle size={15} /> Reject product
+                </Button>
+              </> : null}
             </PermissionGuard>
           </div>
         </DialogContent>
