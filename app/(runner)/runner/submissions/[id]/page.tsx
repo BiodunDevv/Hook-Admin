@@ -7,9 +7,10 @@ import { CatalogStatusBadge } from "@/components/catalog/CatalogStatusBadge";
 import { HookLoader } from "@/components/shared/HookLoader";
 import { useApiQuery } from "@/lib/query";
 import type { ProductSubmission } from "@/lib/catalog";
+import type { SizingGuide } from "@/lib/sizing-guide";
 
 interface MarketsResponse { markets: Array<{ publicId: string; name: string }> }
-interface Category { publicId: string; name: string }
+interface Category { publicId: string; name: string; sizingGuide?: SizingGuide | null }
 
 const statusDescription: Record<string, string> = {
   draft: "Still a draft. Save your progress or submit when it's ready for review.",

@@ -187,7 +187,7 @@ export function MarketVendorSheet({
     <Sheet open={open} onOpenChange={(next) => { if (!next && !saving) onClose(); }}>
       <SheetContent
         side="bottom"
-        className="mx-auto flex max-h-[92vh] w-full max-w-2xl flex-col rounded-t-2xl border-x bg-[#F5F5F5] p-0"
+        className="mx-auto flex max-h-[92dvh] w-full max-w-2xl flex-col rounded-t-2xl border-x bg-[#F5F5F5] p-0"
       >
         <SheetHeader className="shrink-0 px-5 pb-3 pt-5">
           <SheetTitle className="text-[19px] font-bold">

@@ -16,6 +16,7 @@ export interface ProductSubmission {
   id: string;
   publicId: string;
   basicTitle: string;
+  imageUrl?: string;
   status: "draft" | "submitted" | "in_review" | "changes_requested" | "approved" | "rejected";
   marketId: string;
   marketVendorId?: string;
@@ -30,6 +31,15 @@ export interface ProductSubmission {
   variants: Array<{ size?: string; colour?: string; attributes: Record<string, string>; active: boolean }>;
   availabilityStatus: string;
   availabilityNote?: string;
+  approvedProduct?: {
+    publicId: string;
+    sellingPriceMinor: number;
+    minimumPriceMinor: number;
+    observedCostMinor: number;
+    currency: string;
+    status: string;
+    publishedAt?: string;
+  } | null;
   reviewNotes: Array<{
     action: string;
     message?: string;
