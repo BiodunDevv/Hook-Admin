@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check, ChevronRight, Clock3, ExternalLink, LoaderCircle, LockKeyhole, RotateCcw, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PaymentProviderMark } from "@/components/payments/PaymentProviderMark";
 import { publicPaymentRequest } from "@/lib/public-payment-api";
 
 type PaymentDetail = {
@@ -17,12 +18,39 @@ type PaymentDetail = {
     id: string;
     reference: string;
     subtotalMinor: number;
+    vatRate: number;
+    vatMinor: number;
     deliveryFeeMinor: number;
     totalMinor: number;
     currency: string;
     items: Array<{ id: string; title: string; imageUrl?: string; quantity: number; selectedVariants?: Record<string, string> }>;
   };
 };
+
+type StatusAttempt = { provider: "paystack" | "opay"; status: string } | undefined;
+
+function useCountdown(expiresAt: string | undefined) {
+  const [label, setLabel] = useState("");
+  useEffect(() => {
+    if (!expiresAt) return;
+    const target = new Date(expiresAt).getTime();
+    const tick = () => {
+      const diffMs = target - Date.now();
+      if (diffMs <= 0) {
+        setLabel("Expired");
+        return;
+      }
+      const totalMinutes = Math.floor(diffMs / 60000);
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      setLabel(hours > 0 ? `Expires in ${hours}h ${minutes}m` : `Expires in ${minutes}m`);
+    };
+    tick();
+    const timer = window.setInterval(tick, 30000);
+    return () => window.clearInterval(timer);
+  }, [expiresAt]);
+  return label;
+}
 
 function money(value: number) {
   return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(value / 100);
@@ -32,11 +60,21 @@ function providerName(provider: "paystack" | "opay") {
   return provider === "opay" ? "OPay" : "Paystack";
 }
 
+function idempotencyKey() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    return `web-${Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+  }
+  return `web-${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+}
+
 export function PublicPaymentCheckout({ token, processing = false }: { token: string; processing?: boolean }) {
   const [detail, setDetail] = useState<PaymentDetail>();
   const [error, setError] = useState("");
   const [selected, setSelected] = useState<"paystack" | "opay">();
   const [submitting, setSubmitting] = useState(false);
+  const [attempt, setAttempt] = useState<StatusAttempt>();
   const appReturn = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("appReturn") === "1";
 
   const load = useCallback(async () => {
@@ -59,7 +97,8 @@ export function PublicPaymentCheckout({ token, processing = false }: { token: st
     if (!processing || detail?.status === "paid") return;
     const timer = window.setInterval(async () => {
       try {
-        const status = await publicPaymentRequest<{ status: string }>(`/public/payment-links/${encodeURIComponent(token)}/status`);
+        const status = await publicPaymentRequest<{ status: string; attempt?: StatusAttempt }>(`/public/payment-links/${encodeURIComponent(token)}/status`);
+        setAttempt(status.attempt);
         if (status.status === "paid") await load();
       } catch { /* Keep polling while provider verification completes. */ }
     }, 2500);
@@ -67,7 +106,9 @@ export function PublicPaymentCheckout({ token, processing = false }: { token: st
   }, [detail?.status, load, processing, token]);
 
   const paid = detail?.status === "paid";
+  const attemptFailed = attempt?.status === "failed" || attempt?.status === "expired" || attempt?.status === "cancelled";
   const expiry = useMemo(() => detail ? new Date(detail.expiresAt).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" }) : "", [detail]);
+  const countdown = useCountdown(detail?.expiresAt);
 
   async function pay() {
     if (!selected) return;
@@ -76,7 +117,7 @@ export function PublicPaymentCheckout({ token, processing = false }: { token: st
     try {
       const attempt = await publicPaymentRequest<{ authorizationUrl: string }>(`/public/payment-links/${encodeURIComponent(token)}/initialize`, {
         method: "POST",
-        headers: { "Idempotency-Key": crypto.randomUUID() },
+        headers: { "Idempotency-Key": idempotencyKey() },
         body: JSON.stringify({ provider: selected, appReturn }),
       });
       window.location.assign(attempt.authorizationUrl);
@@ -117,23 +158,31 @@ export function PublicPaymentCheckout({ token, processing = false }: { token: st
               </div>
             ))}
           </div>
-          <div className="flex items-center gap-2 rounded-lg border border-[#f0d36c] bg-[#fff9df] p-3 text-sm text-[#705700]"><Clock3 size={17} /> Link available until {expiry}</div>
+          <div className="flex items-center gap-2 rounded-lg border border-[#f0d36c] bg-[#fff9df] p-3 text-sm text-[#705700]"><Clock3 size={17} /> Link available until {expiry}{countdown ? ` · ${countdown}` : ""}</div>
         </section>
 
         <aside className="min-w-0 rounded-lg border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
           {processing && <div className="mb-4 flex items-center gap-2 rounded-md bg-zinc-50 p-3 text-sm text-zinc-600"><LoaderCircle className="animate-spin" size={16} /> Waiting for verified payment confirmation</div>}
-          <h2 className="font-bold text-zinc-950">Choose how to pay</h2>
-          <div className="mt-3 space-y-2">
-            {detail.providers.map((provider) => (
-              <button key={provider.provider} type="button" onClick={() => setSelected(provider.provider)} className={`flex w-full items-center justify-between rounded-lg border p-3 text-left transition ${selected === provider.provider ? "border-black bg-zinc-950 text-white" : "border-zinc-200 hover:border-zinc-400"}`}>
-                <span><span className="block font-semibold">{providerName(provider.provider)}</span><span className={`text-xs ${selected === provider.provider ? "text-zinc-300" : "text-zinc-500"}`}>Secure hosted checkout{provider.mode === "test" ? " · Test mode" : ""}</span></span>
-                <ChevronRight size={18} />
-              </button>
-            ))}
-          </div>
-          {!detail.providers.length && <p className="mt-3 rounded-md bg-red-50 p-3 text-sm text-red-700">No payment provider is currently available.</p>}
+          {attemptFailed && <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">Your last attempt didn&apos;t go through. Choose a payment method and try again.</div>}
+          {!detail.providers.length ? (
+            <StatePanel icon={LockKeyhole} title="Payments unavailable" description="No payment provider is currently configured for this link. Please contact Hook support or try again shortly." />
+          ) : (
+            <>
+              <h2 className="font-bold text-zinc-950">Choose how to pay</h2>
+              <div className="mt-3 space-y-2">
+                {detail.providers.map((provider) => (
+                  <button key={provider.provider} type="button" onClick={() => setSelected(provider.provider)} className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left transition ${selected === provider.provider ? "border-black bg-zinc-950 text-white" : "border-zinc-200 hover:border-zinc-400"}`}>
+                    <PaymentProviderMark provider={provider.provider} />
+                    <span className="min-w-0 flex-1"><span className="block font-semibold">{providerName(provider.provider)}</span><span className={`block text-xs ${selected === provider.provider ? "text-zinc-300" : "text-zinc-500"}`}>Secure hosted checkout</span></span>
+                    <ChevronRight size={18} />
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
           <div className="my-5 space-y-2 border-y border-zinc-100 py-4 text-sm">
             <div className="flex justify-between text-zinc-500"><span>Products</span><span>{money(detail.order.subtotalMinor)}</span></div>
+            <div className="flex justify-between text-zinc-500"><span>VAT{detail.order.vatRate ? ` (${detail.order.vatRate * 100}%)` : ""}</span><span>{money(detail.order.vatMinor)}</span></div>
             <div className="flex justify-between text-zinc-500"><span>Delivery</span><span>{money(detail.order.deliveryFeeMinor)}</span></div>
             <div className="flex justify-between pt-2 text-lg font-extrabold text-zinc-950"><span>Total</span><span>{money(detail.order.totalMinor)}</span></div>
           </div>

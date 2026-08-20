@@ -1,2 +1,2 @@
-import { PortalOverview } from "@/components/platform/PortalOverview";
-export default function PartnerProfilePage() { return <PortalOverview type="partner" view="profile" />; }
+import { ProfileWorkspace } from "@/components/platform/ProfileWorkspace";
+export default function PartnerProfilePage() { return <ProfileWorkspace type="partner" section="profile" />; }

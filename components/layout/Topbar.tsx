@@ -3,9 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Bell,
   Zap,
-  BellOff,
   ShoppingCart,
   Package,
   Users,
@@ -15,6 +13,7 @@ import {
   Headset,
 } from "lucide-react";
 import { HookLoader } from "@/components/shared/HookLoader";
+import { NotificationBell } from "@/components/shared/NotificationBell";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -26,13 +25,6 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useAdminSession, useApiQuery } from "@/lib/query";
@@ -45,20 +37,6 @@ import { AppBreadcrumbs } from "@/components/app-breadcrumbs";
 import { CustomSidebarTrigger } from "@/components/custom-sidebar-trigger";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { cn } from "@/lib/utils";
-
-interface Notification {
-  id: string;
-  title?: string;
-  message?: string;
-  createdAt?: string;
-  isRead?: boolean;
-}
-
-interface NotificationsResponse {
-  data: Notification[];
-  unread: number;
-  total: number;
-}
 
 interface SearchOrder {
   id: string;
@@ -157,14 +135,6 @@ export default function Topbar() {
   const searchPlaceholder = searchScopes.length
     ? `Search ${searchScopes.join(", ")}...`
     : "Search...";
-
-  const { data: notifData } = useApiQuery<NotificationsResponse>(
-    ["notifications"],
-    "/admin/notifications",
-  );
-
-  const notifications = notifData?.data ?? [];
-  const unreadCount = notifData?.unread ?? 0;
 
   // Debounced search
   useEffect(() => {
@@ -289,58 +259,7 @@ export default function Topbar() {
         <div className="flex-1" />
         <PlatformContextSelector />
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              className="relative border-border"
-            >
-              <Bell />
-              {unreadCount > 0 && (
-                <span className="absolute right-2 top-2 size-1.5 rounded-full bg-red-500" />
-              )}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            className="max-h-96 w-72 overflow-y-auto"
-          >
-            <DropdownMenuLabel className="flex items-center justify-between">
-              Notifications
-              {unreadCount > 0 && (
-                <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-600">
-                  {unreadCount} new
-                </span>
-              )}
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {notifications.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 py-6 text-center">
-                <BellOff size={20} className="text-zinc-300" />
-                <p className="text-sm font-medium text-zinc-500">
-                  No new notifications
-                </p>
-                <p className="text-xs text-zinc-400">
-                  You&apos;re all caught up
-                </p>
-              </div>
-            ) : (
-              notifications.map((n) => (
-                <div key={n.id} className="px-2 py-1.5">
-                  <p className="text-sm font-medium">
-                    {n.title ?? n.message ?? "Notification"}
-                  </p>
-                  {n.createdAt && (
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(n.createdAt).toLocaleTimeString()}
-                    </p>
-                  )}
-                </div>
-              ))
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <NotificationBell scope="admin" />
 
         <Button
           variant="outline"

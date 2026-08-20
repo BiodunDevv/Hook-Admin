@@ -3,18 +3,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, ImagePlus, Plus, Save, Send, Trash2 } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { AlertCircle, ImagePlus, Plus, Save, Send, Star, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPatch, apiPost } from "@/lib/api";
 import type { ProductSubmission } from "@/lib/catalog";
-import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { HookLoader } from "@/components/shared/HookLoader";
+import { MobileButton } from "@/components/mobile/MobileUI";
+import { ColorPicker } from "@/components/mobile/ColorPicker";
+import { SizePicker } from "@/components/mobile/SizePicker";
 
 interface MarketOption { publicId: string; name: string }
 interface MarketVendorOption { publicId: string; businessName: string; contactName: string; status: string }
@@ -65,7 +68,7 @@ function initialValue(submission?: ProductSubmission): FormState {
     mediaIds: submission?.mediaIds || [],
     availabilityStatus: submission?.availabilityStatus || "available",
     availabilityNote: submission?.availabilityNote || "",
-    internalSellerReference: "",
+    internalSellerReference: submission?.internalSellerReference || "",
     variants: submission?.variants?.map((item) => ({
       size: item.size || "",
       colour: item.colour || "",
@@ -86,6 +89,9 @@ export function RunnerSubmissionForm({
 }) {
   const router = useRouter();
   const [form, setForm] = useState(() => initialValue(submission));
+  const [mediaById, setMediaById] = useState<Record<string, { deliveryUrl?: string; width?: number; height?: number }>>(
+    () => Object.fromEntries((submission?.media || []).map((item) => [item.publicId, item])),
+  );
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -134,6 +140,18 @@ export function RunnerSubmissionForm({
   }
 
   async function save(submitAfter = false) {
+    if (submitAfter) {
+      // A variant needs size, colour, or an attribute — mirrors the backend's
+      // own submit-time check, so the runner sees this before the round trip,
+      // not as a generic "could not be saved" toast after the fact.
+      const hasCompleteVariant = form.variants.some(
+        (variant) => variant.size.trim() || variant.colour.trim() || Object.keys(variant.attributes).length,
+      );
+      if (!hasCompleteVariant) {
+        toast.error("Add at least one size or colour before submitting for review");
+        return;
+      }
+    }
     setSaving(true);
     try {
       const saved = submission
@@ -149,7 +167,12 @@ export function RunnerSubmissionForm({
       router.replace(`/runner/submissions/${saved.publicId}`);
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message.replace(/^\d+:\s*/, "") : "Submission could not be saved");
+      const details = (error as { details?: { fields?: string[] } })?.details;
+      if (details?.fields?.length) {
+        toast.error(`Missing before submitting: ${details.fields.join(", ")}`);
+      } else {
+        toast.error(error instanceof Error ? error.message.replace(/^\d+:\s*/, "") : "Submission could not be saved");
+      }
     } finally {
       setSaving(false);
     }
@@ -180,12 +203,13 @@ export function RunnerSubmissionForm({
       const providerResponse = await fetch(intent.uploadUrl, { method: "POST", body });
       const provider = await providerResponse.json();
       if (!providerResponse.ok) throw new Error(provider?.error?.message || "Image upload failed");
-      const asset = await apiPost<{ publicId: string }>("/catalog/media/finalize", {
+      const asset = await apiPost<{ publicId: string; deliveryUrl?: string; width?: number; height?: number }>("/catalog/media/finalize", {
         uploadIntentId: intent.uploadIntentId,
         providerPublicId: provider.public_id,
         version: String(provider.version),
         ownerType: "submission",
       });
+      setMediaById((current) => ({ ...current, [asset.publicId]: asset }));
       update("mediaIds", [...form.mediaIds, asset.publicId]);
       toast.success("Image uploaded securely");
     } catch (error) {
@@ -195,34 +219,296 @@ export function RunnerSubmissionForm({
     }
   }
 
+  const noVendors = Boolean(form.marketId && !vendors.isLoading && !vendors.data?.length);
+
   return (
-    <div className="space-y-4 pb-24">
+    <div className="pb-4">
       {submission?.reviewNotes?.length ? (
-        <Card className="border-amber-200 bg-amber-50 shadow-none"><CardHeader><CardTitle className="text-sm">Catalog Review feedback</CardTitle></CardHeader><CardContent className="space-y-2">{submission.reviewNotes.slice().reverse().map((note, index) => <div key={`${note.createdAt}-${index}`} className="text-sm"><span className="font-medium capitalize">{note.action.replaceAll("_", " ")}</span>{note.message ? `: ${note.message}` : ""}</div>)}</CardContent></Card>
-      ) : null}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.8fr)]">
-        <Card className="rounded-lg shadow-none"><CardHeader><CardTitle>Product capture</CardTitle></CardHeader><CardContent>
-          <FieldGroup>
-            <Field><FieldLabel>Product title</FieldLabel><Input disabled={!editable} value={form.basicTitle} onChange={(event) => update("basicTitle", event.target.value)} placeholder="Clear product name" /></Field>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field><FieldLabel>Assigned Market</FieldLabel><Select disabled={!editable} value={form.marketId} onValueChange={(value) => { setForm((current) => ({ ...current, marketId: value, marketVendorId: "" })); setDirty(true); }}><SelectTrigger><SelectValue placeholder="Select Market" /></SelectTrigger><SelectContent>{markets.map((market) => <SelectItem key={market.publicId} value={market.publicId}>{market.name}</SelectItem>)}</SelectContent></Select></Field>
-              <Field><FieldLabel>Source supplier</FieldLabel><Select disabled={!editable || !form.marketId || vendors.isLoading} value={form.marketVendorId} onValueChange={(value) => update("marketVendorId", value)}><SelectTrigger><SelectValue placeholder={vendors.isLoading ? "Loading suppliers" : "Select supplier"} /></SelectTrigger><SelectContent>{(vendors.data || []).map((vendor) => <SelectItem key={vendor.publicId} value={vendor.publicId}>{vendor.businessName} · {vendor.contactName}</SelectItem>)}</SelectContent></Select>{form.marketId && !vendors.isLoading && !vendors.data?.length ? <p className="text-xs text-amber-700">Add a supplier from the Market page before saving this submission.</p> : null}</Field>
-              <Field><FieldLabel>Suggested category</FieldLabel><Select disabled={!editable} value={form.categorySuggestionId} onValueChange={(value) => update("categorySuggestionId", value)}><SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger><SelectContent>{categories.map((category) => <SelectItem key={category.publicId} value={category.publicId}>{category.name}</SelectItem>)}</SelectContent></Select></Field>
-            </div>
-            <Field><FieldLabel>Observed market price (NGN)</FieldLabel><Input disabled={!editable} inputMode="decimal" value={form.basePrice} onChange={(event) => update("basePrice", event.target.value.replace(/[^\d.]/g, ""))} placeholder="0.00" /></Field>
-            <Field><FieldLabel>Capture notes</FieldLabel><Textarea disabled={!editable} value={form.notes} onChange={(event) => update("notes", event.target.value)} placeholder="Materials, condition, distinguishing details, and seller context." className="min-h-32" /></Field>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field><FieldLabel>Availability</FieldLabel><Select disabled={!editable} value={form.availabilityStatus} onValueChange={(value) => update("availabilityStatus", value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="available">Available</SelectItem><SelectItem value="limited">Limited</SelectItem><SelectItem value="unconfirmed">Unconfirmed</SelectItem></SelectContent></Select></Field>
-              <Field><FieldLabel>Seller reference (internal)</FieldLabel><Input disabled={!editable} value={form.internalSellerReference} onChange={(event) => update("internalSellerReference", event.target.value)} placeholder="Stall or contact reference" /></Field>
-            </div>
-          </FieldGroup>
-        </CardContent></Card>
-        <div className="space-y-4">
-          <Card className="rounded-lg shadow-none"><CardHeader><CardTitle>Media</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-sm text-muted-foreground">Upload at least one clear, original product image.</p>{mediaReadiness.isError || (mediaReadiness.isSuccess && !mediaAvailable) ? <Alert><AlertCircle /><AlertTitle>Secure uploads unavailable</AlertTitle><AlertDescription>Existing draft media remains safe. You can continue editing and save this draft, then upload images when the media service is restored.</AlertDescription></Alert> : null}<label className={`flex min-h-28 flex-col items-center justify-center rounded-lg border border-dashed bg-muted/20 text-sm ${editable && mediaAvailable && !uploading ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}><ImagePlus className="mb-2 size-5" />{mediaReadiness.isLoading || uploading ? <HookLoader size="inline" /> : mediaAvailable ? "Choose image" : "Upload unavailable"}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" className="sr-only" disabled={!editable || uploading || !mediaAvailable} onChange={(event) => void upload(event.target.files?.[0])} /></label>{form.mediaIds.map((id) => <div key={id} className="flex items-center justify-between rounded-md border p-2 text-xs"><span className="truncate">{id}</span><Button type="button" variant="ghost" size="icon-sm" disabled={!editable} onClick={() => update("mediaIds", form.mediaIds.filter((value) => value !== id))}><Trash2 /></Button></div>)}</CardContent></Card>
-          <Card className="rounded-lg shadow-none"><CardHeader className="flex-row items-center justify-between"><CardTitle>Variants</CardTitle><Button type="button" variant="outline" size="sm" disabled={!editable} onClick={() => update("variants", [...form.variants, { size: "", colour: "", attributes: {}, active: true }])}><Plus /> Add</Button></CardHeader><CardContent className="space-y-3">{form.variants.map((variant, index) => <div key={index} className="grid grid-cols-[1fr_1fr_auto] gap-2"><Input disabled={!editable} placeholder="Size" value={variant.size} onChange={(event) => update("variants", form.variants.map((item, itemIndex) => itemIndex === index ? { ...item, size: event.target.value } : item))} /><Input disabled={!editable} placeholder="Colour" value={variant.colour} onChange={(event) => update("variants", form.variants.map((item, itemIndex) => itemIndex === index ? { ...item, colour: event.target.value } : item))} /><Button variant="ghost" size="icon" disabled={!editable || form.variants.length === 1} onClick={() => update("variants", form.variants.filter((_, itemIndex) => itemIndex !== index))}><Trash2 /></Button></div>)}</CardContent></Card>
+        <div className="mb-6 rounded-[10px] bg-[#FFF3C4] p-4">
+          <p className="flex items-center gap-1.5 text-[13px] font-bold text-[#9a7400]">
+            <AlertCircle className="size-4" /> Catalog Review feedback
+          </p>
+          <div className="mt-2 space-y-1.5">
+            {submission.reviewNotes.slice().reverse().map((note, index) => (
+              <p key={`${note.createdAt}-${index}`} className="text-[13px] leading-5 text-black">
+                <span className="font-semibold capitalize">{note.action.replaceAll("_", " ")}</span>
+                {note.message ? `: ${note.message}` : ""}
+              </p>
+            ))}
+          </div>
         </div>
+      ) : null}
+
+      {/* Photos first — this is a capture flow, not a data-entry form. */}
+      <FormBlock title="Photos" hint="The first photo is the primary image shown to Catalog Review.">
+        {mediaReadiness.isError || (mediaReadiness.isSuccess && !mediaAvailable) ? (
+          <Alert className="mb-3">
+            <AlertCircle />
+            <AlertTitle>Secure uploads unavailable</AlertTitle>
+            <AlertDescription>
+              Draft media is safe. Save the draft and upload once the media service is restored.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        <div className="grid grid-cols-3 gap-2">
+          {form.mediaIds.map((id, index) => {
+            const asset = mediaById[id];
+            return (
+              <div key={id} className="group relative aspect-square overflow-hidden rounded-[10px] bg-muted">
+                {asset?.deliveryUrl ? (
+                  <Image src={asset.deliveryUrl} alt="Submission media" fill sizes="120px" className="object-cover" unoptimized />
+                ) : (
+                  <div className="flex size-full items-center justify-center"><HookLoader size="inline" /></div>
+                )}
+                {index === 0 && (
+                  <span className="absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                    <Star className="size-2.5 fill-current" /> Primary
+                  </span>
+                )}
+                {editable && (
+                  <button
+                    type="button"
+                    onClick={() => update("mediaIds", form.mediaIds.filter((value) => value !== id))}
+                    className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-full bg-black/60 text-white transition sm:opacity-0 sm:group-hover:opacity-100"
+                    aria-label="Remove photo"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+          <label
+            className={`flex aspect-square flex-col items-center justify-center gap-1.5 rounded-[10px] border-2 border-dashed border-[#D9D9D9] text-[12px] font-semibold text-[#8F8F8F] ${editable && mediaAvailable && !uploading ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
+          >
+            {mediaReadiness.isLoading || uploading ? (
+              <HookLoader size="inline" />
+            ) : (
+              <>
+                <ImagePlus className="size-6" />
+                {mediaAvailable ? "Add photo" : "Unavailable"}
+              </>
+            )}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/avif"
+              capture="environment"
+              className="sr-only"
+              disabled={!editable || uploading || !mediaAvailable}
+              onChange={(event) => void upload(event.target.files?.[0])}
+            />
+          </label>
+        </div>
+      </FormBlock>
+
+      <FormBlock title="Product">
+        <MobileField label="Product title">
+          <Input
+            disabled={!editable}
+            value={form.basicTitle}
+            onChange={(event) => update("basicTitle", event.target.value)}
+            placeholder="Clear product name"
+            className="h-12 rounded-[10px]"
+          />
+        </MobileField>
+        <MobileField label="Observed market price (NGN)">
+          <Input
+            disabled={!editable}
+            inputMode="decimal"
+            value={form.basePrice}
+            onChange={(event) => update("basePrice", event.target.value.replace(/[^\d.]/g, ""))}
+            placeholder="0.00"
+            className="h-12 rounded-[10px]"
+          />
+        </MobileField>
+        <MobileField label="Suggested category">
+          <Select disabled={!editable} value={form.categorySuggestionId} onValueChange={(value) => update("categorySuggestionId", value)}>
+            <SelectTrigger className="h-12 rounded-[10px]"><SelectValue placeholder="Select category" /></SelectTrigger>
+            <SelectContent>
+              {categories.map((category) => (
+                <SelectItem key={category.publicId} value={category.publicId}>{category.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </MobileField>
+        <MobileField label="Capture notes">
+          <Textarea
+            disabled={!editable}
+            value={form.notes}
+            onChange={(event) => update("notes", event.target.value)}
+            placeholder="Materials, condition, distinguishing details, and seller context."
+            className="min-h-28 rounded-[10px]"
+          />
+        </MobileField>
+      </FormBlock>
+
+      <FormBlock title="Source" hint="Where you collected this product from.">
+        <MobileField label="Assigned Market">
+          <Select
+            disabled={!editable}
+            value={form.marketId}
+            onValueChange={(value) => {
+              setForm((current) => ({ ...current, marketId: value, marketVendorId: "" }));
+              setDirty(true);
+            }}
+          >
+            <SelectTrigger className="h-12 rounded-[10px]"><SelectValue placeholder="Select Market" /></SelectTrigger>
+            <SelectContent>
+              {markets.map((market) => (
+                <SelectItem key={market.publicId} value={market.publicId}>{market.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </MobileField>
+        <MobileField
+          label="Source supplier"
+          error={noVendors ? "No suppliers yet in this Market." : undefined}
+        >
+          <Select
+            disabled={!editable || !form.marketId || vendors.isLoading}
+            value={form.marketVendorId}
+            onValueChange={(value) => update("marketVendorId", value)}
+          >
+            <SelectTrigger className="h-12 rounded-[10px]">
+              <SelectValue placeholder={vendors.isLoading ? "Loading suppliers" : "Select supplier"} />
+            </SelectTrigger>
+            <SelectContent>
+              {(vendors.data || []).map((vendor) => (
+                <SelectItem key={vendor.publicId} value={vendor.publicId}>
+                  {vendor.businessName} · {vendor.contactName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {noVendors && (
+            <Link
+              href={`/runner/markets/${form.marketId}`}
+              className="mt-2 flex items-center gap-1.5 text-[13px] font-semibold text-[#9a7400]"
+            >
+              <UserPlus className="size-3.5" /> Onboard a supplier for this Market
+            </Link>
+          )}
+        </MobileField>
+        <MobileField label="Seller reference (internal)">
+          <Input
+            disabled={!editable}
+            value={form.internalSellerReference}
+            onChange={(event) => update("internalSellerReference", event.target.value)}
+            placeholder="Stall or contact reference"
+            className="h-12 rounded-[10px]"
+          />
+        </MobileField>
+        <MobileField label="Availability">
+          <Select disabled={!editable} value={form.availabilityStatus} onValueChange={(value) => update("availabilityStatus", value)}>
+            <SelectTrigger className="h-12 rounded-[10px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="available">Available</SelectItem>
+              <SelectItem value="limited">Limited</SelectItem>
+              <SelectItem value="unconfirmed">Unconfirmed</SelectItem>
+            </SelectContent>
+          </Select>
+        </MobileField>
+      </FormBlock>
+
+      <FormBlock
+        title="Variants"
+        hint="Required — add at least one size, colour, or both."
+        action={
+          editable ? (
+            <button
+              type="button"
+              onClick={() => update("variants", [...form.variants, { size: "", colour: "", attributes: {}, active: true }])}
+              className="flex items-center gap-1 text-[13px] font-semibold text-[#9a7400]"
+            >
+              <Plus className="size-3.5" /> Add
+            </button>
+          ) : undefined
+        }
+      >
+        <div className="space-y-2">
+          {form.variants.map((variant, index) => (
+            <div key={index} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+              <SizePicker
+                disabled={!editable}
+                value={variant.size}
+                onChange={(next) =>
+                  update("variants", form.variants.map((item, itemIndex) => (itemIndex === index ? { ...item, size: next } : item)))
+                }
+              />
+              <ColorPicker
+                disabled={!editable}
+                value={variant.colour}
+                onChange={(next) =>
+                  update("variants", form.variants.map((item, itemIndex) => (itemIndex === index ? { ...item, colour: next } : item)))
+                }
+              />
+              <button
+                type="button"
+                disabled={!editable || form.variants.length === 1}
+                onClick={() => update("variants", form.variants.filter((_, itemIndex) => itemIndex !== index))}
+                className="grid size-12 place-items-center rounded-[10px] bg-[#EAEBE7] disabled:opacity-40"
+                aria-label="Remove variant"
+              >
+                <Trash2 className="size-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </FormBlock>
+
+      {editable ? (
+        <div className="sticky bottom-3 space-y-2 rounded-[14px] bg-white/95 p-3 shadow-[0_3px_14px_rgba(0,0,0,0.12)] backdrop-blur">
+          <MobileButton disabled={saving || uploading} onClick={() => void save(true)}>
+            {saving ? <HookLoader size="button" /> : <><Send size={17} /> Submit for review</>}
+          </MobileButton>
+          <MobileButton variant="outline" disabled={saving || uploading} onClick={() => void save(false)}>
+            {saving ? <HookLoader size="button" /> : <><Save size={17} /> Save draft</>}
+          </MobileButton>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function FormBlock({
+  title,
+  hint,
+  action,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="mb-6">
+      <div className="mb-3 flex items-center justify-between gap-3 px-1">
+        <div>
+          <h2 className="text-[15px] font-semibold text-black">{title}</h2>
+          {hint && <p className="mt-0.5 text-[12px] text-[#8F8F8F]">{hint}</p>}
+        </div>
+        {action}
       </div>
-      {editable ? <div className="sticky bottom-3 flex justify-end gap-2 rounded-lg border bg-white/95 p-3 shadow-lg backdrop-blur"><Button variant="outline" disabled={saving || uploading} onClick={() => void save(false)}>{saving ? <HookLoader size="button" /> : <><Save /> Save draft</>}</Button><Button className="bg-[#FFC809] text-black hover:bg-[#f0bb00]" disabled={saving || uploading} onClick={() => void save(true)}>{saving ? <HookLoader size="button" /> : <><Send /> Submit for review</>}</Button></div> : null}
+      <div className="space-y-4 rounded-[10px] bg-white p-4">{children}</div>
+    </section>
+  );
+}
+
+function MobileField({
+  label,
+  error,
+  children,
+}: {
+  label: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-[13px] font-semibold">{label}</Label>
+      {children}
+      {error && <p className="text-[12px] font-medium text-amber-700">{error}</p>}
     </div>
   );
 }

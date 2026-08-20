@@ -197,7 +197,13 @@ export async function apiRequest<T>(
       });
       return parseResponse<T>(retry);
     }
+    // Refresh failed or there was no refresh token — redirectToLogin() only
+    // schedules a navigation, it doesn't stop this call. Without returning
+    // here, every in-flight request fell through to parseResponse(res) and
+    // threw its own "401" error against the stale original response instead
+    // of just letting the redirect happen.
     redirectToLogin();
+    throw new Error("401: Session expired — redirecting to sign in");
   }
 
   return parseResponse<T>(res);

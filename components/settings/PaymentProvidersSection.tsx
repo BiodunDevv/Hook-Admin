@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CreditCard, GripVertical, Save, ShieldCheck, TriangleAlert } from "lucide-react";
+import { CreditCard, Save, ShieldCheck, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { HookLoader } from "@/components/shared/HookLoader";
 import { QueryState } from "@/components/shared/QueryState";
+import { PaymentProviderMark } from "@/components/payments/PaymentProviderMark";
 import { apiPatch } from "@/lib/api";
 import { useApiQuery } from "@/lib/query";
 
@@ -61,8 +62,14 @@ export function PaymentProvidersSection() {
         {[...providers].sort((a, b) => a.displayOrder - b.displayOrder).map((provider) => (
           <div key={provider.provider} className="grid gap-4 rounded-lg border border-zinc-200 p-4 sm:grid-cols-[minmax(0,1fr)_110px_120px] sm:items-center">
             <div className="flex min-w-0 items-center gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-zinc-950 text-white"><GripVertical size={18} /></div>
-              <div className="min-w-0"><p className="font-semibold capitalize">{provider.provider}</p><p className="text-xs text-zinc-500">{provider.configured ? `${provider.mode === "live" ? "Live" : "Test"} configuration ready` : provider.reason || "Missing configuration"}</p></div>
+              <PaymentProviderMark provider={provider.provider} />
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold">{provider.provider === "opay" ? "OPay" : "Paystack"}</p>
+                  {provider.configured && <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${provider.mode === "live" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{provider.mode}</span>}
+                </div>
+                <p className="text-xs text-zinc-500">{provider.configured ? "Ready to accept payments" : provider.reason || "Missing configuration"}</p>
+              </div>
             </div>
             <div className="flex items-center justify-between gap-2 sm:justify-end"><Label htmlFor={`${provider.provider}-enabled`}>Enabled</Label><Switch id={`${provider.provider}-enabled`} checked={provider.enabled} disabled={!provider.configured} onCheckedChange={(enabled) => update(provider.provider, { enabled, isDefault: enabled ? provider.isDefault : false })} /></div>
             <Button type="button" size="sm" variant={provider.isDefault ? "default" : "outline"} disabled={!provider.enabled} onClick={() => setDefault(provider.provider)}>{provider.isDefault ? <><ShieldCheck /> Default</> : "Make default"}</Button>

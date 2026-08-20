@@ -1,2 +1,2 @@
-import { PortalOverview } from "@/components/platform/PortalOverview";
-export default function RunnerProfilePage() { return <PortalOverview type="runner" view="profile" />; }
+import { ProfileWorkspace } from "@/components/platform/ProfileWorkspace";
+export default function RunnerProfilePage() { return <ProfileWorkspace type="runner" section="profile" />; }

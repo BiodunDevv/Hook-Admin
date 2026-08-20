@@ -19,6 +19,8 @@ export interface ProductSubmission {
   status: "draft" | "submitted" | "in_review" | "changes_requested" | "approved" | "rejected";
   marketId: string;
   marketVendorId?: string;
+  marketVendor?: { publicId: string; businessName: string; contactName: string } | null;
+  internalSellerReference?: string;
   sourceStateId: string;
   categorySuggestionId: string;
   notes?: string;

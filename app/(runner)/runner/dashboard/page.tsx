@@ -1,10 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, ClipboardList, MapPinned, PackageCheck, RotateCcw } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Camera,
+  ClipboardList,
+  MapPinned,
+  PackageCheck,
+  RotateCcw,
+  Store,
+  TriangleAlert,
+} from "lucide-react";
 import { HookLoader } from "@/components/shared/HookLoader";
+import {
+  MobileEmpty,
+  MobileRow,
+  MobileSection,
+  MobileStat,
+} from "@/components/mobile/MobileUI";
 import { useApiQuery } from "@/lib/query";
 
 interface Dashboard {
@@ -16,58 +28,126 @@ interface Dashboard {
   recentPublished: Array<{ publicId: string; title: string; publishedAt: string }>;
 }
 
+interface FulfilmentRow {
+  publicId?: string;
+  id?: string;
+  status?: string;
+  orderId?: string;
+}
+
+function greeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
 export default function RunnerDashboardPage() {
   const query = useApiQuery<Dashboard>(["runner", "catalog-dashboard"], "/runner/dashboard");
+  const tasks = useApiQuery<{ data: FulfilmentRow[]; total: number }>(
+    ["runner", "fulfilments"],
+    "/runner/fulfilments?limit=5",
+  );
 
   if (query.isLoading) {
-    return <div className="grid min-h-80 place-items-center"><HookLoader label="Loading Runner dashboard" /></div>;
+    return (
+      <div className="grid min-h-80 place-items-center">
+        <HookLoader label="Loading your dashboard" />
+      </div>
+    );
   }
   if (query.isError || !query.data) {
     return <p className="text-sm text-destructive">Your Runner dashboard could not be loaded.</p>;
   }
 
-  const stats = [
-    ["Assigned Markets", query.data.assignedMarkets, MapPinned],
-    ["Drafts", query.data.drafts, ClipboardList],
-    ["In review", query.data.submitted, PackageCheck],
-    ["Changes requested", query.data.changesRequested, RotateCcw],
-  ] as const;
+  const data = query.data;
+  const openTasks = tasks.data?.data || [];
 
   return (
-    <div className="space-y-5 pb-24">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Runner dashboard</h1>
-          <p className="text-sm text-muted-foreground">Capture verified products from your assigned Markets.</p>
-        </div>
-        <Button asChild className="bg-[#FFC809] text-black hover:bg-[#f0bb00]"><Link href="/runner/submissions/new">New submission</Link></Button>
+    <div>
+      <div className="mb-6 px-1">
+        <p className="text-[13px] text-[#8F8F8F]">{greeting()} 👋</p>
+        <h1 className="mt-0.5 text-[22px] font-bold leading-tight text-black">Today&apos;s work</h1>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map(([label, value, Icon]) => (
-          <Card key={label} className="rounded-lg shadow-none">
-            <CardContent className="flex items-center gap-3 p-4">
-              <span className="grid size-9 place-items-center rounded-md bg-amber-50"><Icon className="size-4" /></span>
-              <div><p className="text-2xl font-semibold">{value}</p><p className="text-xs text-muted-foreground">{label}</p></div>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="mb-7 grid grid-cols-2 gap-3">
+        <MobileStat icon={MapPinned} label="Assigned markets" value={data.assignedMarkets} />
+        <MobileStat icon={ClipboardList} label="Drafts" value={data.drafts} tone="neutral" />
+        <MobileStat icon={PackageCheck} label="In review" value={data.submitted} tone="neutral" />
+        <MobileStat
+          icon={RotateCcw}
+          label="Changes requested"
+          value={data.changesRequested}
+          tone={data.changesRequested > 0 ? "danger" : "neutral"}
+        />
       </div>
 
-      <Card className="rounded-lg shadow-none">
-        <CardHeader className="flex-row items-center justify-between">
-          <CardTitle className="text-base">Recently published</CardTitle>
-          <Button variant="ghost" size="sm" asChild><Link href="/runner/submissions">View submissions <ArrowRight /></Link></Button>
-        </CardHeader>
-        <CardContent>
-          {query.data.recentPublished.length ? query.data.recentPublished.map((item) => (
-            <div key={item.publicId} className="flex items-center justify-between border-t py-3 first:border-0">
-              <div><p className="text-sm font-medium">{item.title}</p><p className="text-xs text-muted-foreground">{item.publicId}</p></div>
-              <PackageCheck className="size-4 text-emerald-600" />
-            </div>
-          )) : <p className="py-6 text-center text-sm text-muted-foreground">Approved products will appear here after Commercial publishes them.</p>}
-        </CardContent>
-      </Card>
+      {data.changesRequested > 0 && (
+        <MobileSection>
+          <MobileRow
+            icon={TriangleAlert}
+            tone="danger"
+            label={`${data.changesRequested} submission${data.changesRequested === 1 ? "" : "s"} need changes`}
+            description="Catalog Review sent these back to you"
+            href="/runner/submissions"
+          />
+        </MobileSection>
+      )}
+
+      <MobileSection title="Quick actions">
+        <MobileRow icon={Camera} label="Capture a product" description="Add a new product from your market" href="/runner/submissions/new" />
+        <MobileRow icon={Store} label="Assigned markets" description="Vendors, products, and collections" href="/runner/markets" />
+      </MobileSection>
+
+      <MobileSection
+        title="Your task queue"
+        action={
+          <Link href="/runner/fulfilments" className="text-[13px] font-semibold text-[#9a7400]">
+            View all
+          </Link>
+        }
+      >
+        {tasks.isLoading ? (
+          <div className="py-6">
+            <HookLoader size="inline" />
+          </div>
+        ) : openTasks.length ? (
+          openTasks.map((task) => (
+            <MobileRow
+              key={task.publicId || task.id}
+              icon={PackageCheck}
+              label={task.publicId || task.id || "Task"}
+              description={`Order ${task.orderId || "-"}`}
+              value={<span className="capitalize">{String(task.status || "").replaceAll("_", " ").toLowerCase()}</span>}
+              href={`/runner/fulfilments/${task.publicId || task.id}`}
+            />
+          ))
+        ) : (
+          <MobileRow icon={PackageCheck} tone="neutral" label="No tasks assigned" description="New orders will appear here" />
+        )}
+      </MobileSection>
+
+      <MobileSection title="Recently published">
+        {data.recentPublished.length ? (
+          data.recentPublished.map((item) => (
+            <MobileRow
+              key={item.publicId}
+              icon={PackageCheck}
+              label={item.title}
+              description={item.publicId}
+              tone="neutral"
+            />
+          ))
+        ) : (
+          <div className="py-2">
+            <MobileEmpty
+              icon={PackageCheck}
+              title="Nothing published yet"
+              description="Approved products appear here once Commercial publishes them."
+            />
+          </div>
+        )}
+      </MobileSection>
     </div>
   );
 }
