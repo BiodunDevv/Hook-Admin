@@ -184,7 +184,7 @@ export function PartnerBrowseWorkspace({
       <Sheet open={marketSheetOpen} onOpenChange={setMarketSheetOpen}>
         <SheetContent
           side="bottom"
-          className="mx-auto flex max-h-[80vh] w-full max-w-2xl flex-col rounded-t-2xl border-x bg-[#F5F5F5] p-0"
+          className="mx-auto flex max-h-[80dvh] w-full max-w-2xl flex-col rounded-t-2xl border-x bg-[#F5F5F5] p-0"
         >
           <SheetHeader className="shrink-0 px-5 pb-3 pt-5">
             <SheetTitle className="text-[19px] font-bold">Choose a market</SheetTitle>

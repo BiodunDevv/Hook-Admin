@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import Link from "next/link";
-import { AlertCircle, ImagePlus, Plus, Save, Send, Star, Trash2, UserPlus } from "lucide-react";
+import { AlertCircle, ChevronDown, ChevronUp, ImagePlus, Plus, Ruler, Save, Send, Star, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPatch, apiPost } from "@/lib/api";
-import type { ProductSubmission } from "@/lib/catalog";
+import { money, type ProductSubmission } from "@/lib/catalog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,10 +18,11 @@ import { HookLoader } from "@/components/shared/HookLoader";
 import { MobileButton } from "@/components/mobile/MobileUI";
 import { ColorPicker } from "@/components/mobile/ColorPicker";
 import { SizePicker } from "@/components/mobile/SizePicker";
+import type { SizingGuide } from "@/lib/sizing-guide";
 
 interface MarketOption { publicId: string; name: string }
 interface MarketVendorOption { publicId: string; businessName: string; contactName: string; status: string }
-interface CategoryOption { publicId: string; name: string }
+interface CategoryOption { publicId: string; name: string; sizingGuide?: SizingGuide | null }
 interface UploadIntent {
   uploadIntentId: string;
   uploadUrl: string;
@@ -95,7 +96,10 @@ export function RunnerSubmissionForm({
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [sizingGuideExpanded, setSizingGuideExpanded] = useState(false);
   const editable = !submission || ["draft", "changes_requested"].includes(submission.status);
+  const selectedCategory = categories.find((category) => category.publicId === form.categorySuggestionId);
+  const sizingGuide = selectedCategory?.sizingGuide;
   const mediaReadiness = useQuery({
     queryKey: ["catalog-media-readiness"],
     queryFn: () => apiGet<MediaReadiness>("/catalog/media/readiness"),
@@ -239,6 +243,23 @@ export function RunnerSubmissionForm({
         </div>
       ) : null}
 
+      {submission?.approvedProduct ? (
+        <div className="mb-6 grid gap-3 rounded-[10px] border border-emerald-200 bg-emerald-50 p-4 sm:grid-cols-3">
+          <div>
+            <p className="text-[11px] font-bold uppercase text-emerald-700">Runner observed</p>
+            <p className="mt-1 text-[16px] font-bold text-black">{money(submission.basePriceMinor, submission.currency)}</p>
+          </div>
+          <div>
+            <p className="text-[11px] font-bold uppercase text-emerald-700">Approved Hook price</p>
+            <p className="mt-1 text-[16px] font-bold text-black">{money(submission.approvedProduct.sellingPriceMinor, submission.approvedProduct.currency)}</p>
+          </div>
+          <div>
+            <p className="text-[11px] font-bold uppercase text-emerald-700">Catalog status</p>
+            <p className="mt-1 text-[16px] font-bold capitalize text-black">{submission.approvedProduct.status.replaceAll("_", " ")}</p>
+          </div>
+        </div>
+      ) : null}
+
       {/* Photos first — this is a capture flow, not a data-entry form. */}
       <FormBlock title="Photos" hint="The first photo is the primary image shown to Catalog Review.">
         {mediaReadiness.isError || (mediaReadiness.isSuccess && !mediaAvailable) ? (
@@ -322,7 +343,14 @@ export function RunnerSubmissionForm({
           />
         </MobileField>
         <MobileField label="Suggested category">
-          <Select disabled={!editable} value={form.categorySuggestionId} onValueChange={(value) => update("categorySuggestionId", value)}>
+          <Select
+            disabled={!editable}
+            value={form.categorySuggestionId}
+            onValueChange={(value) => {
+              update("categorySuggestionId", value);
+              setSizingGuideExpanded(false);
+            }}
+          >
             <SelectTrigger className="h-12 rounded-[10px]"><SelectValue placeholder="Select category" /></SelectTrigger>
             <SelectContent>
               {categories.map((category) => (
@@ -331,6 +359,45 @@ export function RunnerSubmissionForm({
             </SelectContent>
           </Select>
         </MobileField>
+        {sizingGuide?.summary ? (
+          <div className="rounded-[10px] bg-[#FFF9E6] p-3">
+            <div className="flex items-start gap-2">
+              <Ruler className="mt-0.5 size-4 shrink-0 text-[#9a7400]" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-semibold text-[#5a4300]">{sizingGuide.summary}</p>
+                {sizingGuide.howToMeasure ? (
+                  <button
+                    type="button"
+                    onClick={() => setSizingGuideExpanded((current) => !current)}
+                    className="mt-1.5 flex items-center gap-1 text-[12px] font-semibold text-[#9a7400]"
+                  >
+                    How to measure
+                    {sizingGuideExpanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+                  </button>
+                ) : null}
+                {sizingGuideExpanded && sizingGuide.howToMeasure ? (
+                  <p className="mt-1.5 whitespace-pre-line text-[12px] leading-5 text-[#5a4300]">
+                    {sizingGuide.howToMeasure}
+                  </p>
+                ) : null}
+                {sizingGuideExpanded && sizingGuide.chart?.length ? (
+                  <div className="mt-2 space-y-1 overflow-hidden rounded-[8px] bg-white/70">
+                    {sizingGuide.chart.map((row) => (
+                      <div key={row.size} className="flex flex-wrap gap-x-3 gap-y-0.5 px-2.5 py-1.5 text-[12px] text-[#5a4300]">
+                        <span className="font-semibold">{row.size}</span>
+                        {Object.entries(row.measurements).map(([label, value]) => (
+                          <span key={label} className="text-[#7a6000]">
+                            {label}: {value}
+                          </span>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        ) : null}
         <MobileField label="Capture notes">
           <Textarea
             disabled={!editable}
@@ -431,6 +498,7 @@ export function RunnerSubmissionForm({
               <SizePicker
                 disabled={!editable}
                 value={variant.size}
+                groups={sizingGuide?.presetGroups}
                 onChange={(next) =>
                   update("variants", form.variants.map((item, itemIndex) => (itemIndex === index ? { ...item, size: next } : item)))
                 }

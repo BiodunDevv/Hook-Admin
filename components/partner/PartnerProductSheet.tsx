@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Minus, Plus, ShoppingBag, Tag } from "lucide-react";
+import { Info, Minus, Plus, ShoppingBag, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -18,6 +18,7 @@ import { ProductImage, money } from "@/components/mobile/MobileCommerce";
 import { displayColorName } from "@/components/mobile/ColorPicker";
 import { apiPost } from "@/lib/api";
 import { useApiQuery } from "@/lib/query";
+import type { SizingGuide } from "@/lib/sizing-guide";
 
 type Variant = {
   publicId: string;
@@ -39,6 +40,7 @@ type ProductDetail = {
   negotiationAvailable?: boolean;
   isPurchasable?: boolean;
   market?: { name?: string };
+  category?: { sizingGuide?: SizingGuide | null } | null;
 };
 
 function variantLabel(variant: Variant) {
@@ -63,6 +65,7 @@ export function PartnerProductSheet({
   const [chosenVariantId, setChosenVariantId] = useState<string>();
   const [quantity, setQuantity] = useState(1);
   const [busy, setBusy] = useState(false);
+  const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
 
   const query = useApiQuery<ProductDetail>(
     ["partner", "product", productId],
@@ -146,7 +149,7 @@ export function PartnerProductSheet({
     <Sheet open={open} onOpenChange={(next) => !next && !busy && onClose()}>
       <SheetContent
         side="bottom"
-        className="mx-auto flex max-h-[92vh] w-full max-w-2xl flex-col rounded-t-2xl border-x bg-[#F5F5F5] p-0"
+        className="mx-auto flex max-h-[92dvh] w-full max-w-2xl flex-col rounded-t-2xl border-x bg-[#F5F5F5] p-0"
       >
         <SheetHeader className="shrink-0 px-5 pb-2 pt-5">
           <SheetTitle className="truncate text-[19px] font-bold">
@@ -206,10 +209,21 @@ export function PartnerProductSheet({
 
             {variants.length > 0 && (
               <div className="mt-4">
-                <p className="mb-2 text-[14px] font-semibold">
-                  Choose a size or colour
-                  {!variantId && <span className="ml-1 text-[#C53B35]">*</span>}
-                </p>
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-[14px] font-semibold">
+                    Choose a size or colour
+                    {!variantId && <span className="ml-1 text-[#C53B35]">*</span>}
+                  </p>
+                  {product.category?.sizingGuide?.summary && (
+                    <button
+                      type="button"
+                      onClick={() => setSizeGuideOpen(true)}
+                      className="flex items-center gap-1 text-[12px] font-semibold text-[#8F8F8F]"
+                    >
+                      <Info className="size-3.5" /> Size guide
+                    </button>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {variants.map((variant) => (
                     <button
@@ -282,6 +296,40 @@ export function PartnerProductSheet({
           </div>
         )}
       </SheetContent>
+
+      <Sheet open={sizeGuideOpen} onOpenChange={setSizeGuideOpen}>
+        <SheetContent side="bottom" className="mx-auto flex max-h-[80dvh] w-full max-w-2xl flex-col rounded-t-2xl border-x">
+          <SheetHeader>
+            <SheetTitle className="text-[17px] font-bold">Size guide</SheetTitle>
+          </SheetHeader>
+          <div className="overflow-y-auto px-5 pb-6">
+            {product?.category?.sizingGuide?.summary && (
+              <p className="text-[14px] leading-6 text-black">{product.category.sizingGuide.summary}</p>
+            )}
+            {product?.category?.sizingGuide?.howToMeasure && (
+              <p className="mt-3 whitespace-pre-line text-[13px] leading-6 text-black/70">
+                {product.category.sizingGuide.howToMeasure}
+              </p>
+            )}
+            {product?.category?.sizingGuide?.chart?.length ? (
+              <div className="mt-4 overflow-hidden rounded-[10px] bg-[#F5F5F5]">
+                {product.category.sizingGuide.chart.map((row, index) => (
+                  <div key={row.size} className={`px-4 py-3 ${index ? "border-t border-black/5" : ""}`}>
+                    <p className="text-[13px] font-bold">{row.size}</p>
+                    <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                      {Object.entries(row.measurements).map(([label, value]) => (
+                        <span key={label} className="text-[12px] text-black/60">
+                          {label}: {value}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </SheetContent>
+      </Sheet>
     </Sheet>
   );
 }

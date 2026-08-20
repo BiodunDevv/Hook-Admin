@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
 import { Camera, Plus } from "lucide-react";
-import { CatalogListState } from "@/components/catalog/CatalogListState";
 import { CatalogStatusBadge } from "@/components/catalog/CatalogStatusBadge";
+import { HookLoader } from "@/components/shared/HookLoader";
 import { MobileEmpty, MobileHeader } from "@/components/mobile/MobileUI";
 import { useApiQuery } from "@/lib/query";
 import type { CursorPage, ProductSubmission } from "@/lib/catalog";
@@ -63,13 +64,15 @@ export default function RunnerSubmissionsPage() {
         ))}
       </div>
 
-      <CatalogListState
-        loading={query.isLoading}
-        error={query.isError}
-        empty={!query.isLoading && !visible.length}
-      />
-
-      {!query.isLoading && !visible.length && !query.isError ? (
+      {query.isLoading ? (
+        <div className="grid min-h-56 place-items-center">
+          <HookLoader label="Loading captures" />
+        </div>
+      ) : query.isError ? (
+        <div className="grid min-h-56 place-items-center text-center text-sm text-destructive">
+          Captures could not be loaded.
+        </div>
+      ) : !visible.length ? (
         <MobileEmpty
           icon={Camera}
           title="Nothing here yet"
@@ -83,8 +86,12 @@ export default function RunnerSubmissionsPage() {
               href={`/runner/submissions/${row.publicId}`}
               className="flex min-h-17.5 items-center gap-3 border-b border-[#D9D9D9] last:border-b-0 transition active:bg-black/3"
             >
-              <span className="grid size-7.5 shrink-0 place-items-center rounded-[5px] bg-[#EAEBE7]">
-                <Camera size={17} className="text-black" />
+              <span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-[7px] bg-[#EAEBE7]">
+                {row.imageUrl ? (
+                  <Image src={row.imageUrl} alt="" width={44} height={44} className="size-full object-cover" />
+                ) : (
+                  <Camera size={18} className="text-black" />
+                )}
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[15px] font-semibold text-black">{row.basicTitle}</span>

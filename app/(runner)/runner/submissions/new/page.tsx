@@ -6,6 +6,7 @@ import { RunnerSubmissionForm } from "@/components/catalog/RunnerSubmissionForm"
 import { HookLoader } from "@/components/shared/HookLoader";
 import { MobileHeader } from "@/components/mobile/MobileUI";
 import { useApiQuery } from "@/lib/query";
+import type { SizingGuide } from "@/lib/sizing-guide";
 
 interface MarketsResponse {
   markets: Array<{ publicId: string; name: string }>;
@@ -13,6 +14,7 @@ interface MarketsResponse {
 interface Category {
   publicId: string;
   name: string;
+  sizingGuide?: SizingGuide | null;
 }
 
 export default function NewRunnerSubmissionPage() {

@@ -9,14 +9,16 @@ import {
 } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import type { SizingPresetGroup } from "@/lib/sizing-guide";
 
-const SIZE_GROUPS: Array<{ label: string; sizes: string[] }> = [
-  { label: "Clothing", sizes: ["XS", "S", "M", "L", "XL", "XXL", "3XL"] },
+const ALL_SIZE_GROUPS: Array<{ key: SizingPresetGroup; label: string; sizes: string[] }> = [
+  { key: "clothing", label: "Clothing", sizes: ["XS", "S", "M", "L", "XL", "XXL", "3XL"] },
   {
+    key: "shoes",
     label: "Shoes (EU)",
     sizes: ["36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46"],
   },
-  { label: "General", sizes: ["One Size", "Small", "Medium", "Large"] },
+  { key: "general", label: "General", sizes: ["One Size", "Small", "Medium", "Large"] },
 ];
 
 export function SizePicker({
@@ -25,14 +27,18 @@ export function SizePicker({
   disabled,
   placeholder = "Size",
   className,
+  groups,
 }: {
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
   placeholder?: string;
   className?: string;
+  /** Category-specific preset groups to show. Falls back to all groups when omitted or empty. */
+  groups?: SizingPresetGroup[];
 }) {
   const [open, setOpen] = useState(false);
+  const visibleGroups = groups?.length ? ALL_SIZE_GROUPS.filter((group) => groups.includes(group.key)) : ALL_SIZE_GROUPS;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -54,7 +60,7 @@ export function SizePicker({
       </PopoverTrigger>
       <PopoverContent align="start" className="w-[min(20rem,calc(100vw-2rem))] p-3">
         <div className="space-y-3">
-          {SIZE_GROUPS.map((group) => (
+          {visibleGroups.map((group) => (
             <div key={group.label}>
               <p className="mb-1.5 text-[12px] font-semibold text-muted-foreground">{group.label}</p>
               <div className="flex flex-wrap gap-1.5">
