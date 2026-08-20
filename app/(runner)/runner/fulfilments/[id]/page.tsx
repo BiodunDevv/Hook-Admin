@@ -1,15 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, Check, PackageCheck } from "lucide-react";
-import { useParams } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { ArrowLeft, AlertTriangle, Check, KeyRound, Package, ShoppingBag } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { toast } from "sonner";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { StatusBadge } from "@/components/shared/StatusBadge";
 import { HookLoader } from "@/components/shared/HookLoader";
+import { MobileButton, MobileRow, MobileSection } from "@/components/mobile/MobileUI";
 import { apiPost } from "@/lib/api";
 import { useApiQuery } from "@/lib/query";
 
@@ -20,6 +27,7 @@ type TaskItem = {
   productTitle?: string;
   quantity?: number;
 };
+
 type Task = {
   id?: string;
   publicId?: string;
@@ -30,26 +38,207 @@ type Task = {
   items?: TaskItem[];
   package?: { scanCredential?: string };
 };
-const label = (value?: string) => String(value || "-").replaceAll("_", " ");
-const actions: Record<string, { label: string; action: string }> = { ALERTED: { label: "Accept task", action: "accept" }, ACCEPTED: { label: "Start sourcing", action: "start_sourcing" }, SOURCING: { label: "Mark product secured", action: "secure" }, PRODUCT_SECURED: { label: "Begin packing", action: "begin_packing" }, PACKING: { label: "Pack and create Hub label", action: "pack" } };
+
+const actions: Record<string, { label: string; action: string }> = {
+  ALERTED: { label: "Accept task", action: "accept" },
+  ACCEPTED: { label: "Start sourcing", action: "start_sourcing" },
+  SOURCING: { label: "Mark product secured", action: "secure" },
+  PRODUCT_SECURED: { label: "Begin packing", action: "begin_packing" },
+  PACKING: { label: "Pack and create Hub label", action: "pack" },
+};
 
 export default function RunnerFulfilmentDetailPage() {
   const params = useParams<{ id: string }>();
-  const query = useApiQuery<Task>(["runner", "fulfilment", params.id], `/runner/fulfilments/${params.id}`, Boolean(params.id));
+  const router = useRouter();
+  const query = useApiQuery<Task>(
+    ["runner", "fulfilment", params.id],
+    `/runner/fulfilments/${params.id}`,
+    Boolean(params.id),
+  );
   const [pending, setPending] = useState(false);
+  const [issueOpen, setIssueOpen] = useState(false);
   const [issue, setIssue] = useState("");
   const [credential, setCredential] = useState<string>();
+  const [costOpen, setCostOpen] = useState(false);
   const [actualCost, setActualCost] = useState("");
+
   async function runAction(action: string) {
-    if (action === "secure" && (!actualCost.trim() || !Number.isFinite(Number(actualCost)) || Number(actualCost) < 0)) return;
     setPending(true);
-    try { const result = await apiPost<Task>(`/runner/fulfilments/${params.id}/${action}`, { version: query.data?.version, actualCostMinor: action === "secure" ? Math.round(Number(actualCost) * 100) : undefined }); setCredential(result.package?.scanCredential); if (action === "secure") setActualCost(""); await query.refetch(); } finally { setPending(false); }
+    try {
+      const result = await apiPost<Task>(`/runner/fulfilments/${params.id}/${action}`, {
+        version: query.data?.version,
+        actualCostMinor: action === "secure" ? Math.round(Number(actualCost) * 100) : undefined,
+      });
+      setCredential(result.package?.scanCredential);
+      if (action === "secure") {
+        setActualCost("");
+        setCostOpen(false);
+      }
+      await query.refetch();
+      toast.success("Task updated");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message.replace(/^\d+:\s*/, "") : "Task could not be updated",
+      );
+    } finally {
+      setPending(false);
+    }
   }
-  async function reportIssue() { if (!issue.trim()) return; setPending(true); try { await apiPost(`/runner/fulfilments/${params.id}/issues`, { summary: issue.trim(), type: "ITEM_UNAVAILABLE" }); await query.refetch(); setIssue(""); } finally { setPending(false); } }
-  if (query.isLoading) return <div className="grid min-h-80 place-items-center"><HookLoader label="Loading fulfilment task" /></div>;
+
+  async function reportIssue() {
+    if (!issue.trim()) return;
+    setPending(true);
+    try {
+      await apiPost(`/runner/fulfilments/${params.id}/issues`, {
+        summary: issue.trim(),
+        type: "ITEM_UNAVAILABLE",
+      });
+      await query.refetch();
+      setIssue("");
+      setIssueOpen(false);
+      toast.success("Issue reported");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message.replace(/^\d+:\s*/, "") : "Issue could not be reported",
+      );
+    } finally {
+      setPending(false);
+    }
+  }
+
+  if (query.isLoading)
+    return (
+      <div className="grid min-h-80 place-items-center">
+        <HookLoader label="Loading fulfilment task" />
+      </div>
+    );
+
   const task = query.data;
   if (!task) return <p className="text-sm text-destructive">This fulfilment task could not be found.</p>;
+
   const next = task.status ? actions[task.status] : undefined;
   const taskTitle = task.publicId || task.id || params.id || "Fulfilment task";
-  return <div className="space-y-5 pb-24"><PageHeader title={taskTitle} description={`Order ${task.orderId || "-"} · Market ${task.marketId || "-"}`} actions={<Badge variant={task.status === "BLOCKED" ? "destructive" : "secondary"}>{label(task.status)}</Badge>} /><div className="grid gap-4 lg:grid-cols-[1fr_340px]"><Card className="rounded-lg shadow-none"><CardHeader><CardTitle className="text-base">Task items</CardTitle></CardHeader><CardContent className="space-y-3">{task.items?.map((item, index) => <div key={item.id || item._id || index} className="flex items-center justify-between rounded-md border p-3"><div><p className="text-sm font-medium">{item.productSnapshot?.title || item.productTitle || "Product item"}</p><p className="text-xs text-muted-foreground">Quantity {item.quantity}</p></div><PackageCheck className="size-4 text-muted-foreground" /></div>) || <p className="text-sm text-muted-foreground">Item details are not available.</p>}</CardContent></Card><div className="space-y-4"><Card className="rounded-lg shadow-none"><CardHeader><CardTitle className="text-base">Next action</CardTitle></CardHeader><CardContent>{next?.action === "secure" ? <div className="mb-3 space-y-2"><label className="text-xs font-medium" htmlFor="actual-cost">Actual sourcing cost (NGN)</label><Input id="actual-cost" inputMode="decimal" value={actualCost} onChange={(event) => setActualCost(event.target.value.replace(/[^0-9.]/g, ""))} placeholder="Amount paid at the Market" /></div> : null}{next ? <Button className="w-full bg-[#FFC809] text-black hover:bg-[#f0bb00]" onClick={() => void runAction(next.action)} disabled={pending || (next.action === "secure" && !actualCost.trim())}>{pending ? <HookLoader size="button" /> : <><Check /> {next.label}</>}</Button> : <p className="text-sm text-muted-foreground">No action is available in this state.</p>}{credential ? <div className="mt-4 rounded-md bg-amber-50 p-3 text-sm"><p className="font-medium">Hub scan credential</p><p className="mt-1 font-mono text-lg tracking-[0.3em]">{credential}</p><p className="mt-1 text-xs text-muted-foreground">Show this once to the Hub officer. It will not be displayed again.</p></div> : null}</CardContent></Card><Card className="rounded-lg shadow-none"><CardHeader><CardTitle className="flex items-center gap-2 text-base"><AlertTriangle className="size-4" /> Report an issue</CardTitle></CardHeader><CardContent className="space-y-3"><Textarea value={issue} onChange={(event) => setIssue(event.target.value)} placeholder="Describe an unavailable, damaged, or sourcing issue" /><Button variant="outline" className="w-full" onClick={() => void reportIssue()} disabled={pending || !issue.trim()}>Report issue</Button></CardContent></Card></div></div></div>;
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => router.back()}
+        className="mb-4 flex items-center gap-1.5 px-1 text-[13px] font-semibold text-[#8F8F8F]"
+      >
+        <ArrowLeft size={15} /> Orders
+      </button>
+
+      <div className="mb-6 px-1">
+        <h1 className="text-[20px] font-bold leading-tight text-black">{taskTitle}</h1>
+        <p className="mt-1 text-[13px] text-[#8F8F8F]">
+          Order {task.orderId || "-"} · Market {task.marketId || "-"}
+        </p>
+        <div className="mt-2.5">
+          <StatusBadge status={task.status || "PENDING"} />
+        </div>
+      </div>
+
+      {credential && (
+        <div className="mb-7 rounded-[10px] bg-[#FFF3C4] p-4 text-center">
+          <p className="flex items-center justify-center gap-1.5 text-[13px] font-semibold text-[#9a7400]">
+            <KeyRound size={14} /> Hub scan credential
+          </p>
+          <p className="mt-2 font-mono text-[26px] font-bold tracking-[0.25em] text-black">{credential}</p>
+          <p className="mt-1.5 text-[12px] text-[#9a7400]">
+            Show this once to the Hub officer. It will not be shown again.
+          </p>
+        </div>
+      )}
+
+      <MobileSection title={`Items to collect (${task.items?.length || 0})`}>
+        {task.items?.length ? (
+          task.items.map((item, index) => (
+            <MobileRow
+              key={item.id || item._id || index}
+              icon={ShoppingBag}
+              tone="neutral"
+              label={item.productSnapshot?.title || item.productTitle || "Product item"}
+              value={`Qty ${item.quantity ?? 1}`}
+            />
+          ))
+        ) : (
+          <MobileRow icon={Package} tone="neutral" label="Item details unavailable" />
+        )}
+      </MobileSection>
+
+      <div className="space-y-3">
+        {next ? (
+          <MobileButton
+            disabled={pending}
+            onClick={() => {
+              if (next.action === "secure") setCostOpen(true);
+              else void runAction(next.action);
+            }}
+          >
+            {pending ? <HookLoader size="button" /> : <><Check size={18} /> {next.label}</>}
+          </MobileButton>
+        ) : (
+          <p className="rounded-[10px] bg-white p-4 text-center text-[13px] text-[#8F8F8F]">
+            No action is available in this state.
+          </p>
+        )}
+        <MobileButton variant="outline" onClick={() => setIssueOpen(true)} disabled={pending}>
+          <AlertTriangle size={17} /> Report an issue
+        </MobileButton>
+      </div>
+
+      <Sheet open={costOpen} onOpenChange={setCostOpen}>
+        <SheetContent side="bottom" className="mx-auto w-full max-w-2xl rounded-t-2xl border-x">
+          <SheetHeader>
+            <SheetTitle className="text-[17px] font-bold">Sourcing cost</SheetTitle>
+            <SheetDescription className="text-[13px] text-[#8F8F8F]">
+              What did you actually pay at the market?
+            </SheetDescription>
+          </SheetHeader>
+          <div className="space-y-3 px-4 pb-6">
+            <Label htmlFor="actual-cost" className="text-[13px] font-semibold">
+              Amount paid (NGN)
+            </Label>
+            <Input
+              id="actual-cost"
+              inputMode="decimal"
+              value={actualCost}
+              onChange={(event) => setActualCost(event.target.value.replace(/[^0-9.]/g, ""))}
+              placeholder="0.00"
+              className="h-12 rounded-[10px]"
+            />
+            <MobileButton
+              disabled={pending || !actualCost.trim() || !Number.isFinite(Number(actualCost))}
+              onClick={() => void runAction("secure")}
+            >
+              {pending ? <HookLoader size="button" /> : "Confirm secured"}
+            </MobileButton>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={issueOpen} onOpenChange={setIssueOpen}>
+        <SheetContent side="bottom" className="mx-auto w-full max-w-2xl rounded-t-2xl border-x">
+          <SheetHeader>
+            <SheetTitle className="text-[17px] font-bold">Report an issue</SheetTitle>
+            <SheetDescription className="text-[13px] text-[#8F8F8F]">
+              Tell operations what is blocking this task.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="space-y-3 px-4 pb-6">
+            <Textarea
+              value={issue}
+              onChange={(event) => setIssue(event.target.value)}
+              placeholder="Describe an unavailable, damaged, or sourcing issue"
+              className="min-h-24 rounded-[10px]"
+            />
+            <MobileButton variant="danger" onClick={() => void reportIssue()} disabled={pending || !issue.trim()}>
+              {pending ? <HookLoader size="button" /> : "Submit issue"}
+            </MobileButton>
+          </div>
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
 }

@@ -16,6 +16,8 @@ function invalidateForEvent(queryClient: QueryClient, event: string) {
     queryClient.invalidateQueries({ queryKey: ["admin", "dashboard"] });
     queryClient.invalidateQueries({ queryKey: ["admin", "sidebar-summary"] });
     queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    queryClient.invalidateQueries({ queryKey: ["runner", "notifications"] });
+    queryClient.invalidateQueries({ queryKey: ["partner", "notifications"] });
     return;
   }
   if (event === "home.updated" || event === "catalog.updated") {
@@ -34,6 +36,8 @@ function invalidateForEvent(queryClient: QueryClient, event: string) {
   }
   if (event === "notification.created" || event === "notification.updated") {
     queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    queryClient.invalidateQueries({ queryKey: ["runner", "notifications"] });
+    queryClient.invalidateQueries({ queryKey: ["partner", "notifications"] });
   }
   if (event === "order.updated") {
     queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });

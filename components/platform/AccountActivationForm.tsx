@@ -12,12 +12,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiPost } from "@/lib/api";
 
-type AccountType = "staff" | "runner" | "partner";
+type AccountType = "staff" | "runner" | "partner" | "customer";
 
 const destinations: Record<AccountType, string> = {
   staff: "/auth/login",
   runner: "/auth/login",
   partner: "/auth/login",
+  customer: "/auth/login",
 };
 
 export function AccountActivationForm({ accountType }: { accountType: AccountType }) {
@@ -59,18 +60,28 @@ export function AccountActivationForm({ accountType }: { accountType: AccountTyp
           <div className="mt-5 grid size-12 place-items-center rounded-full bg-hook/20">
             {complete ? <CheckCircle2 className="size-6" /> : <KeyRound className="size-6" />}
           </div>
-          <CardTitle className="mt-2">{complete ? "Account ready" : "Activate your account"}</CardTitle>
+          <CardTitle className="mt-2">{complete ? "Account ready" : "Set your password"}</CardTitle>
           <CardDescription>
             {complete
-              ? `Your Hook ${accountType} account is ready to use.`
-              : `Create a secure password for your Hook ${accountType} account.`}
+              ? accountType === "customer"
+                ? "Your Hook account is ready. Open the Hook app and sign in to start shopping."
+                : `Your Hook ${accountType} account is ready to use.`
+              : accountType === "customer"
+                ? "Create a password to finish setting up your Hook account."
+                : `Create a secure password for your Hook ${accountType} account.`}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {complete ? (
-            <Button className="w-full bg-hook text-black hover:bg-hook/90" onClick={() => router.replace(destinations[accountType])}>
-              Continue to sign in
-            </Button>
+            accountType === "customer" ? (
+              <p className="text-center text-sm text-muted-foreground">
+                You can close this page and continue in the Hook app.
+              </p>
+            ) : (
+              <Button className="w-full bg-hook text-black hover:bg-hook/90" onClick={() => router.replace(destinations[accountType])}>
+                Continue to sign in
+              </Button>
+            )
           ) : (
             <form className="space-y-4" onSubmit={submit}>
               <div className="space-y-1.5">

@@ -1,15 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { PackageCheck, ShieldAlert } from "lucide-react";
+import { CalendarClock, PackageCheck, ShieldAlert } from "lucide-react";
+import { toast } from "sonner";
 import { HookLoader } from "@/components/shared/HookLoader";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Input } from "@/components/ui/input";
+import { MobileButton, MobileEmpty, MobileHeader } from "@/components/mobile/MobileUI";
 import { apiPost } from "@/lib/api";
 import { useApiQuery } from "@/lib/query";
-import { toast } from "sonner";
 
 type CustodyRecord = {
   publicId?: string;
@@ -42,7 +41,9 @@ export default function PartnerFulfilmentPage() {
     if (!record.publicId) return;
     setBusyId(record.publicId);
     try {
-      await apiPost(`/partner/fulfilment/custody/${record.publicId}/receive`, { idempotencyKey: `partner-receive:${record.publicId}` });
+      await apiPost(`/partner/fulfilment/custody/${record.publicId}/receive`, {
+        idempotencyKey: `partner-receive:${record.publicId}`,
+      });
       await custody.refetch();
       toast.success("Package received into Partner custody");
     } catch {
@@ -61,7 +62,10 @@ export default function PartnerFulfilmentPage() {
     }
     setBusyId(record.publicId);
     try {
-      await apiPost(`/partner/fulfilment/custody/${record.publicId}/release`, { code, idempotencyKey: `partner-release:${record.publicId}:${code}` });
+      await apiPost(`/partner/fulfilment/custody/${record.publicId}/release`, {
+        code,
+        idempotencyKey: `partner-release:${record.publicId}:${code}`,
+      });
       await custody.refetch();
       toast.success("Order released to the customer");
     } catch {
@@ -72,46 +76,99 @@ export default function PartnerFulfilmentPage() {
   }
 
   if (custody.isLoading) {
-    return <div className="flex min-h-[55vh] items-center justify-center"><HookLoader size="page" label="Loading Partner custody" /></div>;
+    return (
+      <div className="flex min-h-[55vh] items-center justify-center">
+        <HookLoader size="page" label="Loading Partner custody" />
+      </div>
+    );
   }
 
+  const records = custody.data || [];
+
   return (
-    <section className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-semibold">Partner custody</h1>
-        <p className="text-muted-foreground">Receive and release only packages addressed to this Hook Partner location.</p>
-      </div>
+    <div>
+      <MobileHeader
+        title="Custody"
+        subtitle="Receive and release packages for your location."
+        action={
+          records.length ? (
+            <span className="rounded-full bg-white px-2.5 py-1 text-[12px] font-semibold text-[#8F8F8F]">
+              {records.length}
+            </span>
+          ) : undefined
+        }
+      />
+
       {custody.isError ? (
-        <Card><CardContent className="flex items-center gap-3 p-6 text-sm text-destructive"><ShieldAlert className="size-5" />Custody records are temporarily unavailable.</CardContent></Card>
-      ) : !(custody.data || []).length ? (
-        <Card><CardContent className="space-y-2 p-6"><PackageCheck className="size-6 text-muted-foreground" /><p className="font-medium">No incoming packages</p><p className="text-sm text-muted-foreground">Packages for this location will appear here after dispatch.</p></CardContent></Card>
+        <div className="flex items-center gap-3 rounded-[10px] bg-white p-5 text-[13px] text-destructive">
+          <ShieldAlert className="size-5 shrink-0" />
+          Custody records are temporarily unavailable.
+        </div>
+      ) : !records.length ? (
+        <MobileEmpty
+          icon={PackageCheck}
+          title="No incoming packages"
+          description="Packages for this location appear here after dispatch."
+        />
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {(custody.data || []).map((record) => (
-            <Card key={String(record.publicId || record.orderId)}>
-              <CardHeader className="flex-row items-start justify-between gap-4">
-                <div>
-                  <CardTitle className="text-base">{record.orderId || record.publicId}</CardTitle>
-                  <p className="text-sm text-muted-foreground">{record.customerEmailSnapshot || "Customer details protected"}</p>
-                </div>
-                <Badge variant={record.status === "OVERDUE" ? "destructive" : "secondary"}>{statusLabel[record.status || ""] || record.status || "Pending"}</Badge>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm">
-                <div className="flex justify-between gap-4"><span className="text-muted-foreground">Custody window</span><span>{formatDate(record.expiresAt)}</span></div>
-                {record.receivedAt ? <div className="flex justify-between gap-4"><span className="text-muted-foreground">Received</span><span>{formatDate(record.receivedAt)}</span></div> : null}
-                {record.releasedAt ? <div className="flex justify-between gap-4"><span className="text-muted-foreground">Released</span><span>{formatDate(record.releasedAt)}</span></div> : null}
-                {record.status === "AWAITING_RECEIPT" ? <Button className="w-full" variant="brand" disabled={busyId === record.publicId} onClick={() => receive(record)}>{busyId === record.publicId ? "Receiving..." : "Confirm package receipt"}</Button> : null}
-                {record.status === "IN_CUSTODY" ? (
-                  <div className="space-y-2">
-                    <Input inputMode="numeric" maxLength={6} placeholder="6-digit collection code" value={releaseCodes[record.publicId || ""] || ""} onChange={(event) => setReleaseCodes((current) => ({ ...current, [record.publicId || ""]: event.target.value.replace(/\D/g, "").slice(0, 6) }))} />
-                    <Button className="w-full" variant="brand" disabled={busyId === record.publicId} onClick={() => release(record)}>{busyId === record.publicId ? "Releasing..." : "Release to customer"}</Button>
+        <div className="space-y-3">
+          {records.map((record) => {
+            const id = record.publicId || "";
+            const busy = busyId === id;
+            return (
+              <div key={String(record.publicId || record.orderId)} className="rounded-[10px] bg-white p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-[15px] font-bold text-black">
+                      {record.orderId || record.publicId}
+                    </p>
+                    <p className="mt-0.5 truncate text-[13px] text-[#8F8F8F]">
+                      {record.customerEmailSnapshot || "Customer details protected"}
+                    </p>
                   </div>
-                ) : null}
-              </CardContent>
-            </Card>
-          ))}
+                  <StatusBadge status={statusLabel[record.status || ""] || record.status || "Pending"} />
+                </div>
+
+                <div className="mt-3 flex items-center gap-1.5 text-[12px] text-[#8F8F8F]">
+                  <CalendarClock className="size-3.5" />
+                  Custody window {formatDate(record.expiresAt)}
+                  {record.receivedAt ? ` · Received ${formatDate(record.receivedAt)}` : ""}
+                  {record.releasedAt ? ` · Released ${formatDate(record.releasedAt)}` : ""}
+                </div>
+
+                {record.status === "AWAITING_RECEIPT" && (
+                  <div className="mt-4">
+                    <MobileButton disabled={busy} onClick={() => void receive(record)}>
+                      {busy ? <HookLoader size="button" /> : "Confirm package receipt"}
+                    </MobileButton>
+                  </div>
+                )}
+
+                {record.status === "IN_CUSTODY" && (
+                  <div className="mt-4 space-y-2">
+                    <Input
+                      inputMode="numeric"
+                      maxLength={6}
+                      placeholder="6-digit collection code"
+                      value={releaseCodes[id] || ""}
+                      onChange={(event) =>
+                        setReleaseCodes((current) => ({
+                          ...current,
+                          [id]: event.target.value.replace(/\D/g, "").slice(0, 6),
+                        }))
+                      }
+                      className="h-12 rounded-[10px] text-center font-mono text-lg tracking-[0.3em]"
+                    />
+                    <MobileButton disabled={busy} onClick={() => void release(record)}>
+                      {busy ? <HookLoader size="button" /> : "Release to customer"}
+                    </MobileButton>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
-    </section>
+    </div>
   );
 }

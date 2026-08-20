@@ -1,13 +1,23 @@
 "use client";
 
-import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
-import { Minus, Plus, Search, ShoppingBag, Trash2, UserPlus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { FormEvent, useMemo, useState } from "react";
+import { Check, MessagesSquare, Package as PackageIcon, Search, ShoppingBag, UserPlus, UserRound } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { HookLoader } from "@/components/shared/HookLoader";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import {
+  MobileButton,
+  MobileEmpty,
+  MobileHeader,
+  MobileRow,
+  MobileSection,
+} from "@/components/mobile/MobileUI";
+import { BasketLine, money } from "@/components/mobile/MobileCommerce";
+import { PartnerBrowseWorkspace } from "@/components/partner/PartnerBrowseWorkspace";
+import { ShoppingForBanner, type SelectedCustomer } from "@/components/partner/ShoppingForBanner";
+import { useSelectedCustomer } from "@/lib/use-selected-customer";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -19,26 +29,25 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { apiGet, apiPatch, apiPost, apiRequest } from "@/lib/api";
 import { useApiQuery } from "@/lib/query";
-import { toast } from "sonner";
 
 type Row = Record<string, unknown> & { publicId?: string; id?: string };
-type SelectedCustomer = Row & { publicId: string; email?: string; firstName?: string; lastName?: string };
-type BasketItem = Row & {
+
+type CartProduct = { id?: string; title?: string; slug?: string; imageUrl?: string };
+type BasketItem = {
+  /** publicCartLine emits the line identifier as `id`. */
+  id?: string;
   publicId?: string;
+  productId?: string;
   quantity?: number;
+  unitPriceMinor?: number;
   totalPriceMinor?: number;
-  product?: Row & { title?: string; images?: string[] };
+  stateId?: string;
+  product?: CartProduct;
+  negotiatedQuote?: { id?: string; agreedPriceMinor?: number; originalPriceMinor?: number };
 };
+
 type StateGroup = {
   stateId: string;
   subtotalMinor: number;
@@ -47,12 +56,14 @@ type StateGroup = {
   itemIds?: string[];
   items?: BasketItem[];
 };
+
 type AssistedBasket = {
   items?: BasketItem[];
-  itemCount: number;
-  subtotalMinor: number;
-  stateGroups: StateGroup[];
+  itemCount?: number;
+  subtotalMinor?: number;
+  stateGroups?: StateGroup[];
 };
+
 type CheckoutPreview = {
   previewToken: string;
   totalMinor: number;
@@ -61,32 +72,64 @@ type CheckoutPreview = {
   expiresAt: string;
 };
 
-const SELECTED_CUSTOMER_KEY = "hook_partner_selected_customer";
+/** Explicit labels — deriving them from camelCase produced "first Name". */
+const CUSTOMER_FIELDS = [
+  { key: "firstName", label: "First name", type: "text", placeholder: "Ada" },
+  { key: "lastName", label: "Last name", type: "text", placeholder: "Okafor" },
+  { key: "email", label: "Email address", type: "email", placeholder: "customer@example.com" },
+  { key: "phone", label: "Phone number", type: "tel", placeholder: "08012345678" },
+] as const;
+
+/** The cart line id, normalized the way the mobile app does it. */
+function lineId(item: BasketItem) {
+  return String(item.id ?? item.publicId ?? "");
+}
+
+/** Flatten lines whether the API returns `items` or only `stateGroups`. */
+function basketItems(basket?: AssistedBasket): BasketItem[] {
+  if (Array.isArray(basket?.items)) return basket.items;
+  return Array.isArray(basket?.stateGroups)
+    ? basket.stateGroups.flatMap((group) => group.items || [])
+    : [];
+}
+
+/** Resolve a group's lines by embedded items, itemIds, or stateId. */
+function groupItems(basket: AssistedBasket | undefined, group: StateGroup): BasketItem[] {
+  if (Array.isArray(group.items) && group.items.length) return group.items;
+  const lines = basketItems(basket);
+  const ids = new Set((group.itemIds || []).map(String));
+  if (ids.size) return lines.filter((item) => ids.has(lineId(item)));
+  return lines.filter((item) => String(item.stateId || "") === String(group.stateId || ""));
+}
+
+/** Derive groups client-side when the API omits them. */
+function basketGroups(basket?: AssistedBasket): StateGroup[] {
+  if (Array.isArray(basket?.stateGroups) && basket.stateGroups.length) return basket.stateGroups;
+  const lines = basketItems(basket);
+  if (!lines.length) return [];
+  const byState = new Map<string, BasketItem[]>();
+  for (const item of lines) {
+    const key = String(item.stateId || "");
+    byState.set(key, [...(byState.get(key) || []), item]);
+  }
+  return [...byState.entries()].map(([stateId, items]) => ({
+    stateId,
+    items,
+    subtotalMinor: items.reduce((sum, item) => sum + Number(item.totalPriceMinor || 0), 0),
+    checkoutEligible: true,
+  }));
+}
 
 export function PartnerCommerceWorkspace({
   view,
 }: {
   view: "browse" | "customers" | "basket" | "orders";
 }) {
+  const router = useRouter();
   const queryClient = useQueryClient();
-  const products = useApiQuery<{ data: Row[] }>(
-    ["partner", "catalog"],
-    "/public/products?limit=30",
-    view === "browse",
-  );
-  const orders = useApiQuery<Row[]>(
-    ["partner", "orders"],
-    "/partner/orders",
-    view === "orders",
-  );
-  const config = useApiQuery<{ policyVersions: Record<string, string> }>(
-    ["partner", "commerce-config"],
-    "/partner/commerce/config",
-    view === "customers" || view === "basket",
-  );
+  const { customer: selectedCustomer, select: selectStoredCustomer, clear: clearStoredCustomer } = useSelectedCustomer();
   const [email, setEmail] = useState("");
   const [customer, setCustomer] = useState<Row | null>(null);
-  const [selectedCustomer, setSelectedCustomer] = useState<SelectedCustomer | null>(null);
   const [busy, setBusy] = useState(false);
   const [busyItem, setBusyItem] = useState<string | null>(null);
   const [checkoutPreview, setCheckoutPreview] = useState<CheckoutPreview | null>(null);
@@ -100,19 +143,12 @@ export function PartnerCommerceWorkspace({
     consent: false,
   });
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      const raw = localStorage.getItem(SELECTED_CUSTOMER_KEY);
-      if (!raw) return;
-      try {
-        setSelectedCustomer(JSON.parse(raw) as SelectedCustomer);
-      } catch {
-        localStorage.removeItem(SELECTED_CUSTOMER_KEY);
-      }
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, []);
-
+  const orders = useApiQuery<Row[]>(["partner", "orders"], "/partner/orders", view === "orders");
+  const config = useApiQuery<{ policyVersions: Record<string, string> }>(
+    ["partner", "commerce-config"],
+    "/partner/commerce/config",
+    view === "customers" || view === "basket",
+  );
   const basket = useApiQuery<AssistedBasket>(
     ["partner", "basket", selectedCustomer?.publicId],
     selectedCustomer
@@ -121,63 +157,59 @@ export function PartnerCommerceWorkspace({
     view === "basket" && Boolean(selectedCustomer),
   );
 
+  const lines = useMemo(() => basketItems(basket.data), [basket.data]);
+  const groups = useMemo(() => basketGroups(basket.data), [basket.data]);
+  const basketCount = lines.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+
   function selectCustomer(value: Row) {
     const publicId = String(value.publicId || value.id || "");
     if (!publicId) {
       toast.error("This customer does not have a valid Hook ID");
       return;
     }
-    const selected = { ...value, publicId } as SelectedCustomer;
-    localStorage.setItem(SELECTED_CUSTOMER_KEY, JSON.stringify(selected));
-    setSelectedCustomer(selected);
-    queryClient.invalidateQueries({ queryKey: ["partner", "basket"] });
-    toast.success("Customer selected for assisted shopping");
+    selectStoredCustomer({ ...value, publicId } as SelectedCustomer);
+    void queryClient.invalidateQueries({ queryKey: ["partner", "basket"] });
+    toast.success("Now shopping for this customer");
+    router.push("/partner/browse");
   }
 
-  async function addProduct(product: Row) {
-    if (!selectedCustomer) {
-      toast.info("Select a customer before adding products");
-      return;
-    }
-    const productId = String(product.publicId || product.id || "");
-    if (!productId) return;
-    setBusyItem(productId);
-    try {
-      await apiPost(`/partner/customers/${selectedCustomer.publicId}/cart/items`, {
-        productId,
-        quantity: 1,
-      });
-      await queryClient.invalidateQueries({ queryKey: ["partner", "basket"] });
-      toast.success("Product added to the assisted basket");
-    } finally {
-      setBusyItem(null);
-    }
+  function clearCustomer() {
+    clearStoredCustomer();
+    void queryClient.invalidateQueries({ queryKey: ["partner", "basket"] });
   }
 
   async function changeQuantity(item: BasketItem, quantity: number) {
-    if (!selectedCustomer || !item.publicId || quantity < 1) return;
-    setBusyItem(item.publicId);
+    const id = lineId(item);
+    if (!selectedCustomer || !id || quantity < 1 || quantity > 99) return;
+    setBusyItem(id);
     try {
-      await apiPatch(
-        `/partner/customers/${selectedCustomer.publicId}/cart/items/${item.publicId}`,
-        { quantity },
-      );
+      await apiPatch(`/partner/customers/${selectedCustomer.publicId}/cart/items/${id}`, {
+        quantity,
+      });
       await queryClient.invalidateQueries({ queryKey: ["partner", "basket"] });
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message.replace(/^\d+:\s*/, "") : "Could not update quantity",
+      );
     } finally {
       setBusyItem(null);
     }
   }
 
   async function removeItem(item: BasketItem) {
-    if (!selectedCustomer || !item.publicId) return;
-    setBusyItem(item.publicId);
+    const id = lineId(item);
+    if (!selectedCustomer || !id) return;
+    setBusyItem(id);
     try {
-      await apiRequest(
-        `/partner/customers/${selectedCustomer.publicId}/cart/items/${item.publicId}`,
-        { method: "DELETE" },
-      );
+      await apiRequest(`/partner/customers/${selectedCustomer.publicId}/cart/items/${id}`, {
+        method: "DELETE",
+      });
       await queryClient.invalidateQueries({ queryKey: ["partner", "basket"] });
-      toast.success("Product removed from the assisted basket");
+      toast.success("Removed from basket");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message.replace(/^\d+:\s*/, "") : "Could not remove this item",
+      );
     } finally {
       setBusyItem(null);
     }
@@ -194,14 +226,14 @@ export function PartnerCommerceWorkspace({
     try {
       const preview = await apiPost<CheckoutPreview>(
         `/partner/customers/${selectedCustomer.publicId}/checkout/states/${group.stateId}/preview`,
-        {
-          deliveryMethod: "PARTNER_PICKUP",
-          paymentMethod: "PREPAID",
-          policyVersions,
-        },
+        { deliveryMethod: "PARTNER_PICKUP", paymentMethod: "PREPAID", policyVersions },
       );
       setCheckoutStateId(group.stateId);
       setCheckoutPreview(preview);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message.replace(/^\d+:\s*/, "") : "Checkout could not start",
+      );
     } finally {
       setCheckoutBusy(false);
     }
@@ -227,7 +259,11 @@ export function PartnerCommerceWorkspace({
       await queryClient.invalidateQueries({ queryKey: ["partner", "basket"] });
       await queryClient.invalidateQueries({ queryKey: ["partner", "orders"] });
       if (authorizationUrl) window.open(authorizationUrl, "_blank", "noopener,noreferrer");
-      toast.success("Order created. Share the Paystack checkout with the customer.");
+      toast.success("Order created — share the payment link with the customer");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message.replace(/^\d+:\s*/, "") : "Order could not be created",
+      );
     } finally {
       setCheckoutBusy(false);
     }
@@ -235,20 +271,26 @@ export function PartnerCommerceWorkspace({
 
   async function lookup(event: FormEvent) {
     event.preventDefault();
+    if (!email.trim()) return;
     setBusy(true);
     try {
       const result = await apiGet<{ found: boolean; customer?: Row }>(
-        `/partner/customers/lookup?email=${encodeURIComponent(email)}`,
+        `/partner/customers/lookup?email=${encodeURIComponent(email.trim())}`,
       );
       setCustomer(result.customer || null);
-      if (!result.found)
-        toast.info(
-          "No exact customer match. Create an assisted customer after confirming consent.",
-        );
+      if (!result.found) {
+        setForm((current) => ({ ...current, email: email.trim() }));
+        toast.info("No account with that email — register them below");
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message.replace(/^\d+:\s*/, "") : "Lookup failed",
+      );
     } finally {
       setBusy(false);
     }
   }
+
   async function create(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
@@ -256,272 +298,352 @@ export function PartnerCommerceWorkspace({
       const policyVersions = config.data?.policyVersions || {};
       if (!policyVersions.TERMS || !policyVersions.PRIVACY || !policyVersions.RETURNS)
         throw new Error("Current Hook policies are unavailable");
-      const result = await apiPost<Row>("/partner/customers", {
-        ...form,
-        policyVersions,
-      });
+      const result = await apiPost<Row>("/partner/customers", { ...form, policyVersions });
       setCustomer(result);
       selectCustomer(result);
-      toast.success(
-        "Customer created for assisted ordering. Direct login remains disabled until verification.",
+      toast.success("Customer registered and selected");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message.replace(/^\d+:\s*/, "") : "Customer could not be created",
       );
     } finally {
       setBusy(false);
     }
   }
 
-  if (
-    (view === "browse" && products.isLoading) ||
-    (view === "orders" && orders.isLoading)
-  )
+  if (view === "orders" && orders.isLoading) {
     return (
-      <div className="flex min-h-[55vh] items-center justify-center">
-        <HookLoader size="page" label="Loading Partner commerce" />
+      <div className="grid min-h-80 place-items-center">
+        <HookLoader label="Loading" />
       </div>
     );
-  if (view === "browse")
+  }
+
+  /* ---------------------------------------------------------------- browse */
+  if (view === "browse") {
     return (
-      <section className="space-y-5">
-        <div>
-          <h1 className="text-2xl font-semibold">Browse Hook</h1>
-          <p className="text-muted-foreground">
-            Approved Hook catalog. Customers always pay Hook directly.
-          </p>
-        </div>
-        {selectedCustomer ? (
-          <div className="flex items-center justify-between rounded-md border bg-muted/30 px-4 py-3">
-            <div className="min-w-0">
-              <p className="text-xs text-muted-foreground">Shopping for</p>
-              <p className="truncate text-sm font-medium">
-                {`${selectedCustomer.firstName || ""} ${selectedCustomer.lastName || ""}`.trim() || selectedCustomer.email}
-              </p>
-            </div>
-            <Button asChild size="sm" variant="outline"><Link href="/partner/basket">View basket</Link></Button>
+      <PartnerBrowseWorkspace
+        customer={selectedCustomer}
+        onClearCustomer={clearCustomer}
+        basketCount={basketCount}
+      />
+    );
+  }
+
+  /* ---------------------------------------------------------------- orders */
+  if (view === "orders") {
+    const rows = orders.data || [];
+    return (
+      <div>
+        <MobileHeader
+          title="Orders"
+          subtitle="Orders you created at this location."
+          action={
+            rows.length ? (
+              <span className="rounded-full bg-white px-2.5 py-1 text-[12px] font-semibold text-[#8F8F8F]">
+                {rows.length}
+              </span>
+            ) : undefined
+          }
+        />
+        {rows.length ? (
+          <div className="overflow-hidden rounded-[10px] bg-white px-2.5">
+            {rows.map((order) => (
+              <div
+                key={String(order.publicId || order.id)}
+                className="flex min-h-17.5 items-center gap-3 border-b border-[#D9D9D9] last:border-b-0"
+              >
+                <span className="grid size-7.5 shrink-0 place-items-center rounded-[5px] bg-[#EAEBE7]">
+                  <PackageIcon className="size-4" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[15px] font-semibold text-black">
+                    {String(order.publicId)}
+                  </p>
+                  <p className="mt-0.5 truncate text-[13px] capitalize text-[#8F8F8F]">
+                    {String(order.commercePaymentStatus || "").replaceAll("_", " ").toLowerCase()}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-[14px] font-bold text-black">
+                    {money(Number(order.totalMinor || 0))}
+                  </p>
+                  <StatusBadge status={String(order.commerceStatus)} />
+                </div>
+              </div>
+            ))}
           </div>
-        ) : null}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {(products.data?.data || []).map((product) => (
-            <Card key={String(product.publicId || product.id)}>
-              <CardContent className="space-y-3 p-4">
-                <Badge variant="secondary">Published</Badge>
-                <h2 className="font-semibold">
-                  {String(product.title || "Product")}
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  {new Intl.NumberFormat("en-NG", {
-                    style: "currency",
-                    currency: "NGN",
-                  }).format(Number(product.effectivePriceMinor || 0) / 100)}
-                </p>
-                <Button
-                  className="w-full"
-                  variant="brand"
-                  disabled={busyItem === String(product.publicId || product.id)}
-                  onClick={() => addProduct(product)}
-                >
-                  {busyItem === String(product.publicId || product.id) ? <HookLoader size="button" /> : "Add to basket"}
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
-    );
-  if (view === "orders")
-    return (
-      <section className="space-y-5">
-        <div>
-          <h1 className="text-2xl font-semibold">Assisted Orders</h1>
-          <p className="text-muted-foreground">
-            Only Orders initiated at this Partner location are visible.
-          </p>
-        </div>
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Order</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Payment</TableHead>
-                  <TableHead>Total</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(orders.data || []).map((order) => (
-                  <TableRow key={String(order.publicId || order.id)}>
-                    <TableCell>{String(order.publicId)}</TableCell>
-                    <TableCell>{String(order.commerceStatus)}</TableCell>
-                    <TableCell>{String(order.commercePaymentStatus)}</TableCell>
-                    <TableCell>
-                      {new Intl.NumberFormat("en-NG", {
-                        style: "currency",
-                        currency: "NGN",
-                      }).format(Number(order.totalMinor || 0) / 100)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </section>
-    );
-  if (view === "basket")
-    return (
-      <section className="space-y-5">
-        <div>
-          <h1 className="text-2xl font-semibold">Assisted Basket</h1>
-          <p className="text-muted-foreground">
-            Start from an exact customer lookup. Partner checkout is prepaid and
-            can use home delivery or this location for pickup.
-          </p>
-        </div>
-        {!selectedCustomer ? (
-          <Card><CardContent className="space-y-4 p-6"><p className="text-sm">Select an exact customer before starting an assisted basket.</p><Button asChild variant="brand"><Link href="/partner/customers">Select customer</Link></Button></CardContent></Card>
-        ) : basket.isLoading ? (
-          <div className="flex min-h-72 items-center justify-center"><HookLoader size="page" label="Loading assisted basket" /></div>
-        ) : !(basket.data?.stateGroups || []).length ? (
-          <Card><CardContent className="space-y-4 p-6"><p className="font-medium">The assisted basket is empty</p><p className="text-sm text-muted-foreground">Add approved products for {selectedCustomer.firstName || selectedCustomer.email}. Prices always come from Hook.</p><Button asChild variant="brand"><Link href="/partner/browse">Browse Hook</Link></Button></CardContent></Card>
         ) : (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between rounded-md border bg-background px-4 py-3"><div><p className="text-xs text-muted-foreground">Customer</p><p className="font-medium">{`${selectedCustomer.firstName || ""} ${selectedCustomer.lastName || ""}`.trim()}</p></div><Badge variant="secondary">{basket.data?.itemCount || 0} items</Badge></div>
-            {basket.data?.stateGroups.map((group) => {
-              const groupItems = getBasketGroupItems(basket.data, group);
+          <MobileEmpty
+            icon={PackageIcon}
+            title="No orders yet"
+            description="Orders you create for customers appear here."
+          />
+        )}
+      </div>
+    );
+  }
+
+  /* ---------------------------------------------------------------- basket */
+  if (view === "basket") {
+    if (!selectedCustomer) {
+      return (
+        <div>
+          <MobileHeader title="Basket" subtitle="Shop on behalf of a customer." />
+          <MobileEmpty
+            icon={UserRound}
+            title="Choose a customer first"
+            description="Every assisted basket belongs to a specific customer."
+            action={<MobileButton href="/partner/customers">Find a customer</MobileButton>}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div>
+        <MobileHeader title="Basket" subtitle="Review, then create a prepaid order." />
+        <ShoppingForBanner customer={selectedCustomer} basketCount={basketCount} onClear={clearCustomer} />
+
+        {basket.isLoading ? (
+          <div className="grid min-h-40 place-items-center">
+            <HookLoader label="Loading basket" />
+          </div>
+        ) : !lines.length ? (
+          <MobileEmpty
+            icon={ShoppingBag}
+            title="Basket is empty"
+            description="Add products from Browse to build this customer's order."
+            action={<MobileButton href="/partner/browse">Browse products</MobileButton>}
+          />
+        ) : (
+          <div className="space-y-5">
+            {groups.map((group, index) => {
+              const items = groupItems(basket.data, group);
               return (
-              <Card key={group.stateId}>
-                <CardHeader className="flex-row items-center justify-between"><div><CardTitle className="text-base">State basket</CardTitle><p className="text-xs text-muted-foreground">{group.stateId}</p></div><p className="font-semibold">{money(group.subtotalMinor)}</p></CardHeader>
-                <CardContent className="space-y-3">
-                  {groupItems.map((item) => (
-                    <div key={String(item.publicId || item.id)} className="flex items-center gap-3 border-t pt-3 first:border-0 first:pt-0">
-                      <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{String(item.product?.title || "Product")}</p><p className="text-xs text-muted-foreground">{money(Number(item.unitPriceMinor || 0))} each · {money(Number(item.totalPriceMinor || 0))} line total</p></div>
-                      <div className="flex items-center gap-1"><Button size="icon-sm" variant="outline" aria-label="Decrease quantity" disabled={busyItem === item.publicId || Number(item.quantity || 1) <= 1} onClick={() => changeQuantity(item, Number(item.quantity || 1) - 1)}><Minus /></Button><span className="w-7 text-center text-sm">{item.quantity || 1}</span><Button size="icon-sm" variant="outline" aria-label="Increase quantity" disabled={busyItem === item.publicId} onClick={() => changeQuantity(item, Number(item.quantity || 1) + 1)}><Plus /></Button><Button size="icon-sm" variant="ghost" aria-label="Remove product" disabled={busyItem === item.publicId} onClick={() => removeItem(item)}><Trash2 /></Button></div>
-                    </div>
+                <div key={group.stateId || index} className="rounded-[10px] bg-white p-4">
+                  <div className="mb-1 flex items-center justify-between gap-3">
+                    <p className="text-[15px] font-semibold text-black">
+                      {groups.length > 1 ? `Delivery ${index + 1}` : "Items"}
+                    </p>
+                    <span className="text-[14px] font-bold">{money(group.subtotalMinor)}</span>
+                  </div>
+
+                  {items.map((item) => (
+                    <BasketLine
+                      key={lineId(item)}
+                      title={String(item.product?.title || "Product")}
+                      imageUrl={item.product?.imageUrl}
+                      unitPriceMinor={item.unitPriceMinor}
+                      totalPriceMinor={item.totalPriceMinor}
+                      quantity={Number(item.quantity || 1)}
+                      negotiated={item.negotiatedQuote}
+                      busy={busyItem === lineId(item)}
+                      onIncrease={() => void changeQuantity(item, Number(item.quantity || 1) + 1)}
+                      onDecrease={() => void changeQuantity(item, Number(item.quantity || 1) - 1)}
+                      onRemove={() => void removeItem(item)}
+                    />
                   ))}
-                  {!group.checkoutEligible ? <p className="text-xs text-destructive">This group needs attention before checkout: {(group.blockingReasons || []).join(", ")}</p> : null}
-                  <Button className="w-full" variant="brand" disabled={!group.checkoutEligible || checkoutBusy} onClick={() => prepareCheckout(group)}>{checkoutBusy ? <HookLoader size="button" /> : "Continue to prepaid checkout"}</Button>
-                </CardContent>
-              </Card>
+
+                  {group.checkoutEligible === false && (
+                    <p className="mt-3 rounded-[10px] bg-red-50 p-3 text-[12px] leading-5 text-red-700">
+                      Needs attention before checkout: {(group.blockingReasons || []).join(", ")}
+                    </p>
+                  )}
+
+                  <div className="mt-4">
+                    <MobileButton
+                      disabled={group.checkoutEligible === false || checkoutBusy}
+                      onClick={() => void prepareCheckout(group)}
+                    >
+                      {checkoutBusy ? <HookLoader size="button" /> : "Continue to payment"}
+                    </MobileButton>
+                  </div>
+                </div>
               );
             })}
           </div>
         )}
-        <Dialog open={Boolean(checkoutPreview)} onOpenChange={(open) => !open && !checkoutBusy && setCheckoutPreview(null)}>
+
+        <Dialog
+          open={Boolean(checkoutPreview)}
+          onOpenChange={(open) => !open && !checkoutBusy && setCheckoutPreview(null)}
+        >
           <DialogContent>
-            <DialogHeader><DialogTitle>Confirm Partner-assisted Order</DialogTitle><DialogDescription>This creates one prepaid pickup Order. The customer pays Hook directly through Paystack.</DialogDescription></DialogHeader>
-            {checkoutPreview ? <div className="space-y-2 rounded-md border p-4 text-sm"><div className="flex justify-between"><span>Products</span><span>{money(checkoutPreview.subtotalMinor)}</span></div><div className="flex justify-between"><span>Pickup fee</span><span>{money(checkoutPreview.deliveryFeeMinor)}</span></div><div className="flex justify-between border-t pt-2 font-semibold"><span>Total</span><span>{money(checkoutPreview.totalMinor)}</span></div></div> : null}
-            <DialogFooter><Button variant="outline" disabled={checkoutBusy} onClick={() => setCheckoutPreview(null)}>Cancel</Button><Button variant="brand" disabled={checkoutBusy} onClick={confirmCheckout}>{checkoutBusy ? <HookLoader size="button" /> : "Create Order"}</Button></DialogFooter>
+            <DialogHeader>
+              <DialogTitle>Create this order?</DialogTitle>
+              <DialogDescription>
+                A prepaid pickup order for{" "}
+                {`${selectedCustomer.firstName || ""} ${selectedCustomer.lastName || ""}`.trim() ||
+                  selectedCustomer.email}
+                . They pay Hook directly.
+              </DialogDescription>
+            </DialogHeader>
+            {checkoutPreview && (
+              <div className="space-y-2 rounded-[10px] bg-[#F5F5F5] p-4 text-sm">
+                <div className="flex justify-between text-[#8F8F8F]">
+                  <span>Products</span>
+                  <span>{money(checkoutPreview.subtotalMinor)}</span>
+                </div>
+                <div className="flex justify-between text-[#8F8F8F]">
+                  <span>Pickup fee</span>
+                  <span>{money(checkoutPreview.deliveryFeeMinor)}</span>
+                </div>
+                <div className="flex justify-between border-t pt-2 text-base font-bold">
+                  <span>Total</span>
+                  <span>{money(checkoutPreview.totalMinor)}</span>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <MobileButton
+                variant="outline"
+                disabled={checkoutBusy}
+                onClick={() => setCheckoutPreview(null)}
+              >
+                Cancel
+              </MobileButton>
+              <MobileButton disabled={checkoutBusy} onClick={() => void confirmCheckout()}>
+                {checkoutBusy ? <HookLoader size="button" /> : "Create order"}
+              </MobileButton>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
-      </section>
+      </div>
     );
+  }
+
+  /* ------------------------------------------------------------- customers */
+  const customerName =
+    `${String(customer?.firstName || "")} ${String(customer?.lastName || "")}`.trim();
+
   return (
-    <section className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-semibold">Customer Lookup</h1>
-        <p className="text-muted-foreground">
-          Use an exact email. Customer attestation does not verify email or
-          enable direct login.
-        </p>
-      </div>
-      <div className="grid gap-5 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Search className="h-5 w-5" />
-              Find customer
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={lookup} className="flex gap-2">
-              <Input
-                type="email"
-                required
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="customer@example.com"
-              />
-              <Button disabled={busy}>Find</Button>
-            </form>
-            {customer ? (
-              <div className="mt-4 rounded-md border p-4">
-                <p className="font-medium">
-                  {String(customer.firstName || "")}{" "}
-                  {String(customer.lastName || "")}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {String(customer.email || "")}
-                </p>
-                <Badge className="mt-2" variant="secondary">
-                  {customer.emailVerified
-                    ? "Verified"
-                    : "Verification required"}
-                </Badge>
-                <Button className="mt-3 w-full" variant="brand" onClick={() => selectCustomer(customer)}>Use for assisted shopping</Button>
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UserPlus className="h-5 w-5" />
-              Create assisted customer
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={create} className="space-y-3">
-              {(["firstName", "lastName", "email", "phone"] as const).map(
-                (key) => (
-                  <div key={key} className="space-y-1">
-                    <Label>{key.replace(/([A-Z])/g, " $1")}</Label>
-                    <Input
-                      required
-                      type={key === "email" ? "email" : "text"}
-                      value={form[key]}
-                      onChange={(event) =>
-                        setForm({ ...form, [key]: event.target.value })
-                      }
-                    />
-                  </div>
-                ),
-              )}
-              <div className="flex items-start gap-2">
-                <Checkbox
-                  id="consent"
-                  checked={form.consent}
-                  onCheckedChange={(value) =>
-                    setForm({ ...form, consent: value === true })
-                  }
-                />
-                <Label htmlFor="consent" className="leading-5">
-                  Customer consent and current Hook policies were presented and
-                  accepted.
+    <div>
+      <MobileHeader title="Customers" subtitle="Find who you're shopping for, or register them." />
+
+      {selectedCustomer && (
+        <MobileSection title="Currently shopping for">
+          <MobileRow
+            icon={UserRound}
+            label={
+              `${selectedCustomer.firstName || ""} ${selectedCustomer.lastName || ""}`.trim() ||
+              String(selectedCustomer.email || "Customer")
+            }
+            description={String(selectedCustomer.email || "")}
+            value={
+              <button
+                type="button"
+                onClick={clearCustomer}
+                className="text-[13px] font-semibold text-red-600"
+              >
+                Change
+              </button>
+            }
+          />
+          <MobileRow
+            icon={ShoppingBag}
+            label="Open their basket"
+            description={basketCount ? `${basketCount} item${basketCount === 1 ? "" : "s"}` : "Empty"}
+            href="/partner/basket"
+          />
+        </MobileSection>
+      )}
+
+      <MobileSection title="Step 1 — Find the customer">
+        <form onSubmit={lookup} className="space-y-3 py-4">
+          <Label htmlFor="lookup-email" className="text-[13px] font-semibold">
+            Their email address
+          </Label>
+          <div className="flex gap-2">
+            <Input
+              id="lookup-email"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="customer@example.com"
+              className="h-12 rounded-[10px]"
+            />
+            <button
+              type="submit"
+              disabled={busy || !email.trim()}
+              className="shrink-0 rounded-[10px] bg-[#FFC809] px-5 text-[14px] font-bold text-black disabled:opacity-50"
+            >
+              {busy ? <HookLoader size="button" /> : "Find"}
+            </button>
+          </div>
+          <p className="text-[12px] text-[#8F8F8F]">Must be their exact email address.</p>
+        </form>
+
+        {customer && (
+          <div className="flex items-center gap-3 border-t border-[#D9D9D9] py-4">
+            <span className="grid size-11 shrink-0 place-items-center rounded-full bg-[#FFF2B8] text-[15px] font-black">
+              {(customerName || String(customer.email || "?")).slice(0, 1).toUpperCase()}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[15px] font-semibold">{customerName || "Customer"}</p>
+              <p className="truncate text-[13px] text-[#8F8F8F]">{String(customer.email || "")}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => selectCustomer(customer)}
+              className="shrink-0 rounded-full bg-black px-3.5 py-2 text-[12px] font-bold text-white"
+            >
+              Shop for them
+            </button>
+          </div>
+        )}
+      </MobileSection>
+
+      <MobileSection title="Step 2 — Or register a new customer">
+        <form onSubmit={create} className="space-y-4 py-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            {CUSTOMER_FIELDS.map((field) => (
+              <div key={field.key} className="space-y-1.5">
+                <Label htmlFor={`new-${field.key}`} className="text-[13px] font-semibold">
+                  {field.label}
                 </Label>
+                <Input
+                  id={`new-${field.key}`}
+                  type={field.type}
+                  required
+                  placeholder={field.placeholder}
+                  value={form[field.key]}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, [field.key]: event.target.value }))
+                  }
+                  className="h-12 rounded-[10px]"
+                />
               </div>
-              <Button variant="brand" disabled={busy || !form.consent}>
-                <ShoppingBag className="mr-2 h-4 w-4" />
-                Create customer
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
-    </section>
+            ))}
+          </div>
+
+          <label className="flex items-start gap-2.5 rounded-[10px] bg-[#F5F5F5] p-3">
+            <Checkbox
+              checked={form.consent}
+              onCheckedChange={(checked) =>
+                setForm((current) => ({ ...current, consent: checked === true }))
+              }
+              className="mt-0.5"
+            />
+            <span className="text-[13px] leading-5 text-black">
+              I presented the current Hook terms, privacy, and returns policies, and the customer
+              accepted them.
+            </span>
+          </label>
+
+          <MobileButton type="submit" disabled={busy || !form.consent}>
+            {busy ? <HookLoader size="button" /> : <><UserPlus size={17} /> Register customer</>}
+          </MobileButton>
+        </form>
+      </MobileSection>
+
+      <MobileSection title="How assisted shopping works">
+        <MobileRow icon={Search} tone="neutral" label="1. Find or register the customer" />
+        <MobileRow icon={ShoppingBag} tone="neutral" label="2. Add products from Browse" />
+        <MobileRow icon={MessagesSquare} tone="neutral" label="3. Negotiate a price if available" />
+        <MobileRow icon={Check} tone="neutral" label="4. Create the order and share payment" />
+      </MobileSection>
+    </div>
   );
 }
 
-function getBasketGroupItems(
-  basket: AssistedBasket | undefined,
-  group: StateGroup,
-): BasketItem[] {
-  if (group.items?.length) return group.items;
-  const ids = new Set((group.itemIds || []).map(String));
-  return (basket?.items || []).filter((item) =>
-    ids.has(String(item.publicId || item.id || "")),
-  );
-}
-
-function money(value = 0) {
-  return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(value / 100);
-}
