@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { RunnerSubmissionForm } from "@/components/catalog/RunnerSubmissionForm";
+import { MarketAssociateSubmissionForm } from "@/components/catalog/MarketAssociateSubmissionForm";
 import { HookLoader } from "@/components/shared/HookLoader";
 import { MobileHeader } from "@/components/mobile/MobileUI";
 import { useApiQuery } from "@/lib/query";
@@ -17,9 +17,9 @@ interface Category {
   sizingGuide?: SizingGuide | null;
 }
 
-export default function NewRunnerSubmissionPage() {
+export default function NewMarketAssociateSubmissionPage() {
   const router = useRouter();
-  const markets = useApiQuery<MarketsResponse>(["runner", "markets"], "/runner/markets");
+  const markets = useApiQuery<MarketsResponse>(["marketassociate", "markets"], "/market-associate/markets");
   const categories = useApiQuery<Category[]>(["public", "categories"], "/public/categories");
 
   if (markets.isLoading || categories.isLoading)
@@ -44,7 +44,7 @@ export default function NewRunnerSubmissionPage() {
         title="New capture"
         subtitle="Photograph and record exactly what is available in your Market."
       />
-      <RunnerSubmissionForm markets={markets.data?.markets || []} categories={categories.data || []} />
+      <MarketAssociateSubmissionForm markets={markets.data?.markets || []} categories={categories.data || []} />
     </div>
   );
 }

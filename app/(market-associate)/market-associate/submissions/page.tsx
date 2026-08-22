@@ -17,10 +17,10 @@ const filters = [
   ["Changes", "changes_requested"],
 ] as const;
 
-export default function RunnerSubmissionsPage() {
+export default function MarketAssociateSubmissionsPage() {
   const query = useApiQuery<CursorPage<ProductSubmission>>(
-    ["runner", "submissions"],
-    "/runner/product-submissions?limit=50",
+    ["marketassociate", "submissions"],
+    "/market-associate/product-submissions?limit=50",
   );
   const [filter, setFilter] = useState<string>("all");
   const rows = query.data?.data || [];
@@ -40,7 +40,7 @@ export default function RunnerSubmissionsPage() {
         subtitle="Draft, submit, and respond to Catalog Review."
         action={
           <Link
-            href="/runner/submissions/new"
+            href="/market-associate/submissions/new"
             className="flex size-10 items-center justify-center rounded-full bg-[#FFC809]"
             aria-label="New submission"
           >
@@ -83,7 +83,7 @@ export default function RunnerSubmissionsPage() {
           {visible.map((row) => (
             <Link
               key={row.publicId}
-              href={`/runner/submissions/${row.publicId}`}
+              href={`/market-associate/submissions/${row.publicId}`}
               className="flex min-h-17.5 items-center gap-3 border-b border-[#D9D9D9] last:border-b-0 transition active:bg-black/3"
             >
               <span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-[7px] bg-[#EAEBE7]">

@@ -58,7 +58,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
           Welcome back
         </h1>
         <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-zinc-500">
-          One secure sign-in for staff, Runners, and Hook Partners.
+          One secure sign-in for staff, Market Associates, and Hook Partners.
         </p>
       </div>
 

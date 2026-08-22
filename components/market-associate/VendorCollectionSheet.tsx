@@ -56,7 +56,7 @@ export function VendorCollectionSheet({
     if (!submission || !valid) return;
     setSaving(true);
     try {
-      await apiPost(`/runner/product-submissions/${submission.publicId}/collection`, {
+      await apiPost(`/market-associate/product-submissions/${submission.publicId}/collection`, {
         quantity: Number(quantity),
         actualCostMinor: toMinorUnits(actualCost),
         notes: notes.trim() || undefined,

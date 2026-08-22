@@ -1,10 +1,10 @@
-import { AvailabilityChecksWorkspace } from "@/components/runner/AvailabilityChecksWorkspace";
-import { RunnerActivitySubNav } from "@/components/runner/RunnerActivitySubNav";
+import { AvailabilityChecksWorkspace } from "@/components/market-associate/AvailabilityChecksWorkspace";
+import { MarketAssociateActivitySubNav } from "@/components/market-associate/MarketAssociateActivitySubNav";
 
-export default function RunnerAvailabilityPage() {
+export default function MarketAssociateAvailabilityPage() {
   return (
     <>
-      <RunnerActivitySubNav />
+      <MarketAssociateActivitySubNav />
       <AvailabilityChecksWorkspace />
     </>
   );

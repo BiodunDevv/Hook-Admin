@@ -26,7 +26,7 @@ import {
   MobileRow,
   MobileSection,
 } from "@/components/mobile/MobileUI";
-import { MarketVendorSheet, type VendorFormValue } from "@/components/runner/MarketVendorSheet";
+import { MarketVendorSheet, type VendorFormValue } from "@/components/market-associate/MarketVendorSheet";
 import { useApiQuery } from "@/lib/query";
 import { apiPost } from "@/lib/api";
 import { money } from "@/lib/admin-utils";
@@ -73,16 +73,16 @@ export function VendorDetailWorkspace({ vendorId }: { vendorId: string }) {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [inviting, setInviting] = useState(false);
-  const query = useApiQuery<VendorDetail>(["runner", "market-vendor", vendorId], `/runner/market-vendors/${vendorId}`);
+  const query = useApiQuery<VendorDetail>(["marketassociate", "market-vendor", vendorId], `/market-associate/market-vendors/${vendorId}`);
 
   async function resendInvite() {
     setInviting(true);
     try {
       const result = await apiPost<{ inviteUrl: string; expiresAt: string }>(
-        `/runner/market-vendors/${vendorId}/invite`,
+        `/market-associate/market-vendors/${vendorId}/invite`,
         {},
       );
-      await queryClient.invalidateQueries({ queryKey: ["runner", "market-vendor", vendorId] });
+      await queryClient.invalidateQueries({ queryKey: ["marketassociate", "market-vendor", vendorId] });
       try {
         await navigator.clipboard.writeText(result.inviteUrl);
         toast.success("New invite link copied to clipboard");
@@ -242,8 +242,8 @@ export function VendorDetailWorkspace({ vendorId }: { vendorId: string }) {
         open={editing}
         onClose={() => setEditing(false)}
         onSuccess={() => {
-          void queryClient.invalidateQueries({ queryKey: ["runner", "market-vendor", vendorId] });
-          void queryClient.invalidateQueries({ queryKey: ["runner", "market"] });
+          void queryClient.invalidateQueries({ queryKey: ["marketassociate", "market-vendor", vendorId] });
+          void queryClient.invalidateQueries({ queryKey: ["marketassociate", "market"] });
         }}
       />
     </div>

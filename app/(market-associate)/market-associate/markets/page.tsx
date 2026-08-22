@@ -1,11 +1,11 @@
-import { RunnerMarketsWorkspace } from "@/components/runner/RunnerMarketsWorkspace";
-import { RunnerActivitySubNav } from "@/components/runner/RunnerActivitySubNav";
+import { MarketAssociateMarketsWorkspace } from "@/components/market-associate/MarketAssociateMarketsWorkspace";
+import { MarketAssociateActivitySubNav } from "@/components/market-associate/MarketAssociateActivitySubNav";
 
-export default function RunnerMarketsPage() {
+export default function MarketAssociateMarketsPage() {
   return (
     <>
-      <RunnerActivitySubNav />
-      <RunnerMarketsWorkspace />
+      <MarketAssociateActivitySubNav />
+      <MarketAssociateMarketsWorkspace />
     </>
   );
 }

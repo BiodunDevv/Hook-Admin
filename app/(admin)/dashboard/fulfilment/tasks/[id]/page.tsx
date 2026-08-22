@@ -17,7 +17,7 @@ type TaskDetail = {
     marketId?: string;
     sourceStateId?: string;
     hubId?: string;
-    runnerId?: string;
+    marketAssociateId?: string;
     version?: number;
     acceptanceDueAt?: string;
     sourcingDueAt?: string;
@@ -43,7 +43,7 @@ export default function FulfilmentTaskDetailPage({ params }: { params: Promise<{
   if (query.isError || !task) return <div className="space-y-4"><Button variant="ghost" asChild><Link href="/dashboard/fulfilment"><ArrowLeft /> Back to control tower</Link></Button><div className="rounded-lg border border-destructive/20 bg-destructive/5 p-6 text-sm text-destructive">This fulfilment task could not be loaded or is outside your scope.</div></div>;
 
   const deadlines = [
-    ["Runner acceptance", task.acceptanceDueAt],
+    ["Market Associate acceptance", task.acceptanceDueAt],
     ["Sourcing", task.sourcingDueAt],
     ["Hub handover", task.hubHandoverDueAt],
     ["Resolution", task.resolutionDueAt],
@@ -53,7 +53,7 @@ export default function FulfilmentTaskDetailPage({ params }: { params: Promise<{
     <div className="w-full space-y-5 px-4 py-5">
       <PageHeader title={task.publicId || id} description="Scoped fulfilment task detail. Reassignment remains available from the control tower." actions={<Button variant="outline" asChild><Link href="/dashboard/fulfilment"><ArrowLeft /> Control tower</Link></Button>} />
       <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
-        <Card className="rounded-lg shadow-none"><CardHeader><CardTitle className="flex items-center gap-2 text-base"><Box className="size-4" /> Operational snapshot</CardTitle></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2"><div><p className="text-xs text-muted-foreground">Status</p><Badge className="mt-1">{label(task.status)}</Badge></div><div><p className="text-xs text-muted-foreground">Order</p><p className="mt-1 text-sm font-medium">{detail.order?.publicId || "-"}</p></div><div><p className="text-xs text-muted-foreground">Market</p><p className="mt-1 text-sm font-medium">{task.marketId || "-"}</p></div><div><p className="text-xs text-muted-foreground">Runner</p><p className="mt-1 text-sm font-medium">{task.runnerId || "Unassigned"}</p></div><div><p className="text-xs text-muted-foreground">Dispatch Hub</p><p className="mt-1 text-sm font-medium">{task.hubId || "Unassigned"}</p></div><div><p className="text-xs text-muted-foreground">Task version</p><p className="mt-1 text-sm font-medium">{task.version || 1}</p></div></CardContent></Card>
+        <Card className="rounded-lg shadow-none"><CardHeader><CardTitle className="flex items-center gap-2 text-base"><Box className="size-4" /> Operational snapshot</CardTitle></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2"><div><p className="text-xs text-muted-foreground">Status</p><Badge className="mt-1">{label(task.status)}</Badge></div><div><p className="text-xs text-muted-foreground">Order</p><p className="mt-1 text-sm font-medium">{detail.order?.publicId || "-"}</p></div><div><p className="text-xs text-muted-foreground">Market</p><p className="mt-1 text-sm font-medium">{task.marketId || "-"}</p></div><div><p className="text-xs text-muted-foreground">Market Associate</p><p className="mt-1 text-sm font-medium">{task.marketAssociateId || "Unassigned"}</p></div><div><p className="text-xs text-muted-foreground">Dispatch Hub</p><p className="mt-1 text-sm font-medium">{task.hubId || "Unassigned"}</p></div><div><p className="text-xs text-muted-foreground">Task version</p><p className="mt-1 text-sm font-medium">{task.version || 1}</p></div></CardContent></Card>
         <Card className="rounded-lg shadow-none"><CardHeader><CardTitle className="flex items-center gap-2 text-base"><Clock3 className="size-4" /> SLA checkpoints</CardTitle></CardHeader><CardContent className="space-y-3">{deadlines.map(([title, value]) => <div key={title} className="flex items-start justify-between gap-3 border-b pb-3 last:border-0 last:pb-0"><div><p className="text-sm font-medium">{title}</p><p className="text-xs text-muted-foreground">{formatDate(value)}</p></div><Clock3 className="mt-0.5 size-4 text-muted-foreground" /></div>)}</CardContent></Card>
       </div>
       <Card className="rounded-lg shadow-none"><CardHeader><CardTitle className="flex items-center gap-2 text-base"><MapPin className="size-4" /> Assigned items</CardTitle></CardHeader><CardContent className="space-y-2">{detail.items?.length ? detail.items.map((item, index) => <div key={item.publicId || item.id || index} className="flex items-center justify-between gap-3 rounded-md border p-3"><div><p className="text-sm font-medium">{item.productSnapshot?.title || "Catalog item"}</p><p className="text-xs text-muted-foreground">Quantity {item.quantity || 0}</p></div><Badge variant="outline">{label(item.fulfilmentStatus)}</Badge></div>) : <p className="text-sm text-muted-foreground">No active item records are attached to this task.</p>}</CardContent></Card>

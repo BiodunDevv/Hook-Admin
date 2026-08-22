@@ -24,7 +24,17 @@ import { clearSession, logoutAccount } from "@/lib/api";
 import { PortalGuard } from "@/components/platform/PortalGuard";
 import { APP_TAB_BAR_CONTENT_INSET, APP_TAB_BAR_HEIGHT, APP_TAB_BAR_BOTTOM_GAP } from "@/lib/tab-bar-layout";
 
-type PortalType = "runner" | "partner";
+type PortalType = "marketassociate" | "partner";
+
+// The account-type discriminator ("marketassociate") no longer matches the
+// URL prefix ("/market-associate") after the portal rename — keep them
+// mapped separately rather than assuming `/${type}`. Exported so other
+// portal-page components (e.g. ProfileWorkspace) build the same, correct
+// page links.
+export const PORTAL_BASE_PATH: Record<PortalType, string> = {
+  marketassociate: "/market-associate",
+  partner: "/partner",
+};
 
 type TabConfig = {
   label: string;
@@ -33,21 +43,21 @@ type TabConfig = {
   match?: (pathname: string) => boolean;
 };
 
-const runnerTabs: TabConfig[] = [
-  { label: "Home", icon: Home, href: "/runner/dashboard" },
-  { label: "Capture", icon: Camera, href: "/runner/submissions" },
-  { label: "Orders", icon: Package, href: "/runner/fulfilments" },
+const marketAssociateTabs: TabConfig[] = [
+  { label: "Home", icon: Home, href: "/market-associate/dashboard" },
+  { label: "Capture", icon: Camera, href: "/market-associate/submissions" },
+  { label: "Orders", icon: Package, href: "/market-associate/fulfilments" },
   {
     label: "Activity",
     icon: Store,
-    href: "/runner/markets",
-    match: (pathname) => pathname.startsWith("/runner/markets") || pathname.startsWith("/runner/availability"),
+    href: "/market-associate/markets",
+    match: (pathname) => pathname.startsWith("/market-associate/markets") || pathname.startsWith("/market-associate/availability"),
   },
   {
     label: "Profile",
     icon: User,
-    href: "/runner/profile",
-    match: (pathname) => pathname.startsWith("/runner/profile") || pathname.startsWith("/runner/security"),
+    href: "/market-associate/profile",
+    match: (pathname) => pathname.startsWith("/market-associate/profile") || pathname.startsWith("/market-associate/security"),
   },
 ];
 
@@ -83,7 +93,7 @@ export function AppTabBarShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const base = `/${type}`;
+  const base = PORTAL_BASE_PATH[type];
 
   if (pathname === `${base}/activate`) return <>{children}</>;
 
@@ -103,7 +113,7 @@ export function AppTabBarShell({
     router.replace("/auth/login");
   }
 
-  const tabs = type === "runner" ? runnerTabs : partnerTabs;
+  const tabs = type === "marketassociate" ? marketAssociateTabs : partnerTabs;
 
   return (
     <PortalGuard type={type}>

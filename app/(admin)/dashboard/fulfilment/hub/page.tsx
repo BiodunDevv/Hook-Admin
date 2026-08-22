@@ -137,12 +137,12 @@ export default function FulfilmentHubPage() {
   const data = query.data;
   return (
     <div className="w-full space-y-5 px-4 py-5">
-      <PageHeader title="Dispatch Hub workspace" description="Receive Runner packages, complete visible quality checks, and prepare complete State Orders for dispatch." />
+      <PageHeader title="Dispatch Hub workspace" description="Receive Market Associate packages, complete visible quality checks, and prepare complete State Orders for dispatch." />
 
       <Card className="rounded-lg shadow-none">
         <CardHeader className="flex-row items-center justify-between gap-3">
           <div>
-            <CardTitle className="text-base">Inbound Runner packages</CardTitle>
+            <CardTitle className="text-base">Inbound Market Associate packages</CardTitle>
             <p className="mt-1 text-xs text-muted-foreground">Verify the one-time six-digit credential before accepting custody.</p>
           </div>
           <Badge variant="outline">{data.inbound.length} waiting</Badge>
@@ -160,7 +160,7 @@ export default function FulfilmentHubPage() {
                 <Button size="sm" onClick={() => void receive(item)} disabled={pending === id || credential[id]?.length !== 6}>{pending === id ? <HookLoader size="button" /> : <><PackageCheck /> Receive package</>}</Button>
               </div>
             );
-          }) : <p className="py-8 text-center text-sm text-muted-foreground">No Runner packages are awaiting Hub receipt.</p>}
+          }) : <p className="py-8 text-center text-sm text-muted-foreground">No Market Associate packages are awaiting Hub receipt.</p>}
         </CardContent>
       </Card>
 
@@ -192,12 +192,12 @@ export default function FulfilmentHubPage() {
                         <div>
                           <p className="mb-1 text-xs font-medium text-muted-foreground">Picked up</p>
                           <div className="relative aspect-square w-full max-w-24 overflow-hidden rounded-md bg-muted">
-                            {row.pickedUpPhotoUrl ? <Image src={row.pickedUpPhotoUrl} alt="Picked up by Runner" fill className="object-cover" unoptimized /> : null}
+                            {row.pickedUpPhotoUrl ? <Image src={row.pickedUpPhotoUrl} alt="Picked up by Market Associate" fill className="object-cover" unoptimized /> : null}
                           </div>
                         </div>
                         <div className="flex flex-col gap-2">
                           <p className="text-sm font-medium">{row.productTitle || "Product item"}</p>
-                          <Badge variant={row.matched ? "default" : "secondary"} className="w-fit">{row.matched ? "Runner confirmed match" : "Runner reported mismatch"}</Badge>
+                          <Badge variant={row.matched ? "default" : "secondary"} className="w-fit">{row.matched ? "Market Associate confirmed match" : "Market Associate reported mismatch"}</Badge>
                           <label className="flex items-center gap-2 text-sm">
                             <Checkbox
                               checked={Boolean(confirmedItems[row.orderItemId])}

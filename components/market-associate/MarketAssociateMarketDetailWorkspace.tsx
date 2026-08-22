@@ -27,8 +27,8 @@ import {
   MobileStat,
 } from "@/components/mobile/MobileUI";
 import { useApiQuery } from "@/lib/query";
-import { MarketVendorSheet } from "@/components/runner/MarketVendorSheet";
-import { VendorCollectionSheet } from "@/components/runner/VendorCollectionSheet";
+import { MarketVendorSheet } from "@/components/market-associate/MarketVendorSheet";
+import { VendorCollectionSheet } from "@/components/market-associate/VendorCollectionSheet";
 import { MarketImage } from "@/components/markets/MarketImage";
 import { money } from "@/lib/admin-utils";
 
@@ -75,7 +75,7 @@ type Detail = {
   collections?: Collection[];
   summary?: {
     vendors: number;
-    assignedRunners: number;
+    assignedMarketAssociates: number;
     products: number;
     pendingAvailability: number;
     collections?: number;
@@ -84,8 +84,8 @@ type Detail = {
 
 const label = (value?: string) => String(value || "-").replaceAll("_", " ");
 
-export function RunnerMarketDetailWorkspace({ id }: { id: string }) {
-  const query = useApiQuery<Detail>(["runner", "market", id], `/runner/markets/${id}`);
+export function MarketAssociateMarketDetailWorkspace({ id }: { id: string }) {
+  const query = useApiQuery<Detail>(["marketassociate", "market", id], `/market-associate/markets/${id}`);
   const [vendorOpen, setVendorOpen] = useState(false);
   const [vendorSearch, setVendorSearch] = useState("");
   const [collectionSubmission, setCollectionSubmission] = useState<Submission | null>(null);
@@ -123,7 +123,7 @@ export function RunnerMarketDetailWorkspace({ id }: { id: string }) {
   return (
     <div>
       <Link
-        href="/runner/markets"
+        href="/market-associate/markets"
         className="mb-4 flex items-center gap-1.5 px-1 text-[13px] font-semibold text-[#8F8F8F]"
       >
         <ArrowLeft size={15} /> Assigned Markets
@@ -133,7 +133,7 @@ export function RunnerMarketDetailWorkspace({ id }: { id: string }) {
         <div className="relative h-40 bg-muted">
           <MarketImage src={detail.market.imageUrl} alt={`${detail.market.name} market`} className="size-full" />
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-4 pb-4 pt-12 text-white">
-            <p className="text-[10px] uppercase tracking-[0.16em] text-white/75">Runner Market</p>
+            <p className="text-[10px] uppercase tracking-[0.16em] text-white/75">Assigned Market</p>
             <h1 className="mt-0.5 text-[20px] font-bold leading-tight">{detail.market.name}</h1>
             <p className="mt-1 text-[13px] text-white/85">{detail.market.address || "Address pending"}</p>
           </div>
@@ -144,7 +144,7 @@ export function RunnerMarketDetailWorkspace({ id }: { id: string }) {
         <MobileStat icon={UserRound} label="Suppliers" value={detail.summary?.vendors ?? detail.vendors.length} />
         <MobileStat icon={Package} label="Products" value={detail.summary?.products ?? detail.products.length} tone="neutral" />
         <MobileStat icon={Clock3} label="Availability checks" value={detail.summary?.pendingAvailability ?? 0} tone="neutral" />
-        <MobileStat icon={CheckCircle2} label="Assignments" value={detail.summary?.assignedRunners ?? 0} tone="neutral" />
+        <MobileStat icon={CheckCircle2} label="Assignments" value={detail.summary?.assignedMarketAssociates ?? 0} tone="neutral" />
       </div>
 
       <div className="mb-7">
@@ -175,7 +175,7 @@ export function RunnerMarketDetailWorkspace({ id }: { id: string }) {
               icon={vendor.paymentProfile?.method === "bank_transfer" ? Landmark : Banknote}
               label={vendor.businessName}
               description={`${vendor.contactName} · ${vendor.phone}`}
-              href={`/runner/vendors/${vendor.publicId}`}
+              href={`/market-associate/vendors/${vendor.publicId}`}
               value={<StatusBadge status={vendor.status} />}
             />
           ))
@@ -197,7 +197,7 @@ export function RunnerMarketDetailWorkspace({ id }: { id: string }) {
       <MobileSection
         title="Captured products"
         action={
-          <Link href="/runner/submissions/new" className="text-[13px] font-semibold text-[#9a7400]">
+          <Link href="/market-associate/submissions/new" className="text-[13px] font-semibold text-[#9a7400]">
             New
           </Link>
         }
@@ -229,7 +229,7 @@ export function RunnerMarketDetailWorkspace({ id }: { id: string }) {
               tone="neutral"
               label={submission.basicTitle}
               description={`Supplier: ${submission.marketVendorName || vendorMap.get(submission.marketVendorId || "") || "Not linked"}`}
-              href={`/runner/submissions/${submission.publicId}`}
+              href={`/market-associate/submissions/${submission.publicId}`}
               value={
                 submission.marketVendorId ? (
                   <button

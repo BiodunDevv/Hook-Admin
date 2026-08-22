@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { RunnerSubmissionForm } from "@/components/catalog/RunnerSubmissionForm";
+import { MarketAssociateSubmissionForm } from "@/components/catalog/MarketAssociateSubmissionForm";
 import { CatalogStatusBadge } from "@/components/catalog/CatalogStatusBadge";
 import { HookLoader } from "@/components/shared/HookLoader";
 import { useApiQuery } from "@/lib/query";
@@ -21,11 +21,11 @@ const statusDescription: Record<string, string> = {
   rejected: "This submission was not approved.",
 };
 
-export default function RunnerSubmissionDetailPage() {
+export default function MarketAssociateSubmissionDetailPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
-  const submission = useApiQuery<ProductSubmission>(["runner", "submission", id], `/runner/product-submissions/${id}`);
-  const markets = useApiQuery<MarketsResponse>(["runner", "markets"], "/runner/markets");
+  const submission = useApiQuery<ProductSubmission>(["marketassociate", "submission", id], `/market-associate/product-submissions/${id}`);
+  const markets = useApiQuery<MarketsResponse>(["marketassociate", "markets"], "/market-associate/markets");
   const categories = useApiQuery<Category[]>(["public", "categories"], "/public/categories");
   if (submission.isLoading || markets.isLoading || categories.isLoading) return <div className="grid min-h-80 place-items-center"><HookLoader label="Loading submission" /></div>;
   if (submission.isError || !submission.data) return <p className="text-sm text-destructive">This submission could not be loaded.</p>;
@@ -49,7 +49,7 @@ export default function RunnerSubmissionDetailPage() {
           {statusDescription[submission.data.status] || submission.data.publicId}
         </p>
       </div>
-      <RunnerSubmissionForm submission={submission.data} markets={markets.data?.markets || []} categories={categories.data || []} />
+      <MarketAssociateSubmissionForm submission={submission.data} markets={markets.data?.markets || []} categories={categories.data || []} />
     </div>
   );
 }

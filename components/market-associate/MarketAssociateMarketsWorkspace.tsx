@@ -7,7 +7,7 @@ import { HookLoader } from "@/components/shared/HookLoader";
 import { QueryState } from "@/components/shared/QueryState";
 import { MobileHeader } from "@/components/mobile/MobileUI";
 import { useApiQuery } from "@/lib/query";
-import { MarketVendorSheet } from "@/components/runner/MarketVendorSheet";
+import { MarketVendorSheet } from "@/components/market-associate/MarketVendorSheet";
 import { MarketImage } from "@/components/markets/MarketImage";
 
 type Market = {
@@ -27,8 +27,8 @@ function marketId(market: Market) {
   return market.publicId || market.id || "";
 }
 
-export function RunnerMarketsWorkspace() {
-  const query = useApiQuery<MarketsResponse>(["runner", "markets"], "/runner/markets");
+export function MarketAssociateMarketsWorkspace() {
+  const query = useApiQuery<MarketsResponse>(["marketassociate", "markets"], "/market-associate/markets");
   const [vendorMarket, setVendorMarket] = useState<Market | null>(null);
   const markets = query.data?.markets || [];
 
@@ -65,7 +65,7 @@ export function RunnerMarketsWorkspace() {
             const id = marketId(market);
             return (
               <div key={id} className="overflow-hidden rounded-[14px] bg-white">
-                <Link href={`/runner/markets/${id}`} className="block">
+                <Link href={`/market-associate/markets/${id}`} className="block">
                   <div className="relative h-32 bg-muted">
                     <MarketImage src={market.imageUrl} alt={`${market.name} market`} className="size-full" />
                     <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-semibold shadow-sm">

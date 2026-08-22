@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
-export default function RunnerPage() {
-  redirect("/runner/dashboard");
+export default function MarketAssociatePage() {
+  redirect("/market-associate/dashboard");
 }

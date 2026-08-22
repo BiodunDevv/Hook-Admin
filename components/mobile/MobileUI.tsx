@@ -5,7 +5,7 @@ import { ChevronRight, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * Mobile-app UI primitives for the Runner and Partner portals.
+ * Mobile-app UI primitives for the Market Associate and Partner portals.
  * Tokens mirror the Hook-App native profile screen so both platforms
  * read as the same product.
  */

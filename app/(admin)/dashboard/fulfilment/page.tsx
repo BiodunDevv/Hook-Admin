@@ -37,7 +37,7 @@ type Row = {
   publicId?: string;
   status?: string;
   marketId?: string;
-  runnerId?: string;
+  marketAssociateId?: string;
   hubId?: string;
   summary?: string;
   severity?: string;
@@ -46,7 +46,7 @@ type Row = {
   version?: number;
 };
 
-type Runner = Row & {
+type MarketAssociateOption = Row & {
   firstName?: string;
   lastName?: string;
   email?: string;
@@ -68,7 +68,7 @@ type ControlTower = {
   };
 };
 
-type AssignmentForm = { runnerId?: string; hubId?: string; reason?: string };
+type AssignmentForm = { marketAssociateId?: string; hubId?: string; reason?: string };
 
 const workflowLinks = [
   { label: "Control tower", href: "/dashboard/fulfilment" },
@@ -86,9 +86,9 @@ export default function FulfilmentControlTowerPage() {
     ["admin", "fulfilment", "control-tower"],
     "/admin/fulfilment/control-tower",
   );
-  const runnersQuery = useApiQuery<DirectoryResponse<Runner>>(
-    ["admin", "fulfilment", "runners"],
-    "/admin/fulfilment/runners?limit=100",
+  const marketAssociatesQuery = useApiQuery<DirectoryResponse<MarketAssociateOption>>(
+    ["admin", "fulfilment", "market-associates"],
+    "/admin/fulfilment/market-associates?limit=100",
   );
   const hubsQuery = useApiQuery<DirectoryResponse<Hub>>(
     ["admin", "fulfilment", "hubs"],
@@ -105,9 +105,9 @@ export default function FulfilmentControlTowerPage() {
   const [pending, setPending] = useState<string>();
 
   const data = query.data;
-  const runners = Array.isArray(runnersQuery.data)
-    ? runnersQuery.data
-    : runnersQuery.data?.data || [];
+  const marketAssociates = Array.isArray(marketAssociatesQuery.data)
+    ? marketAssociatesQuery.data
+    : marketAssociatesQuery.data?.data || [];
   const hubs = Array.isArray(hubsQuery.data)
     ? hubsQuery.data
     : hubsQuery.data?.data || [];
@@ -117,12 +117,12 @@ export default function FulfilmentControlTowerPage() {
     const form = taskId ? assignments[taskId] : undefined;
     if (
       !taskId ||
-      !form?.runnerId ||
+      !form?.marketAssociateId ||
       !form.hubId ||
       !form.reason?.trim() ||
       !selectedTask?.version
     ) {
-      toast.error("Choose a Runner, Hub, and reason before reassigning");
+      toast.error("Choose a Market Associate, Hub, and reason before reassigning");
       return;
     }
 
@@ -203,7 +203,7 @@ export default function FulfilmentControlTowerPage() {
       <PageHeader
         className="mb-0"
         title="Fulfilment Control Tower"
-        description="Monitor Runner sourcing, Hub readiness, shipments, exceptions, returns, and refunds across the current operating scope."
+        description="Monitor Market Associate sourcing, Hub readiness, shipments, exceptions, returns, and refunds across the current operating scope."
       />
 
       <nav
@@ -246,7 +246,7 @@ export default function FulfilmentControlTowerPage() {
                 <CardHeader className="flex-row items-center justify-between border-b px-4 py-3">
                   <div>
                     <CardTitle className="text-sm font-semibold">
-                      Runner tasks
+                      Market Associate tasks
                     </CardTitle>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       Prioritized by operational SLA
@@ -281,8 +281,8 @@ export default function FulfilmentControlTowerPage() {
                               <StatusBadge status={task.status || "Unknown"} />
                             </div>
                             <p className="mt-1 truncate text-xs text-muted-foreground">
-                              Market {task.marketId || "unassigned"} · Runner{" "}
-                              {task.runnerId || "unassigned"} · Hub{" "}
+                              Market {task.marketId || "unassigned"} · Market Associate{" "}
+                              {task.marketAssociateId || "unassigned"} · Hub{" "}
                               {task.hubId || "unassigned"}
                             </p>
                           </div>
@@ -429,7 +429,7 @@ export default function FulfilmentControlTowerPage() {
           if (!open && pending !== `assign-${identifier(selectedTask)}`) setSelectedTask(undefined);
         }}
         title="Reassign fulfilment task"
-        description="Select a compatible Runner and Hub. The change is version-checked and recorded in the audit trail."
+        description="Select a compatible Market Associate and Hub. The change is version-checked and recorded in the audit trail."
         footer={(
           <>
             <Button variant="outline" onClick={() => setSelectedTask(undefined)} disabled={pending === `assign-${identifier(selectedTask)}`}>Cancel</Button>
@@ -443,28 +443,28 @@ export default function FulfilmentControlTowerPage() {
             <div className="space-y-5">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label>Runner</Label>
+                  <Label>Market Associate</Label>
                   <Select
-                    value={assignments[identifier(selectedTask)]?.runnerId}
+                    value={assignments[identifier(selectedTask)]?.marketAssociateId}
                     onValueChange={(value) =>
                       setAssignments((current) => ({
                         ...current,
                         [identifier(selectedTask)]: {
                           ...current[identifier(selectedTask)],
-                          runnerId: value,
+                          marketAssociateId: value,
                         },
                       }))
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select Runner" />
+                      <SelectValue placeholder="Select Market Associate" />
                     </SelectTrigger>
                     <SelectContent>
-                      {runners.map((runner) => {
-                        const value = identifier(runner);
+                      {marketAssociates.map((marketAssociate) => {
+                        const value = identifier(marketAssociate);
                         const name =
-                          `${runner.firstName || ""} ${runner.lastName || ""}`.trim() ||
-                          runner.email ||
+                          `${marketAssociate.firstName || ""} ${marketAssociate.lastName || ""}`.trim() ||
+                          marketAssociate.email ||
                           value;
                         return value ? (
                           <SelectItem key={value} value={value}>

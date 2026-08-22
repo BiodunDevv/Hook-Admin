@@ -125,7 +125,7 @@ export function OperatingStatesPage() {
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-black/60">Operations footprint</p>
             <h2 className="mt-1 text-2xl font-semibold tracking-tight text-black sm:text-3xl">Where Hook operates</h2>
             <p className="mt-2 max-w-xl text-sm leading-6 text-black/70">
-              A State becomes operational when Hook can assign Markets, Runners, and dispatch work there. States without a Market remain available for future expansion.
+              A State becomes operational when Hook can assign Markets, Market Associates, and dispatch work there. States without a Market remain available for future expansion.
             </p>
           </div>
         </CardContent>

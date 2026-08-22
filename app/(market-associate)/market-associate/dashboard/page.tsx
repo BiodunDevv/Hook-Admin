@@ -42,11 +42,11 @@ function greeting() {
   return "Good evening";
 }
 
-export default function RunnerDashboardPage() {
-  const query = useApiQuery<Dashboard>(["runner", "catalog-dashboard"], "/runner/dashboard");
+export default function MarketAssociateDashboardPage() {
+  const query = useApiQuery<Dashboard>(["marketassociate", "catalog-dashboard"], "/market-associate/dashboard");
   const tasks = useApiQuery<{ data: FulfilmentRow[]; total: number }>(
-    ["runner", "fulfilments"],
-    "/runner/fulfilments?limit=5",
+    ["marketassociate", "fulfilments"],
+    "/market-associate/fulfilments?limit=5",
   );
 
   if (query.isLoading) {
@@ -57,7 +57,7 @@ export default function RunnerDashboardPage() {
     );
   }
   if (query.isError || !query.data) {
-    return <p className="text-sm text-destructive">Your Runner dashboard could not be loaded.</p>;
+    return <p className="text-sm text-destructive">Your Market Associate dashboard could not be loaded.</p>;
   }
 
   const data = query.data;
@@ -89,20 +89,20 @@ export default function RunnerDashboardPage() {
             tone="danger"
             label={`${data.changesRequested} submission${data.changesRequested === 1 ? "" : "s"} need changes`}
             description="Catalog Review sent these back to you"
-            href="/runner/submissions"
+            href="/market-associate/submissions"
           />
         </MobileSection>
       )}
 
       <MobileSection title="Quick actions">
-        <MobileRow icon={Camera} label="Capture a product" description="Add a new product from your market" href="/runner/submissions/new" />
-        <MobileRow icon={Store} label="Assigned markets" description="Vendors, products, and collections" href="/runner/markets" />
+        <MobileRow icon={Camera} label="Capture a product" description="Add a new product from your market" href="/market-associate/submissions/new" />
+        <MobileRow icon={Store} label="Assigned markets" description="Vendors, products, and collections" href="/market-associate/markets" />
       </MobileSection>
 
       <MobileSection
         title="Your task queue"
         action={
-          <Link href="/runner/fulfilments" className="text-[13px] font-semibold text-[#9a7400]">
+          <Link href="/market-associate/fulfilments" className="text-[13px] font-semibold text-[#9a7400]">
             View all
           </Link>
         }
@@ -119,7 +119,7 @@ export default function RunnerDashboardPage() {
               label={task.publicId || task.id || "Task"}
               description={`Order ${task.orderId || "-"}`}
               value={<span className="capitalize">{String(task.status || "").replaceAll("_", " ").toLowerCase()}</span>}
-              href={`/runner/fulfilments/${task.publicId || task.id}`}
+              href={`/market-associate/fulfilments/${task.publicId || task.id}`}
             />
           ))
         ) : (

@@ -18,7 +18,7 @@ import { apiPost } from "@/lib/api";
 import { hasPermission, type Permission } from "@/lib/permissions";
 import { useState, type ReactNode } from "react";
 
-type AccountResource = "staff" | "runners" | "partners";
+type AccountResource = "staff" | "partners";
 type LifecycleResource = "states" | "cities" | "zones" | "markets" | "hubs";
 type LifecycleAction = {
   suffix: string;
@@ -113,11 +113,9 @@ export function PlatformDetailPage({
   const status = String(query.data?.status || "");
   const accountManagePermission: Permission | undefined = accountResource === "staff"
     ? "staff.suspend"
-    : accountResource === "runners"
-      ? "runners.manage"
-      : accountResource === "partners"
-        ? "partners.manage"
-        : undefined;
+    : accountResource === "partners"
+      ? "partners.manage"
+      : undefined;
   const invitationPermission: Permission | undefined = accountResource === "staff" ? "staff.create" : accountManagePermission;
   const lifecycleManagePermission: Permission | undefined = lifecycleResource
     ? `${lifecycleResource}.manage` as Permission

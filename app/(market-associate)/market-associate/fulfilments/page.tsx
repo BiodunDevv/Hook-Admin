@@ -14,7 +14,7 @@ type Row = {
   orderId?: string;
   acceptanceDueAt?: string;
 };
-type RunnerTasks = { data: Row[]; total: number };
+type MarketAssociateTasks = { data: Row[]; total: number };
 
 function dueLabel(value?: string) {
   if (!value) return undefined;
@@ -22,8 +22,8 @@ function dueLabel(value?: string) {
   return date < new Date() ? "Acceptance overdue" : `Accept by ${date.toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit" })}`;
 }
 
-export default function RunnerFulfilmentsPage() {
-  const query = useApiQuery<RunnerTasks>(["runner", "fulfilments"], "/runner/fulfilments?limit=100");
+export default function MarketAssociateFulfilmentsPage() {
+  const query = useApiQuery<MarketAssociateTasks>(["marketassociate", "fulfilments"], "/market-associate/fulfilments?limit=100");
   const rows = query.data?.data || [];
 
   if (query.isLoading)
@@ -86,7 +86,7 @@ function TaskRow({ task, urgent }: { task: Row; urgent?: boolean }) {
       tone={urgent ? "brand" : "neutral"}
       label={task.publicId || task.id || "Task"}
       description={due ? `Order ${task.orderId || "-"} · ${due}` : `Order ${task.orderId || "-"}`}
-      href={`/runner/fulfilments/${task.publicId || task.id}`}
+      href={`/market-associate/fulfilments/${task.publicId || task.id}`}
       value={<StatusBadge status={task.status || "PENDING"} />}
     />
   );

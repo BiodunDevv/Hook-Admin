@@ -151,15 +151,15 @@ export function MarketVendorSheet({
         notes: form.notes.trim() || undefined,
       };
       if (editing) {
-        await apiPatch(`/runner/market-vendors/${vendor!.publicId}`, {
+        await apiPatch(`/market-associate/market-vendors/${vendor!.publicId}`, {
           ...body,
-          reason: "Runner updated supplier details",
+          reason: "Market Associate updated supplier details",
         });
         toast.success("Supplier updated");
         onSuccess();
         onClose();
       } else {
-        const response = await apiPost<InviteResponse>(`/runner/markets/${marketId}/vendors`, body);
+        const response = await apiPost<InviteResponse>(`/market-associate/markets/${marketId}/vendors`, body);
         setResult(response);
         toast.success("Supplier added");
         onSuccess();

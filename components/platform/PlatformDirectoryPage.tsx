@@ -173,7 +173,7 @@ function useRelatedOptions(field: Field, values: FormValues) {
   return { options, query, dependencies };
 }
 
-function RelatedSelect({
+export function RelatedSelect({
   field,
   value,
   values,

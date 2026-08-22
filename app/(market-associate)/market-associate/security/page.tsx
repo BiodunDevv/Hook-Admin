@@ -1,2 +1,2 @@
 import { ProfileWorkspace } from "@/components/platform/ProfileWorkspace";
-export default function RunnerSecurityPage() { return <ProfileWorkspace type="runner" section="security" />; }
+export default function MarketAssociateSecurityPage() { return <ProfileWorkspace type="marketassociate" section="security" />; }

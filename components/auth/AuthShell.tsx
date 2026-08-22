@@ -14,7 +14,7 @@ const copy = {
     eyebrow: "Hook operations",
     title: "One secure workspace for every Hook team.",
     description:
-      "Staff, Runners, and Hook Partners are automatically taken to the workspace assigned to their account.",
+      "Staff, Market Associates, and Hook Partners are automatically taken to the workspace assigned to their account.",
     footer: "Hook identity and access",
   },
   "/forgot-password": {

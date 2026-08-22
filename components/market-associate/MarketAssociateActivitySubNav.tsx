@@ -4,11 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const tabs: Array<[string, string]> = [
-  ["Assigned markets", "/runner/markets"],
-  ["Availability checks", "/runner/availability"],
+  ["Assigned markets", "/market-associate/markets"],
+  ["Availability checks", "/market-associate/availability"],
 ];
 
-export function RunnerActivitySubNav() {
+export function MarketAssociateActivitySubNav() {
   const pathname = usePathname();
   return (
     <div className="mb-4 flex gap-1 border-b">

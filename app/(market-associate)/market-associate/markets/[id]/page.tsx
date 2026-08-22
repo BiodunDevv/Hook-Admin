@@ -1,9 +1,9 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { RunnerMarketDetailWorkspace } from "@/components/runner/RunnerMarketDetailWorkspace";
+import { MarketAssociateMarketDetailWorkspace } from "@/components/market-associate/MarketAssociateMarketDetailWorkspace";
 
-export default function RunnerMarketDetailPage() {
+export default function MarketAssociateMarketDetailPage() {
   const { id } = useParams<{ id: string }>();
-  return <RunnerMarketDetailWorkspace id={id} />;
+  return <MarketAssociateMarketDetailWorkspace id={id} />;
 }

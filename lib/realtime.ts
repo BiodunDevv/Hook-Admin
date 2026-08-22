@@ -16,7 +16,7 @@ function invalidateForEvent(queryClient: QueryClient, event: string) {
     queryClient.invalidateQueries({ queryKey: ["admin", "dashboard"] });
     queryClient.invalidateQueries({ queryKey: ["admin", "sidebar-summary"] });
     queryClient.invalidateQueries({ queryKey: ["notifications"] });
-    queryClient.invalidateQueries({ queryKey: ["runner", "notifications"] });
+    queryClient.invalidateQueries({ queryKey: ["marketassociate", "notifications"] });
     queryClient.invalidateQueries({ queryKey: ["partner", "notifications"] });
     return;
   }
@@ -30,13 +30,13 @@ function invalidateForEvent(queryClient: QueryClient, event: string) {
     queryClient.invalidateQueries({ queryKey: ["admin", "market"] });
     queryClient.invalidateQueries({ queryKey: ["admin", "commercial"] });
     queryClient.invalidateQueries({ queryKey: ["admin", "catalog-review"] });
-    queryClient.invalidateQueries({ queryKey: ["runner", "availability-checks"] });
-    queryClient.invalidateQueries({ queryKey: ["runner", "markets"] });
+    queryClient.invalidateQueries({ queryKey: ["marketassociate", "availability-checks"] });
+    queryClient.invalidateQueries({ queryKey: ["marketassociate", "markets"] });
     queryClient.invalidateQueries({ queryKey: ["markets"] });
   }
   if (event === "notification.created" || event === "notification.updated") {
     queryClient.invalidateQueries({ queryKey: ["notifications"] });
-    queryClient.invalidateQueries({ queryKey: ["runner", "notifications"] });
+    queryClient.invalidateQueries({ queryKey: ["marketassociate", "notifications"] });
     queryClient.invalidateQueries({ queryKey: ["partner", "notifications"] });
   }
   if (event === "order.updated") {

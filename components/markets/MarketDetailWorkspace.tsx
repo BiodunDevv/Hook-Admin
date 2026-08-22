@@ -114,7 +114,7 @@ export function MarketDetailWorkspace() {
           <div className="grid min-w-0 grid-cols-2 gap-3 lg:grid-cols-5">
             {[
               [Users, "Vendors", market.summary?.vendors ?? market.vendors?.length ?? 0, "bg-[#fff8dc] text-[#8a6900]"],
-              [Users, "Assigned Runners", market.summary?.assignedRunners ?? market.runners?.length ?? 0, "bg-blue-50 text-blue-700"],
+              [Users, "Assigned Market Associates", market.summary?.assignedMarketAssociates ?? market.marketAssociates?.length ?? 0, "bg-blue-50 text-blue-700"],
               [Package, "Products", market.summary?.products ?? market.products?.length ?? 0, "bg-emerald-50 text-emerald-700"],
               [AlertTriangle, "Availability checks", market.summary?.pendingAvailability ?? 0, "bg-amber-50 text-amber-700"],
               [WalletCards, "Collections", market.summary?.collections ?? market.collections?.length ?? 0, "bg-violet-50 text-violet-700"],
@@ -125,11 +125,11 @@ export function MarketDetailWorkspace() {
           </div>
           <div className="min-w-0 overflow-hidden rounded-xl border bg-background shadow-none">
             <div className="flex gap-1 overflow-x-auto border-b p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {[['vendors', 'Vendors'], ['products', 'Products'], ['runners', 'Runners'], ['collections', 'Collections']].map(([value, label]) => <button key={value} type="button" onClick={() => setActiveTab(value)} className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition ${activeTab === value ? "bg-[#fff4b8] text-[#6d5600]" : "text-muted-foreground hover:bg-muted"}`}>{label}</button>)}
+              {[['vendors', 'Vendors'], ['products', 'Products'], ['marketAssociates', 'Market Associates'], ['collections', 'Collections']].map(([value, label]) => <button key={value} type="button" onClick={() => setActiveTab(value)} className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition ${activeTab === value ? "bg-[#fff4b8] text-[#6d5600]" : "text-muted-foreground hover:bg-muted"}`}>{label}</button>)}
             </div>
             {activeTab === "vendors" ? <VendorList vendors={market.vendors || []} canManage={canManageVendors} onEdit={setEditingVendor} /> : null}
             {activeTab === "products" ? <ProductList products={market.products || []} onPreview={(src, alt) => setPreviewImage({ src, alt })} /> : null}
-            {activeTab === "runners" ? <RunnerList runners={market.runners || []} assignments={market.assignments || []} /> : null}
+            {activeTab === "marketAssociates" ? <MarketAssociateList marketAssociates={market.marketAssociates || []} assignments={market.assignments || []} /> : null}
             {activeTab === "collections" ? <CollectionList collections={market.collections || []} vendors={market.vendors || []} canReconcile={canReconcilePayments} onReconcile={setReconcilingCollection} /> : null}
           </div>
           <Card className="rounded-xl shadow-none">
@@ -237,21 +237,21 @@ function ProductList({ products, onPreview }: { products: Array<Record<string, u
   );
 }
 
-function RunnerList({ runners, assignments }: { runners: Array<Record<string, unknown>>; assignments: Array<Record<string, unknown>> }) {
+function MarketAssociateList({ marketAssociates, assignments }: { marketAssociates: Array<Record<string, unknown>>; assignments: Array<Record<string, unknown>> }) {
   return (
     <>
     <div className="divide-y md:hidden">
-      {!runners.length ? <p className="p-8 text-center text-sm text-muted-foreground">No active Runners are assigned to this Market.</p> : runners.map((runner, index) => { const id = String(runner.publicId || runner.id || `runner-${index}`); const name = `${String(runner.firstName || "")} ${String(runner.lastName || "")}`.trim() || String(runner.email || id); const assignmentCount = assignments.filter((item) => item.runnerId === runner.id || item.runnerId === runner._id || item.runnerId === runner.publicId).length; return <article key={id} className="flex min-w-0 items-center justify-between gap-3 p-4"><div className="min-w-0"><p className="truncate font-semibold">{name}</p><p className="mt-1 text-xs text-muted-foreground">{assignmentCount} Market assignment{assignmentCount === 1 ? "" : "s"}</p></div><StatusBadge status={String(runner.status || runner.availability || "active")} /></article>; })}
+      {!marketAssociates.length ? <p className="p-8 text-center text-sm text-muted-foreground">No active Market Associates are assigned to this Market.</p> : marketAssociates.map((marketAssociate, index) => { const id = String(marketAssociate.publicId || marketAssociate.id || `market-associate-${index}`); const name = `${String(marketAssociate.firstName || "")} ${String(marketAssociate.lastName || "")}`.trim() || String(marketAssociate.email || id); const assignmentCount = assignments.filter((item) => item.marketAssociateId === marketAssociate.id || item.marketAssociateId === marketAssociate._id || item.marketAssociateId === marketAssociate.publicId).length; return <article key={id} className="flex min-w-0 items-center justify-between gap-3 p-4"><div className="min-w-0"><p className="truncate font-semibold">{name}</p><p className="mt-1 text-xs text-muted-foreground">{assignmentCount} Market assignment{assignmentCount === 1 ? "" : "s"}</p></div><StatusBadge status={String(marketAssociate.status || marketAssociate.availability || "active")} /></article>; })}
     </div>
     <div className="hidden min-w-0 overflow-x-auto md:block">
       <Table className="min-w-[700px]">
-        <TableHeader><TableRow><TableHead className="w-12">#</TableHead><TableHead>Runner</TableHead><TableHead>Status</TableHead><TableHead>Market assignments</TableHead><TableHead>Runner ID</TableHead></TableRow></TableHeader>
+        <TableHeader><TableRow><TableHead className="w-12">#</TableHead><TableHead>Market Associate</TableHead><TableHead>Status</TableHead><TableHead>Market assignments</TableHead><TableHead>Market Associate ID</TableHead></TableRow></TableHeader>
         <TableBody>
-          {!runners.length ? <EmptyTable colSpan={5} message="No active Runners are assigned to this Market." /> : runners.map((runner, index) => {
-            const id = String(runner.publicId || runner.id || "runner");
-            const name = `${String(runner.firstName || "")} ${String(runner.lastName || "")}`.trim() || String(runner.email || id);
-            const assignmentCount = assignments.filter((item) => item.runnerId === runner.id || item.runnerId === runner._id || item.runnerId === runner.publicId).length;
-            return <TableRow key={id}><TableCell className="tabular-nums text-muted-foreground">{index + 1}</TableCell><TableCell><p className="font-medium">{name}</p></TableCell><TableCell><StatusBadge status={String(runner.status || runner.availability || "active")} /></TableCell><TableCell className="text-sm text-muted-foreground">{assignmentCount}</TableCell><TableCell className="font-mono text-[11px] text-muted-foreground">{id}</TableCell></TableRow>;
+          {!marketAssociates.length ? <EmptyTable colSpan={5} message="No active Market Associates are assigned to this Market." /> : marketAssociates.map((marketAssociate, index) => {
+            const id = String(marketAssociate.publicId || marketAssociate.id || "market-associate");
+            const name = `${String(marketAssociate.firstName || "")} ${String(marketAssociate.lastName || "")}`.trim() || String(marketAssociate.email || id);
+            const assignmentCount = assignments.filter((item) => item.marketAssociateId === marketAssociate.id || item.marketAssociateId === marketAssociate._id || item.marketAssociateId === marketAssociate.publicId).length;
+            return <TableRow key={id}><TableCell className="tabular-nums text-muted-foreground">{index + 1}</TableCell><TableCell><p className="font-medium">{name}</p></TableCell><TableCell><StatusBadge status={String(marketAssociate.status || marketAssociate.availability || "active")} /></TableCell><TableCell className="text-sm text-muted-foreground">{assignmentCount}</TableCell><TableCell className="font-mono text-[11px] text-muted-foreground">{id}</TableCell></TableRow>;
           })}
         </TableBody>
       </Table>

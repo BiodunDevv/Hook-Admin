@@ -72,12 +72,12 @@ function itemReferencePhoto(item: TaskItem) {
 
 const emptyChecks = { productMatches: false, sizeMatches: false, colorMatches: false, quantityMatches: false };
 
-export default function RunnerFulfilmentDetailPage() {
+export default function MarketAssociateFulfilmentDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const query = useApiQuery<Task>(
-    ["runner", "fulfilment", params.id],
-    `/runner/fulfilments/${params.id}`,
+    ["marketassociate", "fulfilment", params.id],
+    `/market-associate/fulfilments/${params.id}`,
     Boolean(params.id),
   );
   const [pending, setPending] = useState(false);
@@ -95,7 +95,7 @@ export default function RunnerFulfilmentDetailPage() {
   async function runAction(action: string) {
     setPending(true);
     try {
-      const result = await apiPost<Task>(`/runner/fulfilments/${params.id}/${action}`, {
+      const result = await apiPost<Task>(`/market-associate/fulfilments/${params.id}/${action}`, {
         version: query.data?.version,
         actualCostMinor: action === "secure" ? Math.round(Number(actualCost) * 100) : undefined,
       });
@@ -119,7 +119,7 @@ export default function RunnerFulfilmentDetailPage() {
     if (!issue.trim()) return;
     setPending(true);
     try {
-      await apiPost(`/runner/fulfilments/${params.id}/issues`, {
+      await apiPost(`/market-associate/fulfilments/${params.id}/issues`, {
         summary: issue.trim(),
         type: "ITEM_UNAVAILABLE",
         orderItemId: selectedItemId,
@@ -160,7 +160,7 @@ export default function RunnerFulfilmentDetailPage() {
     if (!selectedItemId || !pendingPhotoUrl) return;
     setPending(true);
     try {
-      await apiPost(`/runner/fulfilments/${params.id}/items/${selectedItemId}/verify`, {
+      await apiPost(`/market-associate/fulfilments/${params.id}/items/${selectedItemId}/verify`, {
         photoUrl: pendingPhotoUrl,
         checks,
       });

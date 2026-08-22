@@ -28,14 +28,14 @@ export type MarketRecord = {
   updatedAt?: string;
   summary?: {
     vendors?: number;
-    assignedRunners?: number;
+    assignedMarketAssociates?: number;
     products?: number;
     pendingAvailability?: number;
     collections?: number;
   };
   vendors?: MarketVendorRecord[];
   assignments?: Array<Record<string, unknown>>;
-  runners?: Array<Record<string, unknown>>;
+  marketAssociates?: Array<Record<string, unknown>>;
   submissions?: Array<Record<string, unknown>>;
   products?: Array<Record<string, unknown>>;
   collections?: Array<Record<string, unknown>>;
@@ -54,7 +54,7 @@ export type MarketVendorRecord = {
   preferredContactChannel?: string;
   status?: string;
   consentAt?: string | null;
-  invitedByRunnerId?: string | null;
+  invitedByMarketAssociateId?: string | null;
   lastContactedAt?: string | null;
   notes?: string | null;
   paymentProfile?: {

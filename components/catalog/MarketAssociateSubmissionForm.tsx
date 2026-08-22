@@ -79,7 +79,7 @@ function initialValue(submission?: ProductSubmission): FormState {
   };
 }
 
-export function RunnerSubmissionForm({
+export function MarketAssociateSubmissionForm({
   submission,
   markets,
   categories,
@@ -107,8 +107,8 @@ export function RunnerSubmissionForm({
     retry: 1,
   });
   const vendors = useQuery({
-    queryKey: ["runner", "market-vendors", form.marketId],
-    queryFn: () => apiGet<MarketVendorOption[]>(`/runner/markets/${encodeURIComponent(form.marketId)}/vendors`),
+    queryKey: ["marketassociate", "market-vendors", form.marketId],
+    queryFn: () => apiGet<MarketVendorOption[]>(`/market-associate/markets/${encodeURIComponent(form.marketId)}/vendors`),
     enabled: editable && Boolean(form.marketId),
     staleTime: 30_000,
   });
@@ -146,7 +146,7 @@ export function RunnerSubmissionForm({
   async function save(submitAfter = false) {
     if (submitAfter) {
       // A variant needs size, colour, or an attribute — mirrors the backend's
-      // own submit-time check, so the runner sees this before the round trip,
+      // own submit-time check, so the Market Associate sees this before the round trip,
       // not as a generic "could not be saved" toast after the fact.
       const hasCompleteVariant = form.variants.some(
         (variant) => variant.size.trim() || variant.colour.trim() || Object.keys(variant.attributes).length,
@@ -159,16 +159,16 @@ export function RunnerSubmissionForm({
     setSaving(true);
     try {
       const saved = submission
-        ? await apiPatch<ProductSubmission>(`/runner/product-submissions/${submission.publicId}`, payload)
-        : await apiPost<ProductSubmission>("/runner/product-submissions", payload);
+        ? await apiPatch<ProductSubmission>(`/market-associate/product-submissions/${submission.publicId}`, payload)
+        : await apiPost<ProductSubmission>("/market-associate/product-submissions", payload);
       if (submitAfter) {
-        await apiPost(`/runner/product-submissions/${saved.publicId}/submit`, { version: saved.version });
+        await apiPost(`/market-associate/product-submissions/${saved.publicId}/submit`, { version: saved.version });
         toast.success("Submission sent to Catalog Review");
       } else {
         toast.success("Draft saved");
       }
       setDirty(false);
-      router.replace(`/runner/submissions/${saved.publicId}`);
+      router.replace(`/market-associate/submissions/${saved.publicId}`);
       router.refresh();
     } catch (error) {
       const details = (error as { details?: { fields?: string[] } })?.details;
@@ -246,7 +246,7 @@ export function RunnerSubmissionForm({
       {submission?.approvedProduct ? (
         <div className="mb-6 grid gap-3 rounded-[10px] border border-emerald-200 bg-emerald-50 p-4 sm:grid-cols-3">
           <div>
-            <p className="text-[11px] font-bold uppercase text-emerald-700">Runner observed</p>
+            <p className="text-[11px] font-bold uppercase text-emerald-700">Market Associate observed</p>
             <p className="mt-1 text-[16px] font-bold text-black">{money(submission.basePriceMinor, submission.currency)}</p>
           </div>
           <div>
@@ -449,7 +449,7 @@ export function RunnerSubmissionForm({
           </Select>
           {noVendors && (
             <Link
-              href={`/runner/markets/${form.marketId}`}
+              href={`/market-associate/markets/${form.marketId}`}
               className="mt-2 flex items-center gap-1.5 text-[13px] font-semibold text-[#9a7400]"
             >
               <UserPlus className="size-3.5" /> Onboard a supplier for this Market

@@ -38,7 +38,7 @@ function dueLabel(value?: string) {
 }
 
 export function AvailabilityChecksWorkspace() {
-  const query = useApiQuery<Check[]>(["runner", "availability-checks"], "/runner/availability-checks");
+  const query = useApiQuery<Check[]>(["marketassociate", "availability-checks"], "/market-associate/availability-checks");
   const [acting, setActing] = useState<string | null>(null);
   const [reporting, setReporting] = useState<Check | null>(null);
   const [note, setNote] = useState("");
@@ -46,13 +46,13 @@ export function AvailabilityChecksWorkspace() {
   async function confirm(item: Check, status: "available" | "limited") {
     setActing(item.publicId);
     try {
-      await apiPost(`/runner/products/${item.publicId}/availability/confirm`, {
+      await apiPost(`/market-associate/products/${item.publicId}/availability/confirm`, {
         status,
         version: item.catalogVersion,
         note:
           status === "limited"
-            ? "Runner confirmed limited availability."
-            : "Runner confirmed availability.",
+            ? "Market Associate confirmed limited availability."
+            : "Market Associate confirmed availability.",
       });
       toast.success(`Product marked ${status}`);
       await query.refetch();
@@ -69,7 +69,7 @@ export function AvailabilityChecksWorkspace() {
     if (!reporting || note.trim().length < 3) return;
     setActing(reporting.publicId);
     try {
-      await apiPost(`/runner/products/${reporting.publicId}/availability/report`, {
+      await apiPost(`/market-associate/products/${reporting.publicId}/availability/report`, {
         note: note.trim(),
         version: reporting.catalogVersion,
       });

@@ -345,7 +345,7 @@ function CategoryDialog({
               <Label>Sizing guide</Label>
             </div>
             <p className="text-xs leading-5 text-zinc-400">
-              Shown to Runners while they capture products in this category, and to customers
+              Shown to Market Associates while they capture products in this category, and to customers
               on the product page — helps everyone use sizes consistently.
             </p>
 
@@ -366,7 +366,7 @@ function CategoryDialog({
                 id="sizingHowToMeasure"
                 value={sizingHowToMeasure}
                 onChange={(e) => setSizingHowToMeasure(e.target.value)}
-                placeholder="Explain how a customer or Runner should take measurements for this category."
+                placeholder="Explain how a customer or Market Associate should take measurements for this category."
                 maxLength={2000}
                 className="min-h-20"
               />
@@ -386,7 +386,7 @@ function CategoryDialog({
                 ))}
               </div>
               <p className="text-xs text-zinc-400">
-                Narrows the size options Runners see when capturing products in this category.
+                Narrows the size options Market Associates see when capturing products in this category.
               </p>
             </div>
 
