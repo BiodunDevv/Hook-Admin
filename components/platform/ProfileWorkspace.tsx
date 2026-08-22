@@ -43,6 +43,7 @@ import {
 import { useApiQuery } from "@/lib/query";
 import { apiPatch, apiPost, apiRequest, clearSession, logoutAccount } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
+import { PORTAL_BASE_PATH } from "@/components/platform/AppTabBarShell";
 
 /** Mirrors the backend multer filter (UPLOAD_ALLOWED_TYPES) and 5MB size limit. */
 const ACCEPTED_AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -60,9 +61,9 @@ type Account = {
   lastLoginAt?: string;
 };
 
-type RunnerProfile = { publicId?: string; availability?: string; status?: string };
+type PortalMarketAssociateProfile = { publicId?: string; availability?: string; status?: string };
 type PartnerProfile = { publicId?: string; name?: string; address?: string; status?: string };
-type RunnerResponse = { account: Account; profile: RunnerProfile };
+type MarketAssociateApiResponse = { account: Account; profile: PortalMarketAssociateProfile };
 type PartnerResponse = { account: Account; partner: PartnerProfile };
 type MarketsResponse = { markets: Array<{ publicId: string; name: string }> };
 
@@ -79,14 +80,15 @@ export function ProfileWorkspace({
   type,
   section,
 }: {
-  type: "runner" | "partner";
+  type: "marketassociate" | "partner";
   section: "profile" | "security";
 }) {
-  const query = useApiQuery<RunnerResponse | PartnerResponse>([type, "profile"], `/${type}/profile`);
+  const base = PORTAL_BASE_PATH[type];
+  const query = useApiQuery<MarketAssociateApiResponse | PartnerResponse>([type, "profile"], `${base}/profile`);
   const markets = useApiQuery<MarketsResponse>(
-    ["runner", "markets"],
-    "/runner/markets",
-    type === "runner" && section === "profile",
+    ["marketassociate", "markets"],
+    "/market-associate/markets",
+    type === "marketassociate" && section === "profile",
   );
 
   if (query.isLoading)
@@ -100,19 +102,19 @@ export function ProfileWorkspace({
 
   const account = query.data.account;
   const partner = type === "partner" ? (query.data as PartnerResponse).partner : undefined;
-  const runnerProfile = type === "runner" ? (query.data as RunnerResponse).profile : undefined;
+  const marketAssociateProfile = type === "marketassociate" ? (query.data as MarketAssociateApiResponse).profile : undefined;
 
   if (section === "security") return <SecuritySection type={type} account={account} />;
 
-  const statusValue = runnerProfile?.availability || partner?.status || runnerProfile?.status;
+  const statusValue = marketAssociateProfile?.availability || partner?.status || marketAssociateProfile?.status;
 
   return (
     <div>
-      <ProfileHero account={account} caption={type === "runner" ? "Runner" : partner?.name || "Hook Partner"} />
+      <ProfileHero account={account} caption={type === "marketassociate" ? "Market Associate" : partner?.name || "Hook Partner"} />
 
       <MobileSection title="Account">
-        <MobileRow icon={UserRound} label="Edit profile" href={`/${type}/profile/edit`} />
-        <MobileRow icon={ShieldCheck} label="Password & security" href={`/${type}/security`} />
+        <MobileRow icon={UserRound} label="Edit profile" href={`${base}/profile/edit`} />
+        <MobileRow icon={ShieldCheck} label="Password & security" href={`${base}/security`} />
         <MobileRow
           icon={BadgeCheck}
           label="Status"
@@ -141,7 +143,7 @@ export function ProfileWorkspace({
         )}
       </MobileSection>
 
-      {type === "runner" && (
+      {type === "marketassociate" && (
         <MobileSection title="Assigned markets" action={<span className="text-[13px] text-[#8F8F8F]">{markets.data?.markets.length || 0}</span>}>
           {markets.isLoading ? (
             <div className="py-6">
@@ -149,7 +151,7 @@ export function ProfileWorkspace({
             </div>
           ) : markets.data?.markets.length ? (
             markets.data.markets.map((market) => (
-              <MobileRow key={market.publicId} icon={Store} label={market.name} href={`/runner/markets/${market.publicId}`} />
+              <MobileRow key={market.publicId} icon={Store} label={market.name} href={`/market-associate/markets/${market.publicId}`} />
             ))
           ) : (
             <MobileRow icon={Store} label="No markets assigned" tone="neutral" />
@@ -244,7 +246,8 @@ function LogoutBlock({ email }: { email?: string }) {
   );
 }
 
-function SecuritySection({ type, account }: { type: "runner" | "partner"; account: Account }) {
+function SecuritySection({ type, account }: { type: "marketassociate" | "partner"; account: Account }) {
+  const base = PORTAL_BASE_PATH[type];
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [saving, setSaving] = useState(false);
@@ -329,7 +332,7 @@ function SecuritySection({ type, account }: { type: "runner" | "partner"; accoun
       </MobileButton>
 
       <div className="mt-7">
-        <MobileButton variant="outline" href={`/${type}/profile`}>
+        <MobileButton variant="outline" href={`${base}/profile`}>
           Back to profile
         </MobileButton>
       </div>
@@ -338,10 +341,11 @@ function SecuritySection({ type, account }: { type: "runner" | "partner"; accoun
 }
 
 /** Editable profile fields (photo + phone), matching the native edit screen. */
-export function ProfileEditWorkspace({ type }: { type: "runner" | "partner" }) {
+export function ProfileEditWorkspace({ type }: { type: "marketassociate" | "partner" }) {
   const router = useRouter();
+  const base = PORTAL_BASE_PATH[type];
   const queryClient = useQueryClient();
-  const query = useApiQuery<RunnerResponse | PartnerResponse>([type, "profile"], `/${type}/profile`);
+  const query = useApiQuery<MarketAssociateApiResponse | PartnerResponse>([type, "profile"], `${base}/profile`);
   const [phone, setPhone] = useState<string>();
   const [avatarUrl, setAvatarUrl] = useState<string>();
   const [saving, setSaving] = useState(false);
@@ -394,14 +398,14 @@ export function ProfileEditWorkspace({ type }: { type: "runner" | "partner" }) {
   async function save() {
     setSaving(true);
     try {
-      await apiPatch(`/${type}/profile`, {
+      await apiPatch(`${base}/profile`, {
         phone: phoneValue.trim() || undefined,
         // Send "" (not undefined) so the backend clears a removed photo.
         ...(avatarUrl !== undefined ? { avatarUrl: avatarValue.trim() } : {}),
       });
       await queryClient.invalidateQueries({ queryKey: [type, "profile"] });
       toast.success("Profile updated");
-      router.push(`/${type}/profile`);
+      router.push(`${base}/profile`);
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message.replace(/^\d+:\s*/, "") : "Could not update profile",
@@ -484,7 +488,7 @@ export function ProfileEditWorkspace({ type }: { type: "runner" | "partner" }) {
         {saving ? <HookLoader size="button" /> : "Save changes"}
       </MobileButton>
       <div className="mt-3">
-        <MobileButton variant="outline" href={`/${type}/profile`}>
+        <MobileButton variant="outline" href={`${base}/profile`}>
           Cancel
         </MobileButton>
       </div>

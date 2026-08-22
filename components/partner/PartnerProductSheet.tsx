@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Info, Minus, Plus, ShoppingBag, Tag } from "lucide-react";
+import { Check, Info, Minus, Plus, ShoppingBag, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -15,7 +15,7 @@ import {
 import { HookLoader } from "@/components/shared/HookLoader";
 import { MobileButton } from "@/components/mobile/MobileUI";
 import { ProductImage, money } from "@/components/mobile/MobileCommerce";
-import { displayColorName } from "@/components/mobile/ColorPicker";
+import { displayColorName, swatchFor } from "@/components/mobile/ColorPicker";
 import { apiPost } from "@/lib/api";
 import { useApiQuery } from "@/lib/query";
 import type { SizingGuide } from "@/lib/sizing-guide";
@@ -42,10 +42,6 @@ type ProductDetail = {
   market?: { name?: string };
   category?: { sizingGuide?: SizingGuide | null } | null;
 };
-
-function variantLabel(variant: Variant) {
-  return [variant.size, displayColorName(variant.colour)].filter(Boolean).join(" · ") || "Default";
-}
 
 /** Product detail with gallery, variant picker, add-to-cart, and negotiate. */
 export function PartnerProductSheet({
@@ -74,13 +70,52 @@ export function PartnerProductSheet({
   );
 
   const product = query.data;
-  const variants = product?.variants || [];
+  const variants = useMemo(() => product?.variants || [], [product]);
   /**
    * Derived, not stored: a single-option product needs no explicit choice.
    * The sheet is keyed by productId, so state resets on close without effects.
    */
   const variantId = chosenVariantId ?? (variants.length === 1 ? variants[0].publicId : undefined);
-  const setVariantId = setChosenVariantId;
+  const selectedVariant = variants.find((variant) => variant.publicId === variantId);
+
+  const colorOptions = useMemo(() => {
+    const values = new Map<string, string>();
+    variants.forEach((variant) => {
+      const value = displayColorName(variant.colour);
+      if (value && !values.has(value.toLowerCase())) values.set(value.toLowerCase(), value);
+    });
+    return [...values.values()];
+  }, [variants]);
+
+  const sizeOptions = useMemo(() => {
+    const values = new Set<string>();
+    variants.forEach((variant) => {
+      if (variant.size) values.add(variant.size);
+    });
+    return [...values];
+  }, [variants]);
+
+  const selectedColor = displayColorName(selectedVariant?.colour) || "";
+
+  function chooseColor(value: string) {
+    const matching =
+      variants.find(
+        (variant) =>
+          displayColorName(variant.colour)?.toLowerCase() === value.toLowerCase() &&
+          (!selectedVariant?.size || !variant.size || variant.size === selectedVariant.size),
+      ) || variants.find((variant) => displayColorName(variant.colour)?.toLowerCase() === value.toLowerCase());
+    if (matching) setChosenVariantId(matching.publicId);
+  }
+
+  function chooseSize(value: string) {
+    const matching =
+      variants.find(
+        (variant) =>
+          variant.size === value &&
+          (!selectedColor || displayColorName(variant.colour)?.toLowerCase() === selectedColor.toLowerCase()),
+      ) || variants.find((variant) => variant.size === value);
+    if (matching) setChosenVariantId(matching.publicId);
+  }
 
   async function addToCart() {
     if (!customerId || !productId) return;
@@ -207,11 +242,49 @@ export function PartnerProductSheet({
               </div>
             )}
 
-            {variants.length > 0 && (
+            {colorOptions.length > 0 && (
               <div className="mt-4">
-                <div className="mb-2 flex items-center justify-between">
+                <p className="text-[14px] font-semibold">
+                  Colour
+                  {!variantId && <span className="ml-1 text-[#C53B35]">*</span>}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {colorOptions.map((value) => {
+                    const selected = selectedColor.toLowerCase() === value.toLowerCase();
+                    const swatch = swatchFor(value);
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => chooseColor(value)}
+                        className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[13px] transition ${
+                          selected ? "border-black bg-white font-semibold" : "border-black/25 bg-white/50"
+                        }`}
+                      >
+                        <span
+                          className="grid size-5 shrink-0 place-items-center rounded-full border border-black/10"
+                          style={{ background: swatch || "#E2E2E2" }}
+                        >
+                          {selected && (
+                            <Check
+                              className="size-3"
+                              style={{ color: value === "White" || value === "Cream" ? "#111" : "#fff" }}
+                            />
+                          )}
+                        </span>
+                        {value}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {sizeOptions.length > 0 && (
+              <div className="mt-4">
+                <div className="flex items-center justify-between">
                   <p className="text-[14px] font-semibold">
-                    Choose a size or colour
+                    Size
                     {!variantId && <span className="ml-1 text-[#C53B35]">*</span>}
                   </p>
                   {product.category?.sizingGuide?.summary && (
@@ -224,26 +297,27 @@ export function PartnerProductSheet({
                     </button>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {variants.map((variant) => (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {sizeOptions.map((size) => (
                     <button
-                      key={variant.publicId}
+                      key={size}
                       type="button"
-                      onClick={() => setVariantId(variant.publicId)}
-                      className={`rounded-md border px-3 py-2 text-[14px] transition ${
-                        variantId === variant.publicId
+                      onClick={() => chooseSize(size)}
+                      className={`min-w-10 rounded-md border px-3 py-2 text-center text-[14px] transition ${
+                        selectedVariant?.size === size
                           ? "border-black bg-black text-white font-semibold"
                           : "border-black/25 bg-white/50"
                       }`}
                     >
-                      {variantLabel(variant)}
+                      {size}
                     </button>
                   ))}
                 </div>
-                {!variantId && (
-                  <p className="mt-1.5 text-[12px] text-[#C53B35]">Required before adding to cart</p>
-                )}
               </div>
+            )}
+
+            {(colorOptions.length > 0 || sizeOptions.length > 0) && !variantId && (
+              <p className="mt-1.5 text-[12px] text-[#C53B35]">Required before adding to cart</p>
             )}
 
             <div className="mt-4 flex items-center gap-3">

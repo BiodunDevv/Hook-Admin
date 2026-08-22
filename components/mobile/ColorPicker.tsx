@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 /**
- * Common market colours, named the way Runners and vendors actually describe
+ * Common market colours, named the way Market Associates and vendors actually describe
  * them. Value stored is the plain name (not a hex code) because the catalog
  * treats variant colour as human-readable text.
  */
@@ -39,7 +39,7 @@ export const COLOR_OPTIONS: Array<{ name: string; swatch: string }> = [
   { name: "Multi", swatch: "linear-gradient(135deg,#DC2626,#FFC809,#16A34A,#2563EB)" },
 ];
 
-function swatchFor(value: string) {
+export function swatchFor(value: string) {
   const match = COLOR_OPTIONS.find(
     (option) => option.name.toLowerCase() === value.trim().toLowerCase(),
   );

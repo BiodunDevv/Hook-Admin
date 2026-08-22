@@ -10,7 +10,7 @@ export function PortalGuard({
   type,
   children,
 }: {
-  type: "runner" | "partner";
+  type: "marketassociate" | "partner";
   children: React.ReactNode;
 }) {
   const pathname = usePathname();

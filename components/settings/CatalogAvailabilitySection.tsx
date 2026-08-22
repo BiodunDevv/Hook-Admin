@@ -69,14 +69,14 @@ export function CatalogAvailabilitySection() {
       <Card className="border-zinc-200 shadow-sm">
         <CardHeader className="border-b">
           <CardTitle className="flex items-center gap-2 text-lg"><CalendarClock className="size-5 text-brand-gold" /> Catalog availability checks</CardTitle>
-          <p className="text-sm leading-6 text-muted-foreground">Products that need supplier confirmation are hidden from customers until an assigned Runner confirms them.</p>
+          <p className="text-sm leading-6 text-muted-foreground">Products that need supplier confirmation are hidden from customers until an assigned Market Associate confirms them.</p>
         </CardHeader>
         <CardContent className="space-y-6 p-5 sm:p-6">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-lg border bg-muted/20 p-4">
               <div className="flex items-center gap-2 text-sm font-semibold"><BellRing className="size-4 text-brand-gold" /> Current check window</div>
               <p className="mt-2 text-3xl font-semibold">{query.data?.catalogAvailabilityCheckDays || 4} <span className="text-base font-normal text-muted-foreground">days</span></p>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">The Runner receives the request first. After the deadline, the product remains unavailable and appears overdue.</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">The Market Associate receives the request first. After the deadline, the product remains unavailable and appears overdue.</p>
             </div>
             <div className={`rounded-lg border p-4 ${Number(query.data?.overdueCount || 0) ? "border-amber-200 bg-amber-50" : "bg-muted/20"}`}>
               <div className="flex items-center gap-2 text-sm font-semibold"><AlertTriangle className="size-4 text-amber-600" /> Overdue checks</div>

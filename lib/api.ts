@@ -22,7 +22,7 @@ export interface AdminUser {
   createdAt?: string;
   phone?: string;
   publicId?: string;
-  accountType?: "customer" | "staff" | "runner" | "partner";
+  accountType?: "customer" | "staff" | "marketassociate" | "partner";
   accountStatus?: string;
   roleKeys?: string[];
   scopeType?: "global" | "multi_state" | "single_state" | "hub" | "self";
@@ -248,7 +248,7 @@ export async function loginAccount(email: string, password: string) {
     session.user.role,
   );
   if (
-    !["staff", "runner", "partner"].includes(session.user.accountType || "") &&
+    !["staff", "marketassociate", "partner"].includes(session.user.accountType || "") &&
     !isLegacyStaff
   ) {
     throw new Error("403: Use the Hook mobile app to access your customer account");

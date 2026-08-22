@@ -1,6 +1,6 @@
 import type { AdminUser } from "@/lib/api";
 
-export type WorkspaceType = "staff" | "runner" | "partner";
+export type WorkspaceType = "staff" | "marketassociate" | "partner";
 
 const legacyStaffRoles = new Set(["support", "admin", "super_admin"]);
 
@@ -9,7 +9,7 @@ export function workspaceType(
 ): WorkspaceType | null {
   if (!user) return null;
   if (user.accountType === "staff") return "staff";
-  if (user.accountType === "runner") return "runner";
+  if (user.accountType === "marketassociate") return "marketassociate";
   if (user.accountType === "partner") return "partner";
   return legacyStaffRoles.has(user.role) ? "staff" : null;
 }
@@ -25,7 +25,7 @@ export function dashboardPath(
 ) {
   const workspace = workspaceType(user);
   if (workspace === "staff") return "/dashboard";
-  if (workspace === "runner") return "/runner/dashboard";
+  if (workspace === "marketassociate") return "/market-associate/dashboard";
   if (workspace === "partner") return "/partner/dashboard";
   return "/auth/login";
 }
@@ -39,8 +39,8 @@ export function safeDashboardDestination(
   const base =
     workspace === "staff"
       ? "/dashboard"
-      : workspace === "runner"
-        ? "/runner"
+      : workspace === "marketassociate"
+        ? "/market-associate"
         : workspace === "partner"
           ? "/partner"
           : null;

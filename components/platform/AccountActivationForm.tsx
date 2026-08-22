@@ -12,11 +12,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiPost } from "@/lib/api";
 
-type AccountType = "staff" | "runner" | "partner" | "customer";
+type AccountType = "staff" | "marketassociate" | "partner" | "customer";
 
 const destinations: Record<AccountType, string> = {
   staff: "/auth/login",
-  runner: "/auth/login",
+  marketassociate: "/auth/login",
   partner: "/auth/login",
   customer: "/auth/login",
 };

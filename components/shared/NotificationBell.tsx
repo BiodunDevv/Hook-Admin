@@ -51,7 +51,7 @@ function notificationIcon(type?: string) {
   return Sparkles;
 }
 
-export function NotificationBell({ scope }: { scope: "admin" | "runner" | "partner" }) {
+export function NotificationBell({ scope }: { scope: "admin" | "marketassociate" | "partner" }) {
   const endpoint = `/${scope}/notifications`;
   const queryKey = scope === "admin" ? (["notifications"] as const) : ([scope, "notifications"] as const);
   const queryClient = useQueryClient();
