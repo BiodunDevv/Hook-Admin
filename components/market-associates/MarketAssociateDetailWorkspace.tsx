@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Ban,
@@ -49,6 +49,7 @@ type MarketOption = {
   publicId: string;
   name: string;
   stateId?: { publicId?: string; _id?: string } | string;
+  hub?: { publicId?: string; name?: string } | null;
 };
 
 type Values = Record<string, string | string[]>;
@@ -137,6 +138,7 @@ export function MarketAssociateDetailWorkspace() {
   const [values, setValues] = useState<Values>({});
   const [editStateIds, setEditStateIds] = useState<string[]>([]);
   const [assignmentDialog, setAssignmentDialog] = useState<{ mode: "create" | "reassign"; assignment?: MarketAssociateAssignment } | null>(null);
+  const [assignmentStateId, setAssignmentStateId] = useState("");
   const [assignmentMarketId, setAssignmentMarketId] = useState("");
   const [assignmentPriority, setAssignmentPriority] = useState("100");
   const [assignmentIsPrimary, setAssignmentIsPrimary] = useState(false);
@@ -165,6 +167,10 @@ export function MarketAssociateDetailWorkspace() {
     "/admin/markets?limit=200",
     Boolean(assignmentDialog),
   );
+  const eligibleStates = useMemo(
+    () => (member?.states || []).filter((state) => !state.status || state.status === "active"),
+    [member?.states],
+  );
   const eligibleMarkets = useMemo(() => {
     const rows = Array.isArray(marketsQuery.data) ? marketsQuery.data : marketsQuery.data?.data || [];
     const stateIds = new Set(member?.stateIds || []);
@@ -173,6 +179,19 @@ export function MarketAssociateDetailWorkspace() {
       return stateId ? stateIds.has(stateId) : false;
     });
   }, [marketsQuery.data, member?.stateIds]);
+  const marketsForSelectedState = useMemo(
+    () =>
+      eligibleMarkets.filter((market) => {
+        if (!assignmentStateId) return false;
+        const stateId = typeof market.stateId === "string" ? market.stateId : market.stateId?.publicId || market.stateId?._id;
+        return stateId === assignmentStateId;
+      }),
+    [eligibleMarkets, assignmentStateId],
+  );
+  const selectedMarket = useMemo(
+    () => eligibleMarkets.find((market) => (market.publicId || market.id) === assignmentMarketId),
+    [eligibleMarkets, assignmentMarketId],
+  );
 
   function beginEdit() {
     setValues({
@@ -232,9 +251,35 @@ export function MarketAssociateDetailWorkspace() {
   function openAssignmentDialog(mode: "create" | "reassign", assignment?: MarketAssociateAssignment) {
     setAssignmentDialog({ mode, assignment });
     setAssignmentMarketId(assignment?.market?.publicId || assignment?.market?.id || "");
+    setAssignmentStateId(eligibleStates.length === 1 ? eligibleStates[0].publicId || "" : "");
     setAssignmentPriority(String(assignment?.priority ?? 100));
     setAssignmentIsPrimary(Boolean(assignment?.isPrimary));
     setAssignmentReason("");
+  }
+
+  /**
+   * The market list only starts loading once the dialog opens, so the
+   * reassign target's state can't be derived synchronously in the opener —
+   * once markets arrive, backfill the state picker from whichever market is
+   * already selected (reassign) so the cascade starts pre-filled instead of
+   * forcing a redundant re-pick of a state the admin already committed to.
+   */
+  useEffect(() => {
+    if (!assignmentDialog || assignmentStateId || !assignmentMarketId) return;
+    const rows = Array.isArray(marketsQuery.data) ? marketsQuery.data : marketsQuery.data?.data || [];
+    const currentMarket = rows.find((market) => (market.publicId || market.id) === assignmentMarketId);
+    const currentStateId = currentMarket
+      ? typeof currentMarket.stateId === "string"
+        ? currentMarket.stateId
+        : currentMarket.stateId?.publicId || currentMarket.stateId?._id
+      : undefined;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (currentStateId) setAssignmentStateId(currentStateId);
+  }, [assignmentDialog, assignmentStateId, assignmentMarketId, marketsQuery.data]);
+
+  function chooseAssignmentState(stateId: string) {
+    setAssignmentStateId(stateId);
+    setAssignmentMarketId("");
   }
 
   function closeAssignmentDialog() {
@@ -244,15 +289,18 @@ export function MarketAssociateDetailWorkspace() {
 
   async function submitAssignment() {
     if (!assignmentDialog) return;
+    if (!assignmentStateId) return toast.error("Select an operation state");
     if (!assignmentMarketId) return toast.error("Select a Market");
     if (assignmentReason.trim().length < 3) return toast.error("Add a reason for this assignment change");
     setAssignmentSaving(true);
     try {
+      const preferredHubId = selectedMarket?.hub?.publicId;
       if (assignmentDialog.mode === "reassign" && assignmentDialog.assignment) {
         await apiPatch(`/admin/market-associate-assignments/${assignmentDialog.assignment.id}`, {
           marketId: assignmentMarketId,
           priority: Number(assignmentPriority) || 100,
           isPrimary: assignmentIsPrimary,
+          ...(preferredHubId ? { preferredHubId } : {}),
           assignmentReason: assignmentReason.trim(),
         });
         toast.success("Market assignment updated");
@@ -262,6 +310,7 @@ export function MarketAssociateDetailWorkspace() {
           marketId: assignmentMarketId,
           priority: Number(assignmentPriority) || 100,
           isPrimary: assignmentIsPrimary,
+          ...(preferredHubId ? { preferredHubId } : {}),
           activeFrom: new Date().toISOString(),
           assignmentReason: assignmentReason.trim(),
         });
@@ -459,20 +508,44 @@ export function MarketAssociateDetailWorkspace() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="assignment-market">Market</Label>
-              <Select value={assignmentMarketId} onValueChange={setAssignmentMarketId} disabled={marketsQuery.isLoading}>
-                <SelectTrigger id="assignment-market" className="w-full">
-                  <SelectValue placeholder={marketsQuery.isLoading ? "Loading Markets..." : "Select a Market"} />
+              <Label htmlFor="assignment-state">Operation state</Label>
+              <Select value={assignmentStateId} onValueChange={chooseAssignmentState}>
+                <SelectTrigger id="assignment-state" className="w-full">
+                  <SelectValue placeholder="Select an operation state" />
                 </SelectTrigger>
                 <SelectContent>
-                  {eligibleMarkets.map((market) => (
+                  {eligibleStates.map((state) => (
+                    <SelectItem key={state.publicId || state.id} value={state.publicId || state.id || ""}>{state.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!eligibleStates.length ? (
+                <p className="text-xs text-muted-foreground">This Market Associate has no active operation states. Add one first.</p>
+              ) : null}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="assignment-market">Market</Label>
+              <Select value={assignmentMarketId} onValueChange={setAssignmentMarketId} disabled={!assignmentStateId || marketsQuery.isLoading}>
+                <SelectTrigger id="assignment-market" className="w-full">
+                  <SelectValue placeholder={marketsQuery.isLoading ? "Loading Markets..." : !assignmentStateId ? "Select a state first" : "Select a Market"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {marketsForSelectedState.map((market) => (
                     <SelectItem key={market.publicId || market.id} value={market.publicId || market.id}>{market.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {!marketsQuery.isLoading && !eligibleMarkets.length ? (
-                <p className="text-xs text-muted-foreground">No Markets found in this Market Associate&apos;s operation states. Add an operation state first.</p>
+              {assignmentStateId && !marketsQuery.isLoading && !marketsForSelectedState.length ? (
+                <p className="text-xs text-muted-foreground">No Markets found in this state.</p>
               ) : null}
+            </div>
+            <div className="space-y-1.5">
+              <Label>Dispatch Hub</Label>
+              <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm text-muted-foreground">
+                {selectedMarket
+                  ? selectedMarket.hub?.name || "No Hub attached to this Market"
+                  : "Auto-filled once a Market is selected"}
+              </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
@@ -494,7 +567,7 @@ export function MarketAssociateDetailWorkspace() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={closeAssignmentDialog} disabled={assignmentSaving}>Cancel</Button>
-            <Button variant="brand" onClick={() => void submitAssignment()} disabled={assignmentSaving || !assignmentMarketId || assignmentReason.trim().length < 3}>
+            <Button variant="brand" onClick={() => void submitAssignment()} disabled={assignmentSaving || !assignmentStateId || !assignmentMarketId || assignmentReason.trim().length < 3}>
               {assignmentSaving ? <HookLoader size="button" /> : assignmentDialog?.mode === "reassign" ? "Save reassignment" : "Create assignment"}
             </Button>
           </DialogFooter>

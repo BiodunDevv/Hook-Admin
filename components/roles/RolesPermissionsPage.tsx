@@ -12,6 +12,7 @@ import {
   Search,
   ShieldCheck,
   Trash2,
+  UserCheck,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -211,13 +212,48 @@ export function RolesPermissionsPage() {
     <div className="w-full space-y-5 px-4 py-5">
       <PageHeader className="mb-0" title="Roles & Permissions" description="Define clear access boundaries for every Hook operations role. Changes are enforced immediately by the backend." actions={canManage ? <PermissionGuard permission="roles.manage"><Button variant="brand" onClick={openCreate}><Plus /> Create role</Button></PermissionGuard> : null} />
 
-      <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
-        <div className="grid lg:grid-cols-[minmax(0,1fr)_300px]">
-          <div className="border-l-4 border-l-amber-400 px-5 py-6 sm:px-7 sm:py-8"><div className="flex items-start gap-4"><span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-zinc-950 text-amber-400 shadow-sm"><ShieldCheck className="size-5" /></span><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Access control</p><h2 className="mt-2 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Make every permission intentional.</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">System roles stay protected. Configurable roles can be archived when they are no longer assigned to staff, while every change remains in the audit log.</p></div></div></div>
-          <div className="flex flex-col justify-between bg-zinc-950 px-5 py-6 text-white sm:px-7 sm:py-8"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">Live access model</p><p className="mt-2 text-3xl font-semibold">{activeRoles} active roles</p></div><div className="mt-6 flex items-center gap-2 text-sm text-zinc-300"><KeyRound className="size-4 text-amber-400" /> {permissions.length} permissions available</div></div>
-        </div>
-        <div className="grid border-t sm:grid-cols-3 sm:divide-x">{[["Active roles", activeRoles, "Available for assignment"], ["System roles", systemRoles, "Protected by Hook"], ["Roles in use", assignedRoles, "Currently assigned to staff"]].map(([label, value, caption]) => <div key={String(label)} className="px-5 py-4 sm:px-6"><p className="text-xs font-medium text-muted-foreground">{label}</p><p className="mt-1 text-2xl font-semibold tracking-tight text-foreground">{value}</p><p className="mt-0.5 text-xs text-muted-foreground">{caption}</p></div>)}</div>
-      </section>
+      <Card className="overflow-hidden border-0 bg-[#FFC809] shadow-none ring-0">
+        <CardContent className="relative overflow-hidden p-6 sm:p-8">
+          <div className="pointer-events-none absolute -right-12 -top-16 size-56 rounded-full border-[24px] border-white/20" />
+          <div className="relative max-w-2xl">
+            <div className="mb-4 flex size-11 items-center justify-center rounded-2xl bg-black text-[#FFC809]">
+              <ShieldCheck className="size-5" />
+            </div>
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-black/60">Access control</p>
+            <h2 className="mt-1 text-2xl font-semibold tracking-tight text-black sm:text-3xl">Make every permission intentional.</h2>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-black/70">
+              System roles stay protected. Configurable roles can be archived when they are no longer assigned to staff, while every change remains in the audit log.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <Card>
+          <CardContent className="flex items-center gap-4 p-5">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700"><Check className="size-5" /></div>
+            <div><p className="text-sm text-muted-foreground">Active roles</p><p className="mt-1 text-2xl font-semibold">{activeRoles}</p></div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-4 p-5">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-sky-50 text-sky-700"><ShieldCheck className="size-5" /></div>
+            <div><p className="text-sm text-muted-foreground">System roles</p><p className="mt-1 text-2xl font-semibold">{systemRoles}</p></div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-4 p-5">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-amber-50 text-amber-700"><UserCheck className="size-5" /></div>
+            <div><p className="text-sm text-muted-foreground">Roles in use</p><p className="mt-1 text-2xl font-semibold">{assignedRoles}</p></div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-4 p-5">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-violet-50 text-violet-700"><KeyRound className="size-5" /></div>
+            <div><p className="text-sm text-muted-foreground">Permissions available</p><p className="mt-1 text-2xl font-semibold">{permissions.length}</p></div>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card className="gap-0 overflow-hidden py-0 shadow-sm"><div className="flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6"><div><h3 className="text-base font-semibold text-foreground">Role directory</h3><p className="mt-0.5 text-sm text-muted-foreground">{roles.length} roles in the current access catalogue</p></div>{rolesQuery.isFetching && !rolesQuery.isLoading ? <span className="text-xs text-muted-foreground">Refreshing…</span> : null}</div><CardContent className="p-0"><QueryState loading={rolesQuery.isLoading} error={rolesQuery.error} empty={!rolesQuery.isLoading && !rolesQuery.isError && !roles.length} loadingLabel="Loading roles…" errorTitle="Roles could not be loaded" emptyTitle="No roles found" emptyDescription="Create a configurable role to give staff a clear access boundary." onRetry={() => rolesQuery.refetch()}><Table className="w-full table-fixed"><TableHeader className="bg-muted/50"><TableRow><TableHead className="w-10 px-3 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:w-14 sm:px-5">#</TableHead><TableHead className="w-[38%] px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:px-5">Role</TableHead><TableHead className="w-[24%] px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:px-5">Access</TableHead><TableHead className="w-[16%] px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:px-5">Staff</TableHead><TableHead className="w-[14%] px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:px-5">Status</TableHead><TableHead className="w-12 px-2 sm:px-4" /></TableRow></TableHeader><TableBody>{roles.map((role, index) => { const access = role.permissionKeys || []; const assigned = role.assignedStaffCount || 0; return <TableRow key={role.id} className="group"><TableCell className="px-3 text-center text-sm tabular-nums text-muted-foreground sm:px-5">{index + 1}</TableCell><TableCell className="px-3 sm:px-5"><div className="min-w-0"><p className="truncate text-sm font-semibold text-foreground">{role.name}</p><p className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">{role.key}</p><p className="mt-1 hidden truncate text-xs text-muted-foreground sm:block">{role.description || "No description"}</p></div></TableCell><TableCell className="px-3 sm:px-5"><div className="min-w-0"><p className="text-sm font-medium text-foreground">{access.length} permission{access.length === 1 ? "" : "s"}</p><p className="mt-0.5 truncate text-xs text-muted-foreground">{access.slice(0, 2).map((key) => key.split(".")[0]).join(" · ") || "No access assigned"}</p></div></TableCell><TableCell className="px-3 sm:px-5"><div className="flex items-center gap-1.5 text-sm text-foreground"><Users className="size-3.5 text-muted-foreground" /> {assigned}</div><p className="mt-0.5 hidden text-xs text-muted-foreground sm:block">{assigned === 1 ? "staff member" : "staff members"}</p></TableCell><TableCell className="px-3 sm:px-5"><StatusBadge status={role.isActive === false ? "inactive" : "active"} /></TableCell><TableCell className="px-2 text-right sm:px-4"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon-sm" aria-label={`Options for ${role.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-52">{canManage && !role.isSystem ? <DropdownMenuItem onSelect={() => openEdit(role)}><Pencil /> Edit role</DropdownMenuItem> : null}{role.isSystem ? <DropdownMenuItem disabled><ShieldCheck /> System role protected</DropdownMenuItem> : null}{canManage && !role.isSystem ? <><DropdownMenuSeparator /><DropdownMenuItem variant="destructive" onSelect={() => requestDelete(role)}><Trash2 /> Delete role</DropdownMenuItem></> : null}</DropdownMenuContent></DropdownMenu></TableCell></TableRow>; })}</TableBody></Table></QueryState></CardContent></Card>
 

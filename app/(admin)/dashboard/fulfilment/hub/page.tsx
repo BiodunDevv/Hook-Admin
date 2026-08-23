@@ -20,6 +20,8 @@ type InboundRow = {
   hubId?: string;
   orderId?: string;
   status?: string;
+  hub?: { name?: string } | null;
+  order?: { publicId?: string } | null;
 };
 
 type PackageItemRow = {
@@ -46,6 +48,8 @@ type ConsolidationRow = {
   hubId?: string;
   status?: string;
   version?: number;
+  hub?: { name?: string } | null;
+  order?: { publicId?: string } | null;
 };
 
 type HubData = {
@@ -154,7 +158,7 @@ export default function FulfilmentHubPage() {
               <div key={id} className="grid gap-3 rounded-md border p-4 lg:grid-cols-[1fr_220px_auto] lg:items-center">
                 <div>
                   <div className="flex items-center gap-2"><Truck className="size-4" /><p className="text-sm font-medium">{id}</p><Badge variant="secondary">Ready for Hub</Badge></div>
-                  <p className="mt-1 text-xs text-muted-foreground">Order {item.orderId || "-"} · Hub {item.hubId || "-"}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Order {item.order?.publicId || item.orderId || "-"} · {item.hub?.name || `Hub ${item.hubId || "-"}`}</p>
                 </div>
                 <Input inputMode="numeric" maxLength={6} placeholder="Six-digit credential" value={credential[id] || ""} onChange={(event) => setCredential((current) => ({ ...current, [id]: event.target.value.replace(/\D/g, "").slice(0, 6) }))} />
                 <Button size="sm" onClick={() => void receive(item)} disabled={pending === id || credential[id]?.length !== 6}>{pending === id ? <HookLoader size="button" /> : <><PackageCheck /> Receive package</>}</Button>
@@ -175,7 +179,7 @@ export default function FulfilmentHubPage() {
             return (
               <div key={id} className="space-y-3 rounded-md border p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div><div className="flex items-center gap-2"><PackageCheck className="size-4" /><p className="text-sm font-medium">{id}</p><Badge variant={item.status === "QC_PASSED" ? "default" : "secondary"}>{label(item.status)}</Badge></div><p className="mt-1 text-xs text-muted-foreground">Order {item.orderId || "-"} · Hub {item.hubId || "-"}</p></div>
+                  <div><div className="flex items-center gap-2"><PackageCheck className="size-4" /><p className="text-sm font-medium">{id}</p><Badge variant={item.status === "QC_PASSED" ? "default" : "secondary"}>{label(item.status)}</Badge></div><p className="mt-1 text-xs text-muted-foreground">Order {item.order?.publicId || item.orderId || "-"} · {item.hub?.name || `Hub ${item.hubId || "-"}`}</p></div>
                   {awaitingQc ? <div className="flex flex-wrap gap-2"><Button size="sm" onClick={() => void qc(item, true)} disabled={pending === id || !allConfirmed}>{pending === id ? <HookLoader size="button" /> : <><CheckCircle2 /> QC pass</>}</Button><Button size="sm" variant="destructive" onClick={() => void qc(item, false)} disabled={pending === id}><PackageX /> Fail and open exception</Button></div> : <Badge variant="outline">Ready for consolidation</Badge>}
                 </div>
 
@@ -221,9 +225,9 @@ export default function FulfilmentHubPage() {
         <CardContent className="space-y-3">
           {readyForConsolidation.length ? readyForConsolidation.map((item, index) => {
             const id = `${item.orderId}-${item.hubId || index}`;
-            return <div key={id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-4"><div><p className="text-sm font-medium">Order {item.orderId}</p><p className="mt-1 text-xs text-muted-foreground">All active packages passed QC · Hub {item.hubId || "-"}</p></div><Button size="sm" onClick={() => void consolidate(item)} disabled={pending === `consolidate-${item.orderId}`}>{pending === `consolidate-${item.orderId}` ? <HookLoader size="button" /> : "Start consolidation"}</Button></div>;
+            return <div key={id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-4"><div><p className="text-sm font-medium">Order {item.order?.publicId || item.orderId}</p><p className="mt-1 text-xs text-muted-foreground">All active packages passed QC · {item.hub?.name || `Hub ${item.hubId || "-"}`}</p></div><Button size="sm" onClick={() => void consolidate(item)} disabled={pending === `consolidate-${item.orderId}`}>{pending === `consolidate-${item.orderId}` ? <HookLoader size="button" /> : "Start consolidation"}</Button></div>;
           }) : <p className="py-4 text-center text-sm text-muted-foreground">No complete Orders are ready for consolidation.</p>}
-          {data.consolidations.length ? data.consolidations.map((item, index) => { const id = item.publicId || item.id || item._id || `consolidation-${index}`; return <div key={id} className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-muted/40 p-4"><div><p className="text-sm font-medium">{id} · Order {item.orderId || "-"}</p><p className="mt-1 text-xs text-muted-foreground">Hub {item.hubId || "-"} · {label(item.status)}</p></div>{item.status === "DRAFT" ? <Button size="sm" onClick={() => void seal(item)} disabled={pending === `seal-${id}`}>{pending === `seal-${id}` ? <HookLoader size="button" /> : <><ShieldCheck /> Seal parcel</>}</Button> : <Badge>Sealed for dispatch</Badge>}</div>; }) : null}
+          {data.consolidations.length ? data.consolidations.map((item, index) => { const id = item.publicId || item.id || item._id || `consolidation-${index}`; return <div key={id} className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-muted/40 p-4"><div><p className="text-sm font-medium">{id} · Order {item.order?.publicId || item.orderId || "-"}</p><p className="mt-1 text-xs text-muted-foreground">{item.hub?.name || `Hub ${item.hubId || "-"}`} · {label(item.status)}</p></div>{item.status === "DRAFT" ? <Button size="sm" onClick={() => void seal(item)} disabled={pending === `seal-${id}`}>{pending === `seal-${id}` ? <HookLoader size="button" /> : <><ShieldCheck /> Seal parcel</>}</Button> : <Badge>Sealed for dispatch</Badge>}</div>; }) : null}
         </CardContent>
       </Card>
     </div>

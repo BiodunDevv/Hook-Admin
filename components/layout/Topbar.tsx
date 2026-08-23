@@ -11,6 +11,11 @@ import {
   Shield,
   ShieldCheck,
   Headset,
+  MapPinned,
+  Store,
+  Building2,
+  Handshake,
+  Tag,
 } from "lucide-react";
 import { HookLoader } from "@/components/shared/HookLoader";
 import { NotificationBell } from "@/components/shared/NotificationBell";
@@ -27,7 +32,7 @@ import {
 } from "@/components/ui/command";
 import { Separator } from "@/components/ui/separator";
 import { useSidebar } from "@/components/ui/sidebar";
-import { useAdminSession, useApiQuery } from "@/lib/query";
+import { useAdminSession } from "@/lib/query";
 import { apiGet } from "@/lib/api";
 import { money } from "@/lib/admin-utils";
 import { hasPermission, isSuperAdmin } from "@/lib/permissions";
@@ -77,12 +82,52 @@ interface SearchStaff {
   permissions: string[];
 }
 
+interface SearchMarketAssociate {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  status: string;
+}
+
+interface SearchPartner {
+  id: string;
+  name: string;
+  address?: string;
+  status: string;
+}
+
+interface SearchMarket {
+  id: string;
+  name: string;
+  address?: string;
+  status: string;
+}
+
+interface SearchHub {
+  id: string;
+  name: string;
+  address?: string;
+  status: string;
+}
+
+interface SearchCategory {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
+
 interface SearchResults {
   query: string;
   orders: SearchOrder[];
   products: SearchProduct[];
   customers: SearchCustomer[];
   staff: SearchStaff[];
+  marketAssociates: SearchMarketAssociate[];
+  partners: SearchPartner[];
+  markets: SearchMarket[];
+  hubs: SearchHub[];
+  categories: SearchCategory[];
   total: number;
 }
 
@@ -123,13 +168,23 @@ export default function Topbar() {
   const canSearchOrders = hasPermission(admin ?? null, "orders.view");
   const canSearchProducts = hasPermission(admin ?? null, "products.view");
   const canSearchCustomers = hasPermission(admin ?? null, "customers.view");
-  const canSearchStaff = isSuperAdmin(admin);
+  const canSearchStaff = hasPermission(admin ?? null, "staff.view");
+  const canSearchMarketAssociates = hasPermission(admin ?? null, "runners.view");
+  const canSearchPartners = hasPermission(admin ?? null, "partners.view");
+  const canSearchMarkets = hasPermission(admin ?? null, "markets.view");
+  const canSearchHubs = hasPermission(admin ?? null, "hubs.view");
+  const canSearchCategories = hasPermission(admin ?? null, "categories.view");
 
   const searchScopes = [
     canSearchOrders && "orders",
     canSearchProducts && "products",
     canSearchCustomers && "customers",
     canSearchStaff && "staff",
+    canSearchMarketAssociates && "market associates",
+    canSearchPartners && "partners",
+    canSearchMarkets && "markets",
+    canSearchHubs && "hubs",
+    canSearchCategories && "categories",
   ].filter(Boolean) as string[];
 
   const searchPlaceholder = searchScopes.length
@@ -201,13 +256,23 @@ export default function Topbar() {
         products: canSearchProducts ? results.products : [],
         customers: canSearchCustomers ? results.customers : [],
         staff: canSearchStaff ? (results.staff ?? []) : [],
+        marketAssociates: canSearchMarketAssociates ? (results.marketAssociates ?? []) : [],
+        partners: canSearchPartners ? (results.partners ?? []) : [],
+        markets: canSearchMarkets ? (results.markets ?? []) : [],
+        hubs: canSearchHubs ? (results.hubs ?? []) : [],
+        categories: canSearchCategories ? (results.categories ?? []) : [],
       }
     : null;
   const scopedTotal = scoped
     ? scoped.orders.length +
       scoped.products.length +
       scoped.customers.length +
-      scoped.staff.length
+      scoped.staff.length +
+      scoped.marketAssociates.length +
+      scoped.partners.length +
+      scoped.markets.length +
+      scoped.hubs.length +
+      scoped.categories.length
     : 0;
   const noResults =
     results && scopedTotal === 0 && query.length >= 2 && !searching;
@@ -436,7 +501,7 @@ export default function Topbar() {
                           <CommandItem
                             key={member.id}
                             value={`staff-${member.id}-${member.email}`}
-                            onSelect={() => navigate("/dashboard/staff")}
+                            onSelect={() => navigate(`/dashboard/staff/${member.id}`)}
                             className="gap-3 py-2.5"
                           >
                             <span
@@ -465,6 +530,132 @@ export default function Topbar() {
                           </CommandItem>
                         );
                       })}
+                    </CommandGroup>
+                  </>
+                )}
+
+                {scoped.marketAssociates.length > 0 && (
+                  <>
+                    <CommandSeparator />
+                    <CommandGroup heading={`Market Associates (${scoped.marketAssociates.length})`}>
+                      {scoped.marketAssociates.map((member) => (
+                        <CommandItem
+                          key={member.id}
+                          value={`market-associate-${member.id}-${member.email || ""}`}
+                          onSelect={() => navigate(`/dashboard/market-associates/${member.id}`)}
+                          className="gap-3 py-2.5"
+                        >
+                          <span className="flex size-7 shrink-0 items-center justify-center rounded bg-sky-50 text-sky-600">
+                            <MapPinned size={14} />
+                          </span>
+                          <span className="flex flex-1 items-center gap-2 min-w-0">
+                            <span className="font-semibold text-zinc-900 shrink-0">
+                              {[member.firstName, member.lastName].filter(Boolean).join(" ") || "—"}
+                            </span>
+                            <span className="text-zinc-500 text-sm truncate">{member.email}</span>
+                            <StatusBadge status={member.status} />
+                          </span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </>
+                )}
+
+                {scoped.partners.length > 0 && (
+                  <>
+                    <CommandSeparator />
+                    <CommandGroup heading={`Partners (${scoped.partners.length})`}>
+                      {scoped.partners.map((partner) => (
+                        <CommandItem
+                          key={partner.id}
+                          value={`partner-${partner.id}-${partner.name}`}
+                          onSelect={() => navigate(`/dashboard/partners/${partner.id}`)}
+                          className="gap-3 py-2.5"
+                        >
+                          <span className="flex size-7 shrink-0 items-center justify-center rounded bg-emerald-50 text-emerald-600">
+                            <Handshake size={14} />
+                          </span>
+                          <span className="flex flex-1 items-center gap-2 min-w-0">
+                            <span className="font-semibold text-zinc-900 truncate">{partner.name}</span>
+                            {partner.address && <span className="text-zinc-500 text-sm truncate">{partner.address}</span>}
+                            <StatusBadge status={partner.status} />
+                          </span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </>
+                )}
+
+                {scoped.markets.length > 0 && (
+                  <>
+                    <CommandSeparator />
+                    <CommandGroup heading={`Markets (${scoped.markets.length})`}>
+                      {scoped.markets.map((market) => (
+                        <CommandItem
+                          key={market.id}
+                          value={`market-${market.id}-${market.name}`}
+                          onSelect={() => navigate(`/dashboard/markets/${market.id}`)}
+                          className="gap-3 py-2.5"
+                        >
+                          <span className="flex size-7 shrink-0 items-center justify-center rounded bg-orange-50 text-orange-600">
+                            <Store size={14} />
+                          </span>
+                          <span className="flex flex-1 items-center gap-2 min-w-0">
+                            <span className="font-semibold text-zinc-900 truncate">{market.name}</span>
+                            {market.address && <span className="text-zinc-500 text-sm truncate">{market.address}</span>}
+                            <StatusBadge status={market.status} />
+                          </span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </>
+                )}
+
+                {scoped.hubs.length > 0 && (
+                  <>
+                    <CommandSeparator />
+                    <CommandGroup heading={`Dispatch Hubs (${scoped.hubs.length})`}>
+                      {scoped.hubs.map((hub) => (
+                        <CommandItem
+                          key={hub.id}
+                          value={`hub-${hub.id}-${hub.name}`}
+                          onSelect={() => navigate(`/dashboard/hubs/${hub.id}`)}
+                          className="gap-3 py-2.5"
+                        >
+                          <span className="flex size-7 shrink-0 items-center justify-center rounded bg-indigo-50 text-indigo-600">
+                            <Building2 size={14} />
+                          </span>
+                          <span className="flex flex-1 items-center gap-2 min-w-0">
+                            <span className="font-semibold text-zinc-900 truncate">{hub.name}</span>
+                            {hub.address && <span className="text-zinc-500 text-sm truncate">{hub.address}</span>}
+                            <StatusBadge status={hub.status} />
+                          </span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </>
+                )}
+
+                {scoped.categories.length > 0 && (
+                  <>
+                    <CommandSeparator />
+                    <CommandGroup heading={`Categories (${scoped.categories.length})`}>
+                      {scoped.categories.map((category) => (
+                        <CommandItem
+                          key={category.id}
+                          value={`category-${category.id}-${category.name}`}
+                          onSelect={() => navigate("/dashboard/categories")}
+                          className="gap-3 py-2.5"
+                        >
+                          <span className="flex size-7 shrink-0 items-center justify-center rounded bg-pink-50 text-pink-600">
+                            <Tag size={14} />
+                          </span>
+                          <span className="flex flex-1 items-center gap-2 min-w-0">
+                            <span className="font-semibold text-zinc-900 truncate">{category.name}</span>
+                            <StatusBadge status={category.isActive ? "active" : "inactive"} />
+                          </span>
+                        </CommandItem>
+                      ))}
                     </CommandGroup>
                   </>
                 )}

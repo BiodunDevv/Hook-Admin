@@ -25,6 +25,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { useAdminSession, useApiQuery, useLogout } from "@/lib/query";
 import { HookLogo } from "@/components/shared/HookLogo";
@@ -45,6 +46,7 @@ function initials(firstName?: string, lastName?: string, email?: string) {
 export default function AppSidebar() {
   const router = useRouter();
   const logout = useLogout();
+  const { isMobile, setOpenMobile } = useSidebar();
   const { data: admin } = useAdminSession();
   const { data: summary } = useApiQuery<DashboardSummary>(
     ["admin", "sidebar-summary"],
@@ -92,6 +94,7 @@ export default function AppSidebar() {
             <SidebarMenuButton asChild size="lg" tooltip="hook.">
               <Link
                 href="/dashboard"
+                onClick={() => { if (isMobile) setOpenMobile(false); }}
                 className="justify-center group-data-[collapsible=icon]:px-0"
               >
                 <HookLogo

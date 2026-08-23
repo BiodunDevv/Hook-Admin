@@ -29,7 +29,7 @@ export function DefinitionGrid({
         <div
           key={item.label}
           className={cn(
-            "min-w-0 border-b border-border/70 pb-4 last:border-b-0",
+            "min-w-0 border-b border-border/70 pb-4 last:border-b-1",
             item.span === 2 && "sm:col-span-2",
             item.span === 3 && "sm:col-span-2 xl:col-span-3",
           )}
