@@ -51,8 +51,15 @@ function notificationIcon(type?: string) {
   return Sparkles;
 }
 
+
+const NOTIFICATIONS_PATH_PREFIX: Record<string, string> = {
+  admin: "admin",
+  marketassociate: "market-associate",
+  partner: "partner",
+};
+
 export function NotificationBell({ scope }: { scope: "admin" | "marketassociate" | "partner" }) {
-  const endpoint = `/${scope}/notifications`;
+  const endpoint = `/${NOTIFICATIONS_PATH_PREFIX[scope]}/notifications`;
   const queryKey = scope === "admin" ? (["notifications"] as const) : ([scope, "notifications"] as const);
   const queryClient = useQueryClient();
   const { data } = useApiQuery<NotificationsResponse>(queryKey, endpoint);

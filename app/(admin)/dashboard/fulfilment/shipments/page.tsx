@@ -20,6 +20,8 @@ type Shipment = {
   trackingNumber?: string;
   status?: string;
   version?: number;
+  hub?: { name?: string } | null;
+  order?: { publicId?: string } | null;
 };
 
 type Consolidation = {
@@ -29,6 +31,8 @@ type Consolidation = {
   orderId?: string;
   hubId?: string;
   status?: string;
+  hub?: { name?: string } | null;
+  order?: { publicId?: string } | null;
 };
 
 type LogisticsReadiness = {
@@ -97,14 +101,14 @@ export default function FulfilmentShipmentsPage() {
       <Card className="rounded-lg shadow-none">
         <CardHeader><CardTitle className="text-base">Ready for booking</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          {unbooked.length ? unbooked.map((item, index) => { const id = item.publicId || item.id || item._id || `consolidation-${index}`; return <div key={id} className="grid gap-3 rounded-md border p-4 md:grid-cols-[1fr_220px_auto] md:items-center"><div><p className="text-sm font-medium">Order {item.orderId}</p><p className="mt-1 text-xs text-muted-foreground">Sealed consolidation {id} · Hub {item.hubId}</p></div><Select value={provider[id] || "manual"} onValueChange={(value) => setProvider((current) => ({ ...current, [id]: value }))}><SelectTrigger><SelectValue placeholder="Provider" /></SelectTrigger><SelectContent><SelectItem value="manual">Manual fallback</SelectItem>{simulationEnabled ? <SelectItem value="simulated">Simulation (development only)</SelectItem> : null}<SelectItem value="other">Approved provider</SelectItem><SelectItem value="gig" disabled>GIG unavailable</SelectItem><SelectItem value="fez" disabled>Fez unavailable</SelectItem></SelectContent></Select><Button size="sm" onClick={() => void book(item)} disabled={pending === `book-${id}`}>{pending === `book-${id}` ? <HookLoader size="button" /> : <><Truck /> Book shipment</>}</Button></div>; }) : <p className="py-8 text-center text-sm text-muted-foreground">No sealed parcels are waiting for shipment booking.</p>}
+          {unbooked.length ? unbooked.map((item, index) => { const id = item.publicId || item.id || item._id || `consolidation-${index}`; return <div key={id} className="grid gap-3 rounded-md border p-4 md:grid-cols-[1fr_220px_auto] md:items-center"><div><p className="text-sm font-medium">Order {item.order?.publicId || item.orderId}</p><p className="mt-1 text-xs text-muted-foreground">Sealed consolidation {id} · {item.hub?.name || `Hub ${item.hubId}`}</p></div><Select value={provider[id] || "manual"} onValueChange={(value) => setProvider((current) => ({ ...current, [id]: value }))}><SelectTrigger><SelectValue placeholder="Provider" /></SelectTrigger><SelectContent><SelectItem value="manual">Manual fallback</SelectItem>{simulationEnabled ? <SelectItem value="simulated">Simulation (development only)</SelectItem> : null}<SelectItem value="other">Approved provider</SelectItem><SelectItem value="gig" disabled>GIG unavailable</SelectItem><SelectItem value="fez" disabled>Fez unavailable</SelectItem></SelectContent></Select><Button size="sm" onClick={() => void book(item)} disabled={pending === `book-${id}`}>{pending === `book-${id}` ? <HookLoader size="button" /> : <><Truck /> Book shipment</>}</Button></div>; }) : <p className="py-8 text-center text-sm text-muted-foreground">No sealed parcels are waiting for shipment booking.</p>}
         </CardContent>
       </Card>
 
       <Card className="rounded-lg shadow-none">
         <CardHeader><CardTitle className="text-base">Shipment register</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          {shipmentsQuery.data?.length ? shipmentsQuery.data.map((item, index) => { const id = item.publicId || item.id || item._id || `shipment-${index}`; const options = nextStatuses[item.status || ""] || []; return <div key={id} className="grid gap-3 rounded-md border p-4 lg:grid-cols-[1fr_auto_auto] lg:items-center"><div><div className="flex items-center gap-2"><p className="text-sm font-medium">{id}</p><Badge variant={item.status === "DELIVERY_FAILED" ? "destructive" : "secondary"}>{label(item.status)}</Badge></div><p className="mt-1 text-xs text-muted-foreground">Order {item.orderId || "-"} · {item.provider || "manual"}{item.trackingNumber ? ` · ${item.trackingNumber}` : ""}</p></div>{options.length ? <Select onValueChange={(value) => void advance(item, value)}><SelectTrigger className="w-[210px]"><SelectValue placeholder="Advance status" /></SelectTrigger><SelectContent>{options.map((option) => <SelectItem key={option} value={option}>{label(option)}</SelectItem>)}</SelectContent></Select> : <Badge variant="outline">No manual action</Badge>}<Button size="sm" variant="outline" disabled={pending === `status-${id}`} onClick={() => { const next = options[0]; if (next) void advance(item, next); }}>{pending === `status-${id}` ? <HookLoader size="button" /> : <><Check /> Advance</>}</Button></div>; }) : <p className="py-8 text-center text-sm text-muted-foreground">No shipments recorded.</p>}
+          {shipmentsQuery.data?.length ? shipmentsQuery.data.map((item, index) => { const id = item.publicId || item.id || item._id || `shipment-${index}`; const options = nextStatuses[item.status || ""] || []; return <div key={id} className="grid gap-3 rounded-md border p-4 lg:grid-cols-[1fr_auto_auto] lg:items-center"><div><div className="flex items-center gap-2"><p className="text-sm font-medium">{id}</p><Badge variant={item.status === "DELIVERY_FAILED" ? "destructive" : "secondary"}>{label(item.status)}</Badge></div><p className="mt-1 text-xs text-muted-foreground">Order {item.order?.publicId || item.orderId || "-"} · {item.provider || "manual"}{item.trackingNumber ? ` · ${item.trackingNumber}` : ""}</p></div>{options.length ? <Select onValueChange={(value) => void advance(item, value)}><SelectTrigger className="w-[210px]"><SelectValue placeholder="Advance status" /></SelectTrigger><SelectContent>{options.map((option) => <SelectItem key={option} value={option}>{label(option)}</SelectItem>)}</SelectContent></Select> : <Badge variant="outline">No manual action</Badge>}<Button size="sm" variant="outline" disabled={pending === `status-${id}`} onClick={() => { const next = options[0]; if (next) void advance(item, next); }}>{pending === `status-${id}` ? <HookLoader size="button" /> : <><Check /> Advance</>}</Button></div>; }) : <p className="py-8 text-center text-sm text-muted-foreground">No shipments recorded.</p>}
         </CardContent>
       </Card>
     </div>

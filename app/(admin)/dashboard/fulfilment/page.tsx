@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import {
@@ -23,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HookLoader } from "@/components/shared/HookLoader";
 import { AdminWorkflowSheet } from "@/components/shared/AdminWorkflowSheet";
 import { MetricCard } from "@/components/shared/MetricCard";
@@ -31,6 +33,11 @@ import { QueryState } from "@/components/shared/QueryState";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { apiPatch, apiPost } from "@/lib/api";
 import { useApiQuery } from "@/lib/query";
+
+type NamedMarket = { name?: string; imageUrl?: string };
+type NamedHub = { name?: string };
+type NamedMarketAssociate = { name?: string; email?: string; avatarUrl?: string };
+type NamedOrder = { publicId?: string };
 
 type Row = {
   id?: string;
@@ -44,7 +51,17 @@ type Row = {
   type?: string;
   orderId?: string;
   version?: number;
+  market?: NamedMarket | null;
+  hub?: NamedHub | null;
+  marketAssociate?: NamedMarketAssociate | null;
+  order?: NamedOrder | null;
 };
+
+function initials(name?: string) {
+  const parts = (name || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "MA";
+  return `${parts[0][0]}${parts[1]?.[0] || ""}`.toUpperCase();
+}
 
 type MarketAssociateOption = Row & {
   firstName?: string;
@@ -265,26 +282,44 @@ export default function FulfilmentControlTowerPage() {
                         "HUB_RECEIVED",
                         "QC_PASSED",
                       ].includes(task.status || "");
+                      const marketAssociateName = task.marketAssociate?.name;
                       return (
                         <div
                           key={taskId}
                           className="grid gap-3 border-b px-4 py-3 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
                         >
-                          <div className="min-w-0">
-                            <div className="flex min-w-0 items-center gap-2">
-                              <Link
-                                href={`/dashboard/fulfilment/tasks/${taskId}`}
-                                className="truncate text-sm font-medium hover:underline"
-                              >
-                                {taskId}
-                              </Link>
-                              <StatusBadge status={task.status || "Unknown"} />
+                          <div className="flex min-w-0 items-center gap-3">
+                            {task.market?.imageUrl ? (
+                              <span className="relative size-10 shrink-0 overflow-hidden rounded-md">
+                                <Image src={task.market.imageUrl} alt="" fill className="object-cover" unoptimized />
+                              </span>
+                            ) : (
+                              <span className="grid size-10 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
+                                <Box className="size-4" />
+                              </span>
+                            )}
+                            <div className="min-w-0">
+                              <div className="flex min-w-0 items-center gap-2">
+                                <Link
+                                  href={`/dashboard/fulfilment/tasks/${taskId}`}
+                                  className="truncate text-sm font-medium hover:underline"
+                                >
+                                  {task.market?.name || taskId}
+                                </Link>
+                                <StatusBadge status={task.status || "Unknown"} />
+                              </div>
+                              <div className="mt-1 flex min-w-0 items-center gap-1.5">
+                                <Avatar className="size-4">
+                                  <AvatarImage src={task.marketAssociate?.avatarUrl} alt="" />
+                                  <AvatarFallback className="text-[9px]">
+                                    {initials(marketAssociateName)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <p className="truncate text-xs text-muted-foreground">
+                                  {marketAssociateName || "Unassigned"} · {task.hub?.name || "No Hub"}
+                                </p>
+                              </div>
                             </div>
-                            <p className="mt-1 truncate text-xs text-muted-foreground">
-                              Market {task.marketId || "unassigned"} · Market Associate{" "}
-                              {task.marketAssociateId || "unassigned"} · Hub{" "}
-                              {task.hubId || "unassigned"}
-                            </p>
                           </div>
                           <div className="flex items-center gap-1.5">
                             {canReassign ? (
@@ -352,7 +387,7 @@ export default function FulfilmentControlTowerPage() {
                             </div>
                             <p className="mt-1 truncate text-xs text-muted-foreground">
                               {label(item.type)} ·{" "}
-                              {item.orderId || "No order reference"}
+                              {item.order?.publicId || "No order reference"}
                             </p>
                           </div>
                           <Button

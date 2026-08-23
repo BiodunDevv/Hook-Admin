@@ -19,6 +19,7 @@ type Row = {
   reasonType?: string;
   reason?: string;
   status?: string;
+  order?: { publicId?: string } | null;
 };
 
 const label = (value?: string) => String(value || "-").replaceAll("_", " ");
@@ -52,7 +53,7 @@ export default function FulfilmentReturnsPage() {
           {query.data?.length ? query.data.map((item, index) => {
             const id = item.publicId || item.id || item._id || `return-${index}`;
             const open = ["REQUESTED", "UNDER_REVIEW"].includes(String(item.status));
-            return <div key={id} className="space-y-3 rounded-md border p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm font-medium">{id}</p><p className="mt-1 text-xs text-muted-foreground">Order {item.orderId || "-"} · {label(item.reasonType)}</p><p className="mt-2 max-w-2xl text-sm text-muted-foreground">{item.reason || "No customer explanation provided."}</p></div><Badge variant={item.status === "REJECTED" ? "destructive" : "secondary"}>{label(item.status || "REQUESTED")}</Badge></div>{open ? <><Textarea value={reasons[id] || ""} onChange={(event) => setReasons((current) => ({ ...current, [id]: event.target.value }))} placeholder="Decision reason" maxLength={1000} /><div className="flex flex-wrap justify-end gap-2"><Button variant="outline" onClick={() => void review(item, "REJECTED")} disabled={pending === id || !reasons[id]?.trim()}><X /> Reject</Button><Button onClick={() => void review(item, "APPROVED")} disabled={pending === id || !reasons[id]?.trim()}>{pending === id ? <HookLoader size="button" /> : <><Check /> Approve return</>}</Button></div></> : null}</div>;
+            return <div key={id} className="space-y-3 rounded-md border p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm font-medium">{id}</p><p className="mt-1 text-xs text-muted-foreground">Order {item.order?.publicId || item.orderId || "-"} · {label(item.reasonType)}</p><p className="mt-2 max-w-2xl text-sm text-muted-foreground">{item.reason || "No customer explanation provided."}</p></div><Badge variant={item.status === "REJECTED" ? "destructive" : "secondary"}>{label(item.status || "REQUESTED")}</Badge></div>{open ? <><Textarea value={reasons[id] || ""} onChange={(event) => setReasons((current) => ({ ...current, [id]: event.target.value }))} placeholder="Decision reason" maxLength={1000} /><div className="flex flex-wrap justify-end gap-2"><Button variant="outline" onClick={() => void review(item, "REJECTED")} disabled={pending === id || !reasons[id]?.trim()}><X /> Reject</Button><Button onClick={() => void review(item, "APPROVED")} disabled={pending === id || !reasons[id]?.trim()}>{pending === id ? <HookLoader size="button" /> : <><Check /> Approve return</>}</Button></div></> : null}</div>;
           }) : <p className="py-10 text-center text-sm text-muted-foreground">No return requests require review.</p>}
         </CardContent>
       </Card>

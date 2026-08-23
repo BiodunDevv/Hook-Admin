@@ -16,11 +16,23 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { HookLogo } from "@/components/shared/HookLogo";
+import { HookLoader } from "@/components/shared/HookLoader";
 import { NotificationBell } from "@/components/shared/NotificationBell";
 import { MessagesBell } from "@/components/partner/MessagesBell";
 import { ShoppingForIndicator } from "@/components/partner/ShoppingForIndicator";
 import { Button } from "@/components/ui/button";
-import { clearSession, logoutAccount } from "@/lib/api";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useLogout } from "@/lib/query";
 import { PortalGuard } from "@/components/platform/PortalGuard";
 import { APP_TAB_BAR_CONTENT_INSET, APP_TAB_BAR_HEIGHT, APP_TAB_BAR_BOTTOM_GAP } from "@/lib/tab-bar-layout";
 
@@ -93,6 +105,7 @@ export function AppTabBarShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const logout = useLogout();
   const base = PORTAL_BASE_PATH[type];
 
   if (pathname === `${base}/activate`) return <>{children}</>;
@@ -104,16 +117,14 @@ export function AppTabBarShell({
    */
   const isNegotiationDetail = type === "partner" && /^\/partner\/messages\/[^/]+$/.test(pathname);
 
-  async function logout() {
-    try {
-      await logoutAccount();
-    } catch {
-      clearSession();
-    }
-    router.replace("/auth/login");
+  function handleLogout() {
+    logout.mutate(undefined, {
+      onSettled: () => router.replace("/auth/login"),
+    });
   }
 
   const tabs = type === "marketassociate" ? marketAssociateTabs : partnerTabs;
+  const portalLabel = type === "marketassociate" ? "Market Associate" : "Partner";
 
   return (
     <PortalGuard type={type}>
@@ -128,9 +139,32 @@ export function AppTabBarShell({
             <div className="flex shrink-0 items-center gap-1">
               {type === "partner" && <MessagesBell />}
               <NotificationBell scope={type} />
-              <Button variant="ghost" size="icon" onClick={logout} title="Log out">
-                <LogOut />
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="icon" title="Log out">
+                    <LogOut />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="max-w-sm">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Log out of Hook?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Your {portalLabel} session will be ended on this device. You can sign
+                      in again whenever you need access.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleLogout}
+                      disabled={logout.isPending}
+                      className="bg-zinc-950 text-white hover:bg-zinc-800"
+                    >
+                      {logout.isPending ? <HookLoader size="button" variant="yellow" /> : "Log out"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
         </header>
