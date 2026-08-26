@@ -42,7 +42,7 @@ export default function NewProductPage() {
   const [colorValue, setColorValue] = useState("#fbbf24");
   const [categoryId, setCategoryId] = useState("");
   const [status, setStatus] = useState("pending_approval");
-  const categories = useApiQuery<CategoryOption[]>(["categories", "options"], "/categories");
+  const categories = useApiQuery<{ data: CategoryOption[] }>(["admin", "categories", "options"], "/admin/categories");
   const createProduct = useApiPost<{ id: string }, Record<string, unknown>>("/admin/products", ["admin", "products"], { successMessage: "Product created" });
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -81,7 +81,7 @@ export default function NewProductPage() {
                 <Select value={categoryId} onValueChange={setCategoryId} required>
                   <SelectTrigger className="w-full"><SelectValue placeholder="Select category" /></SelectTrigger>
                   <SelectContent>
-                    {(categories.data || []).filter((category) => category.isActive !== false).map((category) => <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>)}
+                    {(categories.data?.data || []).filter((category) => category.isActive !== false).map((category) => <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </Field>
