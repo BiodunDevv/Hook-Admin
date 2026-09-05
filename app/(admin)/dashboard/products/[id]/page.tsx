@@ -49,6 +49,8 @@ interface ProductDetail {
   orderCount: number;
   availabilityStatus?: string;
   catalogVersion?: number;
+  categoryId?: string;
+  marketId?: string;
   marketName?: string;
   sourceMarketVendorName?: string;
   sourceMarket?: { name?: string; publicId?: string } | null;
@@ -57,9 +59,10 @@ interface ProductDetail {
   colors?: string[];
   sizes?: string[];
   vendor?: { id?: string; businessName?: string };
-  category?: { name?: string };
+  category?: { id?: string; publicId?: string; name?: string };
   categoryManagers?: CategoryManager[];
 }
+interface ProductOption { id: string; publicId?: string; name: string; isActive?: boolean; status?: string; stateName?: string; state?: { name?: string }; }
 
 interface CategoryManager {
   id: string;
@@ -115,6 +118,8 @@ export default function ProductDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
   const query = useApiQuery<ProductDetail>(["admin", "products", id], `/admin/products/${id}`, Boolean(id));
+  const categories = useApiQuery<{ data: ProductOption[] }>(["admin", "categories", "product-options"], "/admin/categories");
+  const markets = useApiQuery<{ data: ProductOption[] }>(["admin", "markets", "product-options"], "/admin/markets?limit=200");
   const approve = useApiPatch<ProductDetail, { status: string }>(`/admin/products/${id}/review`, ["admin", "products"], { successMessage: "Product approved" });
   const disable = useApiPatch<ProductDetail, undefined>(`/admin/products/${id}/disable`, ["admin", "products"], { successMessage: "Product disabled" });
   const updateProduct = useApiPatch<ProductDetail, Record<string, unknown>>(`/admin/products/${id}`, ["admin", "products"], { successMessage: "Product updated" });
@@ -122,7 +127,9 @@ export default function ProductDetailPage() {
   const [editImages, setEditImages] = useState<string[]>([]);
   const [editColors, setEditColors] = useState<string[]>([]);
   const [editColorValue, setEditColorValue] = useState("#FFC809");
-  const [editStatus, setEditStatus] = useState("pending_approval");
+  const [editStatus, setEditStatus] = useState("draft");
+  const [editCategoryId, setEditCategoryId] = useState("");
+  const [editMarketId, setEditMarketId] = useState("");
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -152,11 +159,11 @@ export default function ProductDetailPage() {
           <>
             <Button variant="outline" size="sm" onClick={() => router.back()}><ArrowLeft size={15} /> Back</Button>
             <PermissionGuard permission="products.edit">
-              {product && <Button variant="outline" size="sm" onClick={() => { setEditImages(product.images || []); setEditColors(product.colors || []); setEditStatus(product.status); setEditing(true); }}><Edit3 size={15} /> Edit</Button>}
+              {product && <Button variant="outline" size="sm" onClick={() => { setEditImages(product.images || []); setEditColors(product.colors || []); setEditStatus(isActiveProduct(product.status) ? "published" : product.status === "pending_approval" || product.status === "rejected" ? "draft" : product.status); setEditCategoryId(product.category?.publicId || product.category?.id || product.categoryId || ""); setEditMarketId(product.sourceMarket?.publicId || product.marketId || ""); setEditing(true); }}><Edit3 size={15} /> Edit</Button>}
               {product && product.status !== "disabled" && <Button size="sm" variant="outline" onClick={() => disable.mutate(undefined)}><Ban size={15} /> Disable</Button>}
             </PermissionGuard>
             <PermissionGuard permission="products.review">
-              {product && canApproveProduct(product.status) && <Button size="sm" variant="brand" onClick={() => approve.mutate({ status: "approved" })}><Check size={15} /> Approve</Button>}
+              {product && canApproveProduct(product.status) && <Button size="sm" variant="brand" onClick={() => approve.mutate({ status: "published" })}><Check size={15} /> Activate</Button>}
             </PermissionGuard>
             {product && product.status === "disabled" && (
               <SuperAdminGuard>
@@ -203,7 +210,7 @@ export default function ProductDetailPage() {
                     <span className="font-medium text-zinc-900">{product.hookId || product.id.slice(0, 8)}</span>
                   </div>
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-zinc-500">Market Price</span>
+                    <span className="text-zinc-500">Cost Price</span>
                     <span className="font-medium text-zinc-900">{money(product.costPrice)}</span>
                   </div>
                 </div>
@@ -329,6 +336,8 @@ export default function ProductDetailPage() {
                 await updateProduct.mutateAsync({
                   title: payload.title,
                   description: payload.description,
+                  categoryId: editCategoryId,
+                  marketId: editMarketId,
                   costPrice: Number(payload.costPrice || 0),
                   sellingPrice: Number(payload.sellingPrice || 0),
                   minAcceptablePrice: Number(payload.minAcceptablePrice || 0),
@@ -343,12 +352,14 @@ export default function ProductDetailPage() {
               }}
             >
               <Field className="sm:col-span-2"><FieldLabel>Title</FieldLabel><Input name="title" defaultValue={product.title} required /></Field>
-              <Field className="sm:col-span-2"><FieldLabel>Description</FieldLabel><Textarea name="description" defaultValue={product.description} className="min-h-20" /></Field>
-              <Field><PriceLabel help="What this item commonly sells for outside Hook.">Market Price</PriceLabel><Input name="costPrice" type="number" min="1" defaultValue={String(product.costPrice)} /></Field>
+              <Field><FieldLabel>Category</FieldLabel><Select value={editCategoryId} onValueChange={setEditCategoryId} required><SelectTrigger className="w-full"><SelectValue placeholder="Select category" /></SelectTrigger><SelectContent>{(categories.data?.data || []).filter((item) => item.isActive !== false).map((item) => <SelectItem key={item.publicId || item.id} value={item.publicId || item.id}>{item.name}</SelectItem>)}</SelectContent></Select></Field>
+              <Field><FieldLabel>Market</FieldLabel><Select value={editMarketId} onValueChange={setEditMarketId} required><SelectTrigger className="w-full"><SelectValue placeholder="Select active Market" /></SelectTrigger><SelectContent>{(markets.data?.data || []).filter((item) => item.status === "active").map((item) => <SelectItem key={item.publicId || item.id} value={item.publicId || item.id}>{item.name}{item.stateName || item.state?.name ? ` · ${item.stateName || item.state?.name}` : ""}</SelectItem>)}</SelectContent></Select></Field>
+              <Field className="sm:col-span-2"><FieldLabel>Description</FieldLabel><Textarea name="description" defaultValue={product.description} required minLength={20} className="min-h-20" /></Field>
+              <Field><PriceLabel help="What Hook pays for this item. Negotiation can never go below this.">Cost Price</PriceLabel><Input name="costPrice" type="number" min="1" defaultValue={String(product.costPrice)} /></Field>
               <Field><PriceLabel help="The customer-facing price on Hook.">Hook Platform Price</PriceLabel><Input name="sellingPrice" type="number" min="1" defaultValue={String(product.sellingPrice)} /></Field>
               <Field><PriceLabel help="Lowest price AI negotiation can accept. It must not exceed the Hook platform price.">Negotiation Floor</PriceLabel><Input name="minAcceptablePrice" type="number" min="1" defaultValue={String(product.minAcceptablePrice)} /></Field>
               <Field><FieldLabel>Stock</FieldLabel><Input name="quantity" type="number" min="0" defaultValue={String(product.quantity)} /></Field>
-              <Field><FieldLabel>Status</FieldLabel><Select value={editStatus} onValueChange={setEditStatus}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="draft">Draft</SelectItem><SelectItem value="pending_approval">Pending</SelectItem><SelectItem value="approved">Approved</SelectItem><SelectItem value="rejected">Rejected</SelectItem><SelectItem value="disabled">Disabled</SelectItem></SelectContent></Select></Field>
+              <Field><FieldLabel>Visibility</FieldLabel><Select value={editStatus} onValueChange={setEditStatus}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="published">Active on Hook</SelectItem><SelectItem value="draft">Draft</SelectItem><SelectItem value="paused">Paused</SelectItem><SelectItem value="unpublished">Unpublished</SelectItem><SelectItem value="disabled">Disabled</SelectItem></SelectContent></Select></Field>
               <Field className="sm:col-span-2"><FieldLabel>Colors</FieldLabel><div className="flex flex-wrap items-center gap-2">{editColors.map((color) => <button key={color} type="button" onClick={() => setEditColors((current) => current.filter((item) => item !== color))} className="flex h-9 items-center gap-2 rounded-md border border-zinc-200 bg-white px-2 text-xs font-medium text-zinc-600" title={`Remove ${color}`}><span className="size-4 rounded-full border border-zinc-300" style={{ backgroundColor: color }} /><span className="font-mono">{color}</span><X size={12} /></button>)}<input value={editColorValue} onChange={(event) => setEditColorValue(event.target.value.toUpperCase())} type="color" className="h-9 w-11 rounded-md border border-zinc-200 bg-white p-1" aria-label="Pick product color" /><Button type="button" variant="outline" size="sm" onClick={() => setEditColors((current) => current.includes(editColorValue) ? current : [...current, editColorValue])}>Add color</Button></div></Field>
               <Field><FieldLabel>Sizes</FieldLabel><Input name="sizes" defaultValue={(product.sizes || []).join(", ")} /></Field>
               <div className="sm:col-span-2">
