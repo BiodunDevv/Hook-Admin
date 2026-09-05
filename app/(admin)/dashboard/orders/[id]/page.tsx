@@ -31,6 +31,8 @@ type OrderDetail = {
   commercePaymentMethod?: string;
   deliveryMethod?: string;
   subtotalMinor?: number;
+  vatMinor?: number;
+  vatRate?: number;
   deliveryFeeMinor?: number;
   totalMinor?: number;
   currency?: string;
@@ -43,12 +45,19 @@ type OrderDetail = {
     quantity: number;
     unitPriceMinor?: number;
     totalPriceMinor?: number;
+    commissionAmount?: number;
     productSnapshot?: Record<string, unknown>;
     variantSnapshot?: Record<string, unknown>;
     quoteSnapshot?: Record<string, unknown>;
     fulfilmentGroupId?: string;
     deliveryStatus?: string;
     shipmentId?: string;
+    product?: {
+      basePriceMinor?: number;
+      sellingPriceMinor?: number;
+      markupMinor?: number;
+      discountMinor?: number;
+    };
   }>;
   payment?: {
     publicId?: string;
@@ -123,6 +132,13 @@ export default function OrderDetailPage() {
     );
   const customer = order.customerSnapshot || {};
   const address = order.addressSnapshot || order.pickupPartnerSnapshot || {};
+  const totalMarginMinor = (order.items || []).reduce((sum, item) => {
+    const marketPriceMinor = item.product?.basePriceMinor;
+    const hookPriceMinor = item.product?.sellingPriceMinor ?? item.unitPriceMinor;
+    if (marketPriceMinor == null || hookPriceMinor == null) return sum;
+    return sum + (hookPriceMinor - marketPriceMinor) * item.quantity;
+  }, 0);
+  const hasMarginData = (order.items || []).some((item) => item.product?.basePriceMinor != null);
   return (
     <div className="w-full space-y-5 px-4 py-5">
       <PageHeader
@@ -135,11 +151,12 @@ export default function OrderDetailPage() {
           </Button>
         }
       />
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <MetricCard icon={Package} label="Order status" value={text(order.commerceStatus).replaceAll("_", " ")} intent="warning" />
         <MetricCard icon={CreditCard} label="Payment status" value={text(order.commercePaymentStatus).replaceAll("_", " ")} intent="success" />
         <MetricCard icon={MapPin} label="Source states" value={String(order.sourceStateIds?.length || (order.sourceStateId ? 1 : 0))} />
         <MetricCard icon={ShieldCheck} label="Order total" value={money(order.totalMinor)} />
+        {hasMarginData ? <MetricCard icon={ShieldCheck} label="Order margin" value={money(totalMarginMinor)} intent={totalMarginMinor >= 0 ? "success" : "warning"} /> : null}
       </div>
       <div className="grid gap-5 xl:grid-cols-3">
         <div className="space-y-5 xl:col-span-2">
@@ -163,38 +180,53 @@ export default function OrderDetailPage() {
             {!order.fulfilmentGroups?.length ? <p className="text-sm text-muted-foreground">This legacy order does not have delivery groups.</p> : null}
           </DetailSection>
           <DetailSection title="Order items" description="Immutable product, variant, quote, and price snapshots captured at checkout." action={<Package className="size-4 text-muted-foreground" />} contentClassName="space-y-3">
-              {(order.items || []).map((item) => (
+              {(order.items || []).map((item) => {
+                const marketPriceMinor = item.product?.basePriceMinor;
+                const hookPriceMinor = item.product?.sellingPriceMinor ?? item.unitPriceMinor;
+                const marginMinor = marketPriceMinor != null && hookPriceMinor != null ? hookPriceMinor - marketPriceMinor : undefined;
+                const marginPct = marginMinor != null && hookPriceMinor ? (marginMinor / hookPriceMinor) * 100 : undefined;
+                return (
                 <div
                   key={item.publicId || item.id}
-                  className="grid grid-cols-[1fr_auto] gap-4 rounded-md border p-4"
+                  className="rounded-md border p-4"
                 >
-                  <div>
-                    <p className="font-semibold">
-                      {text(item.productSnapshot?.title)}
-                    </p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Qty {item.quantity} · {money(item.unitPriceMinor)} each
-                    </p>
-                    {Object.keys(item.variantSnapshot || {}).length ? (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {Object.entries(item.variantSnapshot || {})
-                          .map(([key, value]) => `${key}: ${value}`)
-                          .join(" · ")}
+                  <div className="grid grid-cols-[1fr_auto] gap-4">
+                    <div>
+                      <p className="font-semibold">
+                        {text(item.productSnapshot?.title)}
                       </p>
-                    ) : null}
-                    {item.quoteSnapshot ? (
-                      <Badge className="mt-2" variant="secondary">
-                        Negotiated quote applied
-                      </Badge>
-                    ) : null}
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {item.deliveryStatus ? <StatusBadge status={item.deliveryStatus} /> : null}
-                      {item.fulfilmentGroupId ? <Badge variant="outline">{item.fulfilmentGroupId}</Badge> : null}
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Qty {item.quantity} · {money(item.unitPriceMinor)} each
+                      </p>
+                      {Object.keys(item.variantSnapshot || {}).length ? (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {Object.entries(item.variantSnapshot || {})
+                            .map(([key, value]) => `${key}: ${value}`)
+                            .join(" · ")}
+                        </p>
+                      ) : null}
+                      {item.quoteSnapshot ? (
+                        <Badge className="mt-2" variant="secondary">
+                          Negotiated quote applied
+                        </Badge>
+                      ) : null}
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {item.deliveryStatus ? <StatusBadge status={item.deliveryStatus} /> : null}
+                        {item.fulfilmentGroupId ? <Badge variant="outline">{item.fulfilmentGroupId}</Badge> : null}
+                      </div>
                     </div>
+                    <p className="font-semibold">{money(item.totalPriceMinor)}</p>
                   </div>
-                  <p className="font-semibold">{money(item.totalPriceMinor)}</p>
+                  {(marketPriceMinor != null || hookPriceMinor != null) && (
+                    <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 rounded-md bg-muted/40 p-3 text-xs sm:grid-cols-4">
+                      <PriceStat label="Market price" value={marketPriceMinor != null ? money(marketPriceMinor) : "-"} />
+                      <PriceStat label="Hook price" value={hookPriceMinor != null ? money(hookPriceMinor) : "-"} />
+                      <PriceStat label="Margin" value={marginMinor != null ? money(marginMinor) : "-"} tone={marginMinor != null && marginMinor >= 0 ? "success" : "destructive"} />
+                      <PriceStat label="Margin %" value={marginPct != null ? `${marginPct.toFixed(1)}%` : "-"} tone={marginPct != null && marginPct >= 0 ? "success" : "destructive"} />
+                    </div>
+                  )}
                 </div>
-              ))}
+              );})}
               {!order.items?.length ? (
                 <p className="text-sm text-muted-foreground">
                   No line snapshots found.
@@ -203,6 +235,9 @@ export default function OrderDetailPage() {
               <Separator />
               <div className="ml-auto w-full max-w-xs space-y-2 text-sm">
                 <Amount label="Subtotal" value={order.subtotalMinor} />
+                {order.vatMinor != null && order.vatMinor > 0 ? (
+                  <Amount label={`VAT${order.vatRate ? ` (${(order.vatRate * 100).toFixed(0)}%)` : ""}`} value={order.vatMinor} />
+                ) : null}
                 <Amount label="Delivery" value={order.deliveryFeeMinor} />
                 <Amount label="Total" value={order.totalMinor} strong />
               </div>
@@ -265,6 +300,25 @@ function Amount({
     >
       <span>{label}</span>
       <span>{money(value)}</span>
+    </div>
+  );
+}
+
+function PriceStat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: "success" | "destructive";
+}) {
+  return (
+    <div>
+      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className={`mt-0.5 font-semibold ${tone === "success" ? "text-emerald-600" : tone === "destructive" ? "text-red-600" : ""}`}>
+        {value}
+      </p>
     </div>
   );
 }

@@ -124,8 +124,8 @@ export const navGroups: NavGroup[] = [
         permission: "fulfilment.view",
       },
       {
-        label: "Runner Operations",
-        href: "/dashboard/runners",
+        label: "Market Associate Operations",
+        href: "/dashboard/market-associates",
         icon: UsersRound,
         permission: "runners.view",
       },

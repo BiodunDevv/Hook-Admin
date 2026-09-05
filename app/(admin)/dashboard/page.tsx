@@ -23,7 +23,7 @@ interface DashboardSummary {
   deliverySla: DashboardMetric;
   aiNegotiation: DashboardMetric;
   customerSatisfaction: DashboardMetric;
-  activeRunners: DashboardMetric;
+  activeMarketAssociates: DashboardMetric;
   publishedProducts: DashboardMetric;
 }
 
@@ -111,7 +111,7 @@ function normalizeDashboardSummary(
       0,
       `from ${formatNumber(legacy.customers?.reviewCount ?? 0)} reviews`,
     ),
-    activeRunners: metric(0, 0, "market-side operations"),
+    activeMarketAssociates: metric(0, 0, "market-side operations"),
     publishedProducts: metric(0, 0, "commercially approved"),
   };
 }
@@ -186,11 +186,11 @@ export default function DashboardPage() {
         caption: summary.customerSatisfaction.caption,
       },
       {
-        label: "Active Runners",
-        value: formatNumber(summary.activeRunners.value),
-        delta: formatChange(summary.activeRunners.change),
-        trend: trendFor(summary.activeRunners.change),
-        caption: summary.activeRunners.caption,
+        label: "Active Market Associates",
+        value: formatNumber(summary.activeMarketAssociates.value),
+        delta: formatChange(summary.activeMarketAssociates.change),
+        trend: trendFor(summary.activeMarketAssociates.change),
+        caption: summary.activeMarketAssociates.caption,
       },
       {
         label: "Published Products",

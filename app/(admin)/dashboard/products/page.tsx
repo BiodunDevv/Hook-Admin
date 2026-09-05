@@ -50,14 +50,14 @@ export default function ProductsPage() {
   ] as const;
 
   const productsQuery = useApiQuery<Page<ProductRow>>(queryKey, listPath);
-  const categoriesQuery = useApiQuery<CategoryOption[]>(
+  const categoriesQuery = useApiQuery<{ data: CategoryOption[] }>(
     ["admin", "product-category-options"],
-    "/categories",
+    "/admin/categories",
   );
 
   const stats = productsQuery.data?.stats || {};
   const products = productsQuery.data?.data || [];
-  const categories = categoriesQuery.data || [];
+  const categories = categoriesQuery.data?.data || [];
 
   function setFilter(key: string, value: string) {
     filters.set({ [key]: value, page: 1 });

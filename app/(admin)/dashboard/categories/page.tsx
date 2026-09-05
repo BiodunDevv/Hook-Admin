@@ -17,11 +17,19 @@ import {
   Upload,
   X,
   ImagePlus,
+  Ruler,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import {
+  SIZING_PRESET_GROUP_LABELS,
+  type SizingGuide,
+  type SizingPresetGroup,
+} from "@/lib/sizing-guide";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,6 +76,8 @@ interface CategoryRow {
   createdAt?: string;
   productCount: number;
   managers: CategoryManager[];
+  hasSizingGuide: boolean;
+  attributeSchema?: { sizingGuide?: SizingGuide | null };
 }
 
 interface CategoriesResponse {
@@ -102,6 +112,38 @@ function CategoryDialog({
   const [uploading, setUploading] = useState(false);
   const fileInputId = `category-icon-${useId().replace(/:/g, "")}`;
   const isEdit = Boolean(category);
+
+  const existingGuide = category?.attributeSchema?.sizingGuide;
+  const [sizingSummary, setSizingSummary] = useState(existingGuide?.summary || "");
+  const [sizingHowToMeasure, setSizingHowToMeasure] = useState(existingGuide?.howToMeasure || "");
+  const [sizingPresetGroups, setSizingPresetGroups] = useState<SizingPresetGroup[]>(existingGuide?.presetGroups || []);
+  const [sizingChart, setSizingChart] = useState<Array<{ size: string; measurements: Record<string, string> }>>(existingGuide?.chart || []);
+
+  function togglePresetGroup(group: SizingPresetGroup) {
+    setSizingPresetGroups((current) =>
+      current.includes(group) ? current.filter((item) => item !== group) : [...current, group],
+    );
+  }
+
+  function addChartRow() {
+    setSizingChart((current) => [...current, { size: "", measurements: {} }]);
+  }
+
+  function removeChartRow(index: number) {
+    setSizingChart((current) => current.filter((_, itemIndex) => itemIndex !== index));
+  }
+
+  function updateChartRowSize(index: number, size: string) {
+    setSizingChart((current) => current.map((row, itemIndex) => (itemIndex === index ? { ...row, size } : row)));
+  }
+
+  function updateChartRowMeasurement(index: number, label: string, value: string) {
+    setSizingChart((current) =>
+      current.map((row, itemIndex) =>
+        itemIndex === index ? { ...row, measurements: { ...row.measurements, [label]: value } } : row,
+      ),
+    );
+  }
 
   async function uploadIcon(files: FileList | null) {
     if (!files?.length) return;
@@ -145,9 +187,29 @@ function CategoryDialog({
       return;
     }
 
+    const summary = sizingSummary.trim();
+    const howToMeasure = sizingHowToMeasure.trim();
+    const chart = sizingChart
+      .filter((row) => row.size.trim())
+      .map((row) => ({
+        size: row.size.trim(),
+        measurements: Object.fromEntries(
+          Object.entries(row.measurements).filter(([, value]) => value.trim()),
+        ),
+      }));
+    const hasSizingGuide = Boolean(summary || howToMeasure || sizingPresetGroups.length || chart.length);
+
     const payload: Record<string, unknown> = { name, sortOrder };
     if (description) payload.description = description;
     if (icon) payload.iconUrl = icon;
+    if (hasSizingGuide) {
+      payload.sizingGuide = {
+        ...(summary ? { summary } : {}),
+        ...(howToMeasure ? { howToMeasure } : {}),
+        presetGroups: sizingPresetGroups,
+        ...(chart.length ? { chart } : {}),
+      };
+    }
 
     setLoading(true);
     try {
@@ -277,6 +339,101 @@ function CategoryDialog({
             <p className="text-xs text-zinc-400">Shown on the category card and anywhere the category is featured.</p>
           </div>
 
+          <div className="space-y-3 rounded-lg border border-border bg-zinc-50 p-3">
+            <div className="flex items-center gap-1.5">
+              <Ruler size={14} className="text-zinc-500" />
+              <Label>Sizing guide</Label>
+            </div>
+            <p className="text-xs leading-5 text-zinc-400">
+              Shown to Market Associates while they capture products in this category, and to customers
+              on the product page — helps everyone use sizes consistently.
+            </p>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="sizingSummary" className="text-xs font-medium text-zinc-600">Summary</Label>
+              <Input
+                id="sizingSummary"
+                value={sizingSummary}
+                onChange={(e) => setSizingSummary(e.target.value)}
+                placeholder="e.g. Sizes follow standard Nigerian clothing sizing"
+                maxLength={200}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="sizingHowToMeasure" className="text-xs font-medium text-zinc-600">How to measure</Label>
+              <Textarea
+                id="sizingHowToMeasure"
+                value={sizingHowToMeasure}
+                onChange={(e) => setSizingHowToMeasure(e.target.value)}
+                placeholder="Explain how a customer or Market Associate should take measurements for this category."
+                maxLength={2000}
+                className="min-h-20"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-zinc-600">Applies to</Label>
+              <div className="flex flex-wrap gap-3">
+                {(Object.keys(SIZING_PRESET_GROUP_LABELS) as SizingPresetGroup[]).map((group) => (
+                  <label key={group} className="flex items-center gap-1.5 text-sm text-zinc-700">
+                    <Checkbox
+                      checked={sizingPresetGroups.includes(group)}
+                      onCheckedChange={() => togglePresetGroup(group)}
+                    />
+                    {SIZING_PRESET_GROUP_LABELS[group]}
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs text-zinc-400">
+                Narrows the size options Market Associates see when capturing products in this category.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-medium text-zinc-600">Measurement chart (optional)</Label>
+                <Button type="button" variant="outline" size="sm" onClick={addChartRow}>
+                  <Plus size={13} /> Add row
+                </Button>
+              </div>
+              {sizingChart.length ? (
+                <div className="space-y-2">
+                  {sizingChart.map((row, index) => (
+                    <div key={index} className="grid grid-cols-[80px_1fr_1fr_1fr_auto] gap-1.5 rounded-md border border-border bg-white p-2">
+                      <Input
+                        value={row.size}
+                        onChange={(e) => updateChartRowSize(index, e.target.value)}
+                        placeholder="Size"
+                        className="h-8 text-xs"
+                      />
+                      {(["Chest", "Waist", "Hip"] as const).map((label) => (
+                        <Input
+                          key={label}
+                          value={row.measurements[label] || ""}
+                          onChange={(e) => updateChartRowMeasurement(index, label, e.target.value)}
+                          placeholder={label}
+                          className="h-8 text-xs"
+                        />
+                      ))}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => removeChartRow(index)}
+                        aria-label="Remove row"
+                      >
+                        <X size={13} />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-zinc-400">No measurement rows added yet.</p>
+              )}
+            </div>
+          </div>
+
           <div className="space-y-1.5">
             <Label htmlFor="sortOrder">Sort Order</Label>
             <Input
@@ -397,10 +554,18 @@ function CategoryCard({
           <p className="mt-2.5 line-clamp-2 text-xs text-zinc-500">{category.description}</p>
         )}
 
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <span className="flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-600">
             <Package size={11} />
             {category.productCount} product{category.productCount === 1 ? "" : "s"}
+          </span>
+          <span
+            className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+              category.hasSizingGuide ? "bg-emerald-50 text-emerald-700" : "bg-zinc-100 text-zinc-400"
+            }`}
+          >
+            <Ruler size={11} />
+            {category.hasSizingGuide ? "Sizing guide added" : "No sizing guide"}
           </span>
           <Badge
             variant="outline"

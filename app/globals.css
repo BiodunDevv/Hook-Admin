@@ -169,13 +169,14 @@
   background-color: transparent;
 }
 
+/* Hook loader — masked segment bar with a travelling fill, in Hook gold. */
 .loader {
-  --hook-loader-color: var(--primary);
+  --hook-loader-color: #ffc809;
   --hook-loader-track: #eee;
   width: 120px;
   height: 20px;
-  background: linear-gradient(var(--hook-loader-color) 0 0) left -40px top
-    0/40px 100% no-repeat var(--hook-loader-track);
+  background: linear-gradient(var(--hook-loader-color) 0 0) left -40px top 0/40px
+    100% no-repeat var(--hook-loader-track);
   -webkit-mask: conic-gradient(from 90deg at 5px 5px, #0000 25%, #000 0) 0 0 /
     calc((100% - 5px) / 5) calc(100% - 5px);
   mask: conic-gradient(from 90deg at 5px 5px, #0000 25%, #000 0) 0 0 /
@@ -184,7 +185,7 @@
 }
 
 .hook-loader-yellow {
-  --hook-loader-color: var(--primary);
+  --hook-loader-color: #ffc809;
   --hook-loader-track: #eee;
 }
 
@@ -199,11 +200,23 @@
 }
 
 .hook-loader-inline {
-  width: 120px;
-  height: 20px;
+  width: 90px;
+  height: 16px;
 }
 
 .hook-loader-button {
-  width: 120px;
-  height: 20px;
+  width: 60px;
+  height: 12px;
+}
+
+@keyframes l10 {
+  100% {
+    background-position: right -40px top 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loader {
+    animation-duration: 2s;
+  }
 }

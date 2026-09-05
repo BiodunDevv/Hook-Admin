@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import {
@@ -23,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HookLoader } from "@/components/shared/HookLoader";
 import { AdminWorkflowSheet } from "@/components/shared/AdminWorkflowSheet";
 import { MetricCard } from "@/components/shared/MetricCard";
@@ -32,21 +34,36 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { apiPatch, apiPost } from "@/lib/api";
 import { useApiQuery } from "@/lib/query";
 
+type NamedMarket = { name?: string; imageUrl?: string };
+type NamedHub = { name?: string };
+type NamedMarketAssociate = { name?: string; email?: string; avatarUrl?: string };
+type NamedOrder = { publicId?: string };
+
 type Row = {
   id?: string;
   publicId?: string;
   status?: string;
   marketId?: string;
-  runnerId?: string;
+  marketAssociateId?: string;
   hubId?: string;
   summary?: string;
   severity?: string;
   type?: string;
   orderId?: string;
   version?: number;
+  market?: NamedMarket | null;
+  hub?: NamedHub | null;
+  marketAssociate?: NamedMarketAssociate | null;
+  order?: NamedOrder | null;
 };
 
-type Runner = Row & {
+function initials(name?: string) {
+  const parts = (name || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "MA";
+  return `${parts[0][0]}${parts[1]?.[0] || ""}`.toUpperCase();
+}
+
+type MarketAssociateOption = Row & {
   firstName?: string;
   lastName?: string;
   email?: string;
@@ -68,7 +85,7 @@ type ControlTower = {
   };
 };
 
-type AssignmentForm = { runnerId?: string; hubId?: string; reason?: string };
+type AssignmentForm = { marketAssociateId?: string; hubId?: string; reason?: string };
 
 const workflowLinks = [
   { label: "Control tower", href: "/dashboard/fulfilment" },
@@ -86,9 +103,9 @@ export default function FulfilmentControlTowerPage() {
     ["admin", "fulfilment", "control-tower"],
     "/admin/fulfilment/control-tower",
   );
-  const runnersQuery = useApiQuery<DirectoryResponse<Runner>>(
-    ["admin", "fulfilment", "runners"],
-    "/admin/fulfilment/runners?limit=100",
+  const marketAssociatesQuery = useApiQuery<DirectoryResponse<MarketAssociateOption>>(
+    ["admin", "fulfilment", "market-associates"],
+    "/admin/fulfilment/market-associates?limit=100",
   );
   const hubsQuery = useApiQuery<DirectoryResponse<Hub>>(
     ["admin", "fulfilment", "hubs"],
@@ -105,9 +122,9 @@ export default function FulfilmentControlTowerPage() {
   const [pending, setPending] = useState<string>();
 
   const data = query.data;
-  const runners = Array.isArray(runnersQuery.data)
-    ? runnersQuery.data
-    : runnersQuery.data?.data || [];
+  const marketAssociates = Array.isArray(marketAssociatesQuery.data)
+    ? marketAssociatesQuery.data
+    : marketAssociatesQuery.data?.data || [];
   const hubs = Array.isArray(hubsQuery.data)
     ? hubsQuery.data
     : hubsQuery.data?.data || [];
@@ -117,12 +134,12 @@ export default function FulfilmentControlTowerPage() {
     const form = taskId ? assignments[taskId] : undefined;
     if (
       !taskId ||
-      !form?.runnerId ||
+      !form?.marketAssociateId ||
       !form.hubId ||
       !form.reason?.trim() ||
       !selectedTask?.version
     ) {
-      toast.error("Choose a Runner, Hub, and reason before reassigning");
+      toast.error("Choose a Market Associate, Hub, and reason before reassigning");
       return;
     }
 
@@ -203,7 +220,7 @@ export default function FulfilmentControlTowerPage() {
       <PageHeader
         className="mb-0"
         title="Fulfilment Control Tower"
-        description="Monitor Runner sourcing, Hub readiness, shipments, exceptions, returns, and refunds across the current operating scope."
+        description="Monitor Market Associate sourcing, Hub readiness, shipments, exceptions, returns, and refunds across the current operating scope."
       />
 
       <nav
@@ -246,7 +263,7 @@ export default function FulfilmentControlTowerPage() {
                 <CardHeader className="flex-row items-center justify-between border-b px-4 py-3">
                   <div>
                     <CardTitle className="text-sm font-semibold">
-                      Runner tasks
+                      Market Associate tasks
                     </CardTitle>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       Prioritized by operational SLA
@@ -265,26 +282,44 @@ export default function FulfilmentControlTowerPage() {
                         "HUB_RECEIVED",
                         "QC_PASSED",
                       ].includes(task.status || "");
+                      const marketAssociateName = task.marketAssociate?.name;
                       return (
                         <div
                           key={taskId}
                           className="grid gap-3 border-b px-4 py-3 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
                         >
-                          <div className="min-w-0">
-                            <div className="flex min-w-0 items-center gap-2">
-                              <Link
-                                href={`/dashboard/fulfilment/tasks/${taskId}`}
-                                className="truncate text-sm font-medium hover:underline"
-                              >
-                                {taskId}
-                              </Link>
-                              <StatusBadge status={task.status || "Unknown"} />
+                          <div className="flex min-w-0 items-center gap-3">
+                            {task.market?.imageUrl ? (
+                              <span className="relative size-10 shrink-0 overflow-hidden rounded-md">
+                                <Image src={task.market.imageUrl} alt="" fill className="object-cover" unoptimized />
+                              </span>
+                            ) : (
+                              <span className="grid size-10 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
+                                <Box className="size-4" />
+                              </span>
+                            )}
+                            <div className="min-w-0">
+                              <div className="flex min-w-0 items-center gap-2">
+                                <Link
+                                  href={`/dashboard/fulfilment/tasks/${taskId}`}
+                                  className="truncate text-sm font-medium hover:underline"
+                                >
+                                  {task.market?.name || taskId}
+                                </Link>
+                                <StatusBadge status={task.status || "Unknown"} />
+                              </div>
+                              <div className="mt-1 flex min-w-0 items-center gap-1.5">
+                                <Avatar className="size-4">
+                                  <AvatarImage src={task.marketAssociate?.avatarUrl} alt="" />
+                                  <AvatarFallback className="text-[9px]">
+                                    {initials(marketAssociateName)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <p className="truncate text-xs text-muted-foreground">
+                                  {marketAssociateName || "Unassigned"} · {task.hub?.name || "No Hub"}
+                                </p>
+                              </div>
                             </div>
-                            <p className="mt-1 truncate text-xs text-muted-foreground">
-                              Market {task.marketId || "unassigned"} · Runner{" "}
-                              {task.runnerId || "unassigned"} · Hub{" "}
-                              {task.hubId || "unassigned"}
-                            </p>
                           </div>
                           <div className="flex items-center gap-1.5">
                             {canReassign ? (
@@ -352,7 +387,7 @@ export default function FulfilmentControlTowerPage() {
                             </div>
                             <p className="mt-1 truncate text-xs text-muted-foreground">
                               {label(item.type)} ·{" "}
-                              {item.orderId || "No order reference"}
+                              {item.order?.publicId || "No order reference"}
                             </p>
                           </div>
                           <Button
@@ -429,7 +464,7 @@ export default function FulfilmentControlTowerPage() {
           if (!open && pending !== `assign-${identifier(selectedTask)}`) setSelectedTask(undefined);
         }}
         title="Reassign fulfilment task"
-        description="Select a compatible Runner and Hub. The change is version-checked and recorded in the audit trail."
+        description="Select a compatible Market Associate and Hub. The change is version-checked and recorded in the audit trail."
         footer={(
           <>
             <Button variant="outline" onClick={() => setSelectedTask(undefined)} disabled={pending === `assign-${identifier(selectedTask)}`}>Cancel</Button>
@@ -443,28 +478,28 @@ export default function FulfilmentControlTowerPage() {
             <div className="space-y-5">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label>Runner</Label>
+                  <Label>Market Associate</Label>
                   <Select
-                    value={assignments[identifier(selectedTask)]?.runnerId}
+                    value={assignments[identifier(selectedTask)]?.marketAssociateId}
                     onValueChange={(value) =>
                       setAssignments((current) => ({
                         ...current,
                         [identifier(selectedTask)]: {
                           ...current[identifier(selectedTask)],
-                          runnerId: value,
+                          marketAssociateId: value,
                         },
                       }))
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select Runner" />
+                      <SelectValue placeholder="Select Market Associate" />
                     </SelectTrigger>
                     <SelectContent>
-                      {runners.map((runner) => {
-                        const value = identifier(runner);
+                      {marketAssociates.map((marketAssociate) => {
+                        const value = identifier(marketAssociate);
                         const name =
-                          `${runner.firstName || ""} ${runner.lastName || ""}`.trim() ||
-                          runner.email ||
+                          `${marketAssociate.firstName || ""} ${marketAssociate.lastName || ""}`.trim() ||
+                          marketAssociate.email ||
                           value;
                         return value ? (
                           <SelectItem key={value} value={value}>
