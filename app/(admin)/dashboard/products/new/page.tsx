@@ -15,6 +15,7 @@ import { useApiPost, useApiQuery } from "@/lib/query";
 import { HookLoader } from "@/components/shared/HookLoader";
 import { MediaPicker } from "@/components/shared/MediaPicker";
 interface CategoryOption { id: string; name: string; isActive?: boolean; }
+interface MarketOption { id: string; publicId?: string; name: string; status?: string; stateName?: string; state?: { name?: string }; }
 function csv(value: FormDataEntryValue | null) {
   return String(value || "").split(",").map((item) => item.trim()).filter(Boolean);
 }
@@ -41,8 +42,10 @@ export default function NewProductPage() {
   const [selectedColors, setSelectedColors] = useState(["#111827", "#ffffff"]);
   const [colorValue, setColorValue] = useState("#fbbf24");
   const [categoryId, setCategoryId] = useState("");
-  const [status, setStatus] = useState("pending_approval");
+  const [marketId, setMarketId] = useState("");
+  const [status, setStatus] = useState("published");
   const categories = useApiQuery<{ data: CategoryOption[] }>(["admin", "categories", "options"], "/admin/categories");
+  const markets = useApiQuery<{ data: MarketOption[] }>(["admin", "markets", "product-options"], "/admin/markets?limit=200");
   const createProduct = useApiPost<{ id: string }, Record<string, unknown>>("/admin/products", ["admin", "products"], { successMessage: "Product created" });
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -52,6 +55,7 @@ export default function NewProductPage() {
     const product = await createProduct.mutateAsync({
       ...payload,
       categoryId,
+      marketId,
       status,
       costPrice: Number(payload.costPrice || 0),
       sellingPrice: Number(payload.sellingPrice || 0),
@@ -85,16 +89,30 @@ export default function NewProductPage() {
                   </SelectContent>
                 </Select>
               </Field>
+              <Field>
+                <FieldLabel>Market</FieldLabel>
+                <Select value={marketId} onValueChange={setMarketId} required>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Select active Market" /></SelectTrigger>
+                  <SelectContent>
+                    {(markets.data?.data || []).filter((market) => market.status === "active").map((market) => (
+                      <SelectItem key={market.publicId || market.id} value={market.publicId || market.id}>
+                        {market.name}{market.stateName || market.state?.name ? ` · ${market.stateName || market.state?.name}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldDescription>The product inherits its operating State from this Market.</FieldDescription>
+              </Field>
               <Field className="md:col-span-2">
                 <FieldLabel htmlFor="title">Title</FieldLabel>
                 <Input id="title" name="title" required placeholder="Nike Air Max runner" />
               </Field>
               <Field className="md:col-span-2">
                 <FieldLabel htmlFor="description">Description</FieldLabel>
-                <Textarea id="description" name="description" className="min-h-20" placeholder="Short product description for admin review." />
+                <Textarea id="description" name="description" required minLength={20} className="min-h-20" placeholder="Describe the product, material, condition, and what the customer receives." />
               </Field>
               <Field>
-                <PriceLabel help="What this item commonly sells for outside Hook.">Market Price</PriceLabel>
+                <PriceLabel help="What Hook pays for this item. Negotiation can never go below this.">Cost Price</PriceLabel>
                 <Input name="costPrice" type="number" min="1" required placeholder="52000" />
               </Field>
               <Field>
@@ -114,9 +132,8 @@ export default function NewProductPage() {
                 <Select value={status} onValueChange={setStatus}>
                   <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="pending_approval">Pending Approval</SelectItem>
-                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="published">Active on Hook</SelectItem>
+                    <SelectItem value="draft">Save as draft</SelectItem>
                   </SelectContent>
                 </Select>
               </Field>
@@ -157,7 +174,7 @@ export default function NewProductPage() {
 
             <div className="flex justify-end lg:col-span-2">
               <Button type="submit" variant="brand" disabled={createProduct.isPending}>
-                {createProduct.isPending ? <HookLoader size="button" label="Creating..." /> : "Create Product"}
+                {createProduct.isPending ? <HookLoader size="button" label="Creating..." /> : status === "published" ? "Create & activate" : "Save draft"}
               </Button>
             </div>
           </CardContent>
