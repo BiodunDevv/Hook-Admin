@@ -296,6 +296,25 @@ export async function resetPassword(email: string, code: string, password: strin
   );
 }
 
+/**
+ * Pings the backend's own /health endpoint (outside /api/v1, so it can't go
+ * through apiRequest). Used by the PWA launch screen to tell "you're not
+ * logged in yet" apart from "the API is unreachable" — those need different
+ * UI, and a plain fetch failure alone doesn't distinguish them.
+ */
+export async function checkHookHealth(): Promise<boolean> {
+  const base = (API_BASE || "http://localhost:4000/api/v1").replace(/\/api\/v1\/?$/, "");
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch(`${base}/health`, { signal: controller.signal });
+    clearTimeout(timeout);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function getCurrentAccount() {
   const user = await apiGet<AdminUser>("/auth/profile");
   localStorage.setItem(ADMIN_USER_KEY, JSON.stringify(user));

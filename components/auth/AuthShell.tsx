@@ -5,7 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { FloatingPaths } from "@/components/floating-paths";
 import { HookLogo } from "@/components/shared/HookLogo";
 import { HookLoader } from "@/components/shared/HookLoader";
-import { useAccountSession } from "@/lib/query";
+import { MaintenanceScreen } from "@/components/shared/MaintenanceScreen";
+import { useAccountSession, useBackendHealth } from "@/lib/query";
 import { dashboardPath } from "@/lib/auth-routing";
 
 const copy = {
@@ -35,7 +36,8 @@ const copy = {
 export function AuthShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const session = useAccountSession();
+  const health = useBackendHealth();
+  const session = useAccountSession(health.data !== false);
   const content = copy[pathname as keyof typeof copy] || copy["/auth/login"];
 
   useEffect(() => {
@@ -44,7 +46,9 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
     }
   }, [router, session.data]);
 
-  if (session.isLoading || session.isPending || session.data) {
+  if (health.data === false) return <MaintenanceScreen />;
+
+  if (health.isLoading || session.isLoading || session.isPending || session.data) {
     return (
       <div className="flex min-h-[100dvh] items-center justify-center bg-background">
         <HookLoader size="page" label="Checking your session..." />

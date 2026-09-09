@@ -4,6 +4,7 @@ import {
   apiDelete,
   apiPatch,
   apiPost,
+  checkHookHealth,
   clearSession,
   ensureAccountSession,
   loginAccount,
@@ -24,6 +25,23 @@ export function useApiQuery<T>(queryKey: readonly unknown[], path: string, enabl
     queryKey,
     queryFn: () => apiGet<T>(path),
     enabled,
+  });
+}
+
+/**
+ * Shared across every guard that shows a maintenance screen (AuthShell,
+ * AdminGuard, PortalGuard) — one polling query rather than each guard
+ * pinging /health independently. Stays quiet (no retries, short staleTime)
+ * so a real outage is reflected quickly without hammering a server that's
+ * already down.
+ */
+export function useBackendHealth() {
+  return useQuery({
+    queryKey: ["backend-health"],
+    queryFn: checkHookHealth,
+    staleTime: 15_000,
+    refetchInterval: (query) => (query.state.data === false ? 5_000 : 30_000),
+    retry: false,
   });
 }
 

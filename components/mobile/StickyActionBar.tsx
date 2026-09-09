@@ -27,7 +27,7 @@ export function StickyActionBar({
   return (
     <div
       className="fixed inset-x-0 z-40 flex justify-center px-3"
-      style={{ bottom: APP_ACTION_BAR_BOTTOM }}
+      style={{ bottom: `calc(${APP_ACTION_BAR_BOTTOM}px + var(--safe-bottom))` }}
     >
       <div
         className={cn(
