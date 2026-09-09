@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import Link from "next/link";
 import { AlertCircle, ChevronDown, ChevronUp, ImagePlus, Plus, Ruler, Save, Send, Star, Trash2, UserPlus } from "lucide-react";
@@ -16,6 +16,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { HookLoader } from "@/components/shared/HookLoader";
 import { MobileButton } from "@/components/mobile/MobileUI";
+import { ACTION_BAR_BUTTON, StickyActionBar } from "@/components/mobile/StickyActionBar";
+import { APP_ACTION_BAR_CONTENT_INSET } from "@/lib/tab-bar-layout";
+import { cn } from "@/lib/utils";
 import { ColorPicker } from "@/components/mobile/ColorPicker";
 import { SizePicker } from "@/components/mobile/SizePicker";
 import type { SizingGuide } from "@/lib/sizing-guide";
@@ -89,6 +92,7 @@ export function MarketAssociateSubmissionForm({
   categories: CategoryOption[];
 }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [form, setForm] = useState(() => initialValue(submission));
   const [mediaById, setMediaById] = useState<Record<string, { deliveryUrl?: string; width?: number; height?: number }>>(
     () => Object.fromEntries((submission?.media || []).map((item) => [item.publicId, item])),
@@ -161,15 +165,28 @@ export function MarketAssociateSubmissionForm({
       const saved = submission
         ? await apiPatch<ProductSubmission>(`/market-associate/product-submissions/${submission.publicId}`, payload)
         : await apiPost<ProductSubmission>("/market-associate/product-submissions", payload);
+      // The submit call returns the promoted record, so prefer it over the draft
+      // we just saved — that is what carries the new status.
+      let latest = saved;
       if (submitAfter) {
-        await apiPost(`/market-associate/product-submissions/${saved.publicId}/submit`, { version: saved.version });
+        latest =
+          (await apiPost<ProductSubmission>(
+            `/market-associate/product-submissions/${saved.publicId}/submit`,
+            { version: saved.version },
+          )) || saved;
         toast.success("Submission sent to Catalog Review");
       } else {
         toast.success("Draft saved");
       }
       setDirty(false);
-      router.replace(`/market-associate/submissions/${saved.publicId}`);
-      router.refresh();
+      // Seed the detail cache so the status badge is correct on arrival, then let
+      // the list and dashboard refetch. Without this the pages read a stale cache
+      // and keep showing "draft" until they happen to go stale on their own.
+      queryClient.setQueryData(["marketassociate", "submission", latest.publicId], latest);
+      void queryClient.invalidateQueries({ queryKey: ["marketassociate", "submissions"] });
+      void queryClient.invalidateQueries({ queryKey: ["marketassociate", "submission", latest.publicId] });
+      void queryClient.invalidateQueries({ queryKey: ["marketassociate", "catalog-dashboard"] });
+      router.replace(`/market-associate/submissions/${latest.publicId}`);
     } catch (error) {
       const details = (error as { details?: { fields?: string[] } })?.details;
       if (details?.fields?.length) {
@@ -226,7 +243,7 @@ export function MarketAssociateSubmissionForm({
   const noVendors = Boolean(form.marketId && !vendors.isLoading && !vendors.data?.length);
 
   return (
-    <div className="pb-4">
+    <div style={{ paddingBottom: editable ? APP_ACTION_BAR_CONTENT_INSET : 16 }}>
       {submission?.reviewNotes?.length ? (
         <div className="mb-6 rounded-[10px] bg-[#FFF3C4] p-4">
           <p className="flex items-center gap-1.5 text-[13px] font-bold text-[#9a7400]">
@@ -525,14 +542,23 @@ export function MarketAssociateSubmissionForm({
       </FormBlock>
 
       {editable ? (
-        <div className="sticky bottom-3 space-y-2 rounded-[14px] bg-white/95 p-3 shadow-[0_3px_14px_rgba(0,0,0,0.12)] backdrop-blur">
-          <MobileButton disabled={saving || uploading} onClick={() => void save(true)}>
-            {saving ? <HookLoader size="button" /> : <><Send size={17} /> Submit for review</>}
+        <StickyActionBar>
+          <MobileButton
+            variant="outline"
+            disabled={saving || uploading}
+            onClick={() => void save(false)}
+            className={cn(ACTION_BAR_BUTTON, "w-auto shrink-0 border-0 px-4")}
+          >
+            <Save size={16} /> Draft
           </MobileButton>
-          <MobileButton variant="outline" disabled={saving || uploading} onClick={() => void save(false)}>
-            {saving ? <HookLoader size="button" /> : <><Save size={17} /> Save draft</>}
+          <MobileButton
+            disabled={saving || uploading}
+            onClick={() => void save(true)}
+            className={cn(ACTION_BAR_BUTTON, "flex-1")}
+          >
+            {saving ? <HookLoader size="button" /> : <><Send size={16} /> Submit for review</>}
           </MobileButton>
-        </div>
+        </StickyActionBar>
       ) : null}
     </div>
   );

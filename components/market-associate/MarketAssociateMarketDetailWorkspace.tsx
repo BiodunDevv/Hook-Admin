@@ -26,6 +26,7 @@ import {
   MobileSection,
   MobileStat,
 } from "@/components/mobile/MobileUI";
+import { useQueryClient } from "@tanstack/react-query";
 import { useApiQuery } from "@/lib/query";
 import { MarketVendorSheet } from "@/components/market-associate/MarketVendorSheet";
 import { VendorCollectionSheet } from "@/components/market-associate/VendorCollectionSheet";
@@ -86,6 +87,17 @@ const label = (value?: string) => String(value || "-").replaceAll("_", " ");
 
 export function MarketAssociateMarketDetailWorkspace({ id }: { id: string }) {
   const query = useApiQuery<Detail>(["marketassociate", "market", id], `/market-associate/markets/${id}`);
+  const queryClient = useQueryClient();
+
+  /**
+   * Supplier changes also feed the capture form's vendor picker, which reads a
+   * separate cache — refetching this view alone would leave that list stale.
+   */
+  function syncMarket() {
+    void queryClient.invalidateQueries({ queryKey: ["marketassociate", "market", id] });
+    void queryClient.invalidateQueries({ queryKey: ["marketassociate", "market-vendors"] });
+    void queryClient.invalidateQueries({ queryKey: ["marketassociate", "markets"] });
+  }
   const [vendorOpen, setVendorOpen] = useState(false);
   const [vendorSearch, setVendorSearch] = useState("");
   const [collectionSubmission, setCollectionSubmission] = useState<Submission | null>(null);
@@ -283,14 +295,14 @@ export function MarketAssociateMarketDetailWorkspace({ id }: { id: string }) {
         marketName={detail.market.name}
         open={vendorOpen}
         onClose={() => setVendorOpen(false)}
-        onSuccess={() => void query.refetch()}
+        onSuccess={syncMarket}
       />
       <VendorCollectionSheet
         key={collectionSubmission?.publicId || "collection-closed"}
         submission={collectionSubmission}
         open={Boolean(collectionSubmission)}
         onClose={() => setCollectionSubmission(null)}
-        onSuccess={() => void query.refetch()}
+        onSuccess={syncMarket}
       />
     </div>
   );

@@ -13,6 +13,7 @@ import { MediaPicker } from "@/components/shared/MediaPicker";
 import { AdminWorkflowSheet } from "@/components/shared/AdminWorkflowSheet";
 import { DetailSection } from "@/components/shared/DetailSection";
 import { DefinitionGrid } from "@/components/shared/DefinitionGrid";
+import { ProductLifecycleWorkspace } from "@/components/products/ProductLifecycleWorkspace";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -61,6 +62,18 @@ interface ProductDetail {
   vendor?: { id?: string; businessName?: string };
   category?: { id?: string; publicId?: string; name?: string };
   categoryManagers?: CategoryManager[];
+  basePriceMinor?: number;
+  sellingPriceMinor?: number;
+  negotiationRules?: {
+    enabled: boolean;
+    minimumNegotiablePriceMinor?: number;
+    maximumDiscountMinor?: number;
+    maximumCustomerOffers: number;
+    acceptedQuoteExpiryMinutes: number;
+  };
+  availabilityCheckDueAt?: string;
+  availabilityCheckNote?: string;
+  lastAvailabilityConfirmedAt?: string;
 }
 interface ProductOption { id: string; publicId?: string; name: string; isActive?: boolean; status?: string; stateName?: string; state?: { name?: string }; }
 
@@ -304,6 +317,8 @@ export default function ProductDetailPage() {
               </DetailSection>
             </div>
           </div>
+
+          <ProductLifecycleWorkspace product={product} onSaved={() => query.refetch()} />
         </div>
       )}
       {product && (
