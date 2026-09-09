@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import { usePathname } from "next/navigation";
-import { useRouter } from "next/navigation";
-import { Logo } from "@/components/logo";
+import { usePathname, useRouter } from "next/navigation";
 import { FloatingPaths } from "@/components/floating-paths";
+import { HookLogo } from "@/components/shared/HookLogo";
 import { HookLoader } from "@/components/shared/HookLoader";
 import { useAccountSession } from "@/lib/query";
 import { dashboardPath } from "@/lib/auth-routing";
@@ -47,41 +46,49 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
 
   if (session.isLoading || session.isPending || session.data) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
+      <div className="flex min-h-[100dvh] items-center justify-center bg-background">
         <HookLoader size="page" label="Checking your session..." />
       </div>
     );
   }
 
   return (
-    <main className="grid min-h-[100dvh] overflow-y-auto bg-white lg:grid-cols-[minmax(480px,0.95fr)_minmax(520px,1.05fr)]">
-      <section className="relative hidden min-h-screen overflow-hidden bg-zinc-950 text-white lg:block">
-        <div className="absolute inset-x-0 bottom-0 h-[48%] text-brand-gold/30">
+    <main className="grid min-h-[100dvh] bg-background lg:grid-cols-[minmax(480px,0.95fr)_minmax(520px,1.05fr)]">
+      {/* Brand panel — desktop only */}
+      <section className="relative hidden min-h-[100dvh] overflow-hidden bg-zinc-950 text-white lg:block">
+        <div className="absolute inset-x-0 bottom-0 h-[48%] text-brand-gold/25">
           <FloatingPaths position={1} />
           <FloatingPaths position={-1} />
         </div>
 
-        <div className="relative z-10 flex min-h-screen flex-col justify-between p-6">
-          <Logo tone="light" className="text-5xl" />
+        {/* Warm gold wash anchoring the brand side */}
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_15%_0%,color-mix(in_oklch,var(--color-brand-gold)_16%,transparent),transparent_70%)]" />
+
+        <div className="relative z-10 flex min-h-[100dvh] flex-col justify-between p-10">
+          <HookLogo className="text-4xl text-white" />
 
           <div className="max-w-xl pb-16">
-            <p className="text-sm font-medium uppercase tracking-[0.28em] text-brand-gold">
+            <p className="text-xs font-medium uppercase tracking-[0.28em] text-brand-gold">
               {content.eyebrow}
             </p>
-            <h1 className="mt-5 text-3xl font-semibold leading-[1.08] tracking-tight">
+            <h1 className="mt-5 text-[2rem] font-semibold leading-[1.12] tracking-tight text-balance">
               {content.title}
             </h1>
-            <p className="mt-6 max-w-md text-base leading-7 text-zinc-300">
+            <p className="mt-5 max-w-md text-base leading-7 text-zinc-400">
               {content.description}
             </p>
           </div>
 
-          <p className="text-sm text-zinc-500">{content.footer}</p>
+          <div className="flex items-center gap-2 text-xs text-zinc-500">
+            <span className="size-1.5 rounded-full bg-brand-gold" />
+            {content.footer}
+          </div>
         </div>
       </section>
 
-      <section className="flex min-h-[100dvh] items-center justify-center overflow-y-auto bg-white px-4 py-8 [scroll-padding-bottom:40vh] sm:py-10">
-        <div className="w-full max-w-md">{children}</div>
+      {/* Form panel */}
+      <section className="flex min-h-[100dvh] items-center justify-center overflow-y-auto px-6 py-10 md:px-8">
+        {children}
       </section>
     </main>
   );

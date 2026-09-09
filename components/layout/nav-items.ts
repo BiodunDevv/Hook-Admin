@@ -10,7 +10,6 @@ import {
   LayoutGrid,
   LifeBuoy,
   MapPinned,
-  Package,
   RotateCcw,
   Settings,
   ScrollText,
@@ -83,16 +82,10 @@ export const navGroups: NavGroup[] = [
     label: "Catalog",
     items: [
       {
-        label: "Catalog Review",
-        href: "/dashboard/catalog-review",
+        label: "Product Submissions",
+        href: "/dashboard/product-submissions",
         icon: ClipboardCheck,
         permission: "catalog.submission.view",
-      },
-      {
-        label: "Commercial Catalog",
-        href: "/dashboard/commercial",
-        icon: Package,
-        permission: "catalog.product.view",
       },
       {
         label: "Product Inventory",

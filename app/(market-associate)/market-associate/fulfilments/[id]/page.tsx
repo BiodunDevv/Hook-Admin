@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { HookLoader } from "@/components/shared/HookLoader";
 import { MobileButton, MobileRow, MobileSection } from "@/components/mobile/MobileUI";
+import { useQueryClient } from "@tanstack/react-query";
 import { apiPost, apiRequest } from "@/lib/api";
 import { useApiQuery } from "@/lib/query";
 
@@ -80,6 +81,7 @@ export default function MarketAssociateFulfilmentDetailPage() {
     `/market-associate/fulfilments/${params.id}`,
     Boolean(params.id),
   );
+  const queryClient = useQueryClient();
   const [pending, setPending] = useState(false);
   const [issueOpen, setIssueOpen] = useState(false);
   const [issue, setIssue] = useState("");
@@ -91,6 +93,17 @@ export default function MarketAssociateFulfilmentDetailPage() {
   const [checks, setChecks] = useState(emptyChecks);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const fileInputId = useId();
+
+  /**
+   * Task changes also move the fulfilments list and the dashboard counters, so
+   * refetching this detail alone would leave those showing the previous state.
+   */
+  function syncTask() {
+    void queryClient.invalidateQueries({ queryKey: ["marketassociate", "fulfilment", params.id] });
+    void queryClient.invalidateQueries({ queryKey: ["marketassociate", "fulfilments"] });
+    void queryClient.invalidateQueries({ queryKey: ["marketassociate", "catalog-dashboard"] });
+    void queryClient.invalidateQueries({ queryKey: ["marketassociate", "notifications"] });
+  }
 
   async function runAction(action: string) {
     setPending(true);
@@ -104,7 +117,7 @@ export default function MarketAssociateFulfilmentDetailPage() {
         setActualCost("");
         setCostOpen(false);
       }
-      await query.refetch();
+      syncTask();
       toast.success("Task updated");
     } catch (error) {
       toast.error(
@@ -124,7 +137,7 @@ export default function MarketAssociateFulfilmentDetailPage() {
         type: "ITEM_UNAVAILABLE",
         orderItemId: selectedItemId,
       });
-      await query.refetch();
+      syncTask();
       setIssue("");
       setIssueOpen(false);
       toast.success("Issue reported");
@@ -164,7 +177,7 @@ export default function MarketAssociateFulfilmentDetailPage() {
         photoUrl: pendingPhotoUrl,
         checks,
       });
-      await query.refetch();
+      syncTask();
       toast.success(Object.values(checks).every(Boolean) ? "Item verified" : "Verification saved");
       setSelectedItemId(undefined);
       setPendingPhotoUrl(undefined);
