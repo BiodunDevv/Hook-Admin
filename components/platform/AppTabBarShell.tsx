@@ -34,6 +34,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useLogout } from "@/lib/query";
 import { PortalGuard } from "@/components/platform/PortalGuard";
+import { ServiceWorkerRegistration } from "@/components/platform/ServiceWorkerRegistration";
+import { InstallPrompt } from "@/components/platform/InstallPrompt";
+import { PullToRefresh } from "@/components/platform/PullToRefresh";
 import { APP_TAB_BAR_CONTENT_INSET, APP_TAB_BAR_HEIGHT, APP_TAB_BAR_BOTTOM_GAP } from "@/lib/tab-bar-layout";
 
 type PortalType = "marketassociate" | "partner";
@@ -128,9 +131,13 @@ export function AppTabBarShell({
 
   return (
     <PortalGuard type={type}>
+      {/* Scoped to this shell only — Admin never renders AppTabBarShell, so
+          it never gets a registered service worker or an install prompt. */}
+      <ServiceWorkerRegistration />
+      <InstallPrompt />
       <div className="min-h-screen bg-[#F5F5F5]">
         {/* Header shares the page background so the app reads as one continuous surface. */}
-        <header className="sticky top-0 z-40 bg-[#F5F5F5]/90 backdrop-blur">
+        <header className="sticky top-0 z-40 bg-[#F5F5F5]/90 backdrop-blur" style={{ paddingTop: "var(--safe-top)" }}>
           <div className="mx-auto flex h-16 w-full max-w-2xl items-center justify-between gap-3 px-5">
             <div className="flex min-w-0 items-center gap-3">
               <HookLogo className="shrink-0 text-xl" />
@@ -169,17 +176,23 @@ export function AppTabBarShell({
           </div>
         </header>
 
-        <main
-          className="mx-auto w-full max-w-2xl px-5 pt-2"
-          style={{ paddingBottom: isNegotiationDetail ? 24 : APP_TAB_BAR_CONTENT_INSET }}
-        >
-          {children}
-        </main>
+        <PullToRefresh queryKeyPrefix={[type === "marketassociate" ? "marketassociate" : "partner"]}>
+          <main
+            className="mx-auto w-full max-w-2xl px-5 pt-2"
+            style={{
+              paddingBottom: isNegotiationDetail
+                ? "calc(24px + var(--safe-bottom))"
+                : `calc(${APP_TAB_BAR_CONTENT_INSET}px + var(--safe-bottom))`,
+            }}
+          >
+            {children}
+          </main>
+        </PullToRefresh>
 
         {!isNegotiationDetail && (
           <nav
             className="fixed inset-x-0 z-50 flex justify-center px-3"
-            style={{ bottom: APP_TAB_BAR_BOTTOM_GAP }}
+            style={{ bottom: `calc(${APP_TAB_BAR_BOTTOM_GAP}px + var(--safe-bottom))` }}
           >
             <div
               className="relative flex w-full max-w-lg items-center gap-1 rounded-[31px] border border-black/5 bg-white px-1 shadow-[0_3px_14px_rgba(0,0,0,0.16)]"
