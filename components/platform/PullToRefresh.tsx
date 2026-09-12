@@ -129,7 +129,9 @@ export function PullToRefresh({
       </div>
       <div
         className={cn("transition-transform", !dragging && !refreshing && "duration-200")}
-        style={{ transform: `translateY(${pull}px)` }}
+        // A permanent translateY(0) makes nested fixed action bars relative to
+        // this content wrapper instead of the viewport, even when not pulling.
+        style={{ transform: pull > 0 ? `translateY(${pull}px)` : undefined }}
       >
         {children}
       </div>

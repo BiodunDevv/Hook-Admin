@@ -32,11 +32,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useLogout } from "@/lib/query";
+import { useApiQuery, useLogout } from "@/lib/query";
 import { PortalGuard } from "@/components/platform/PortalGuard";
 import { ServiceWorkerRegistration } from "@/components/platform/ServiceWorkerRegistration";
 import { InstallPrompt } from "@/components/platform/InstallPrompt";
 import { PullToRefresh } from "@/components/platform/PullToRefresh";
+import { ChangesRequestedBanner } from "@/components/market-associate/ChangesRequestedBanner";
 import { APP_TAB_BAR_CONTENT_INSET, APP_TAB_BAR_HEIGHT, APP_TAB_BAR_BOTTOM_GAP } from "@/lib/tab-bar-layout";
 
 type PortalType = "marketassociate" | "partner";
@@ -57,6 +58,11 @@ type TabConfig = {
   href: string;
   match?: (pathname: string) => boolean;
 };
+
+interface DashboardAlertSummary {
+  changesRequested: number;
+  availabilityChecksDue: number;
+}
 
 const marketAssociateTabs: TabConfig[] = [
   { label: "Home", icon: Home, href: "/market-associate/dashboard" },
@@ -111,6 +117,41 @@ export function AppTabBarShell({
   const logout = useLogout();
   const base = PORTAL_BASE_PATH[type];
 
+  // Shared with the dashboard page's own fetch of the same endpoint — same
+  // query key, so React Query dedupes the request instead of firing twice.
+  const alerts = useApiQuery<DashboardAlertSummary>(
+    ["marketassociate", "catalog-dashboard"],
+    "/market-associate/dashboard",
+    type === "marketassociate",
+  );
+  const changesRequested = type === "marketassociate" ? alerts.data?.changesRequested || 0 : 0;
+  // The dashboard summary's own availabilityChecksDue count can drift from
+  // reality (assignment/ownership scoping computed separately) — the
+  // Availability page's own list endpoint is the source of truth for "is
+  // there anything to check right now", so the banner counts its rows
+  // directly instead of trusting a second, independently-derived number.
+  // This is the one thing on the whole portal that should never sit on a
+  // stale 30s cache: it drives whether the alert banner shows at all, so it
+  // always refetches on mount/focus/reconnect rather than trusting a cached
+  // "0" from before a check existed.
+  const availabilityChecks = useApiQuery<{ id?: string; _id?: string }[]>(
+    ["marketassociate", "availability-checks"],
+    "/market-associate/availability-checks",
+    type === "marketassociate",
+    { staleTime: 0, refetchOnMount: "always", refetchOnWindowFocus: true, refetchOnReconnect: true },
+  );
+  const availabilityChecksDue = type === "marketassociate" ? availabilityChecks.data?.length || 0 : 0;
+  const dashboardAlerts = [
+    changesRequested > 0 && {
+      href: "/market-associate/submissions",
+      message: `${changesRequested} submission${changesRequested === 1 ? "" : "s"} need${changesRequested === 1 ? "s" : ""} changes — tap to review and resubmit`,
+    },
+    availabilityChecksDue > 0 && {
+      href: "/market-associate/availability",
+      message: `${availabilityChecksDue} product${availabilityChecksDue === 1 ? "" : "s"} need${availabilityChecksDue === 1 ? "s" : ""} an availability check — tap to confirm`,
+    },
+  ].filter((alert): alert is { href: string; message: string } => Boolean(alert));
+
   if (pathname === `${base}/activate`) return <>{children}</>;
 
   /**
@@ -131,13 +172,30 @@ export function AppTabBarShell({
 
   return (
     <PortalGuard type={type}>
-      {/* Scoped to this shell only — Admin never renders AppTabBarShell, so
-          it never gets a registered service worker or an install prompt. */}
-      <ServiceWorkerRegistration />
+      {/* Scoped to this portal's own path (e.g. /market-associate/) — Admin
+          never renders AppTabBarShell and is outside every registered
+          scope, so it never gets a controlling service worker or an
+          install prompt, even after visiting this portal in the same
+          browser. */}
+      <ServiceWorkerRegistration scope={`${base}/`} />
       <InstallPrompt />
-      <div className="min-h-screen bg-[#F5F5F5]">
+      <div className="min-h-screen min-h-dvh bg-[#F5F5F5]">
+        {/* In normal flow, not sticky — visible at the top of the page and
+            scrolls away with content, so the sticky header below settles
+            flush against the top of the viewport once you scroll past it.
+            Whichever of the two is actually first owns the safe-area inset,
+            so a notch/status bar is only ever cleared once. */}
+        {dashboardAlerts.length > 0 && (
+          <div style={{ paddingTop: "var(--safe-top)" }}>
+            <ChangesRequestedBanner alerts={dashboardAlerts} />
+          </div>
+        )}
+
         {/* Header shares the page background so the app reads as one continuous surface. */}
-        <header className="sticky top-0 z-40 bg-[#F5F5F5]/90 backdrop-blur" style={{ paddingTop: "var(--safe-top)" }}>
+        <header
+          className="sticky top-0 z-40 bg-[#F5F5F5]/90 backdrop-blur"
+          style={{ paddingTop: dashboardAlerts.length > 0 ? undefined : "var(--safe-top)" }}
+        >
           <div className="mx-auto flex h-16 w-full max-w-2xl items-center justify-between gap-3 px-5">
             <div className="flex min-w-0 items-center gap-3">
               <HookLogo className="shrink-0 text-xl" />
@@ -191,6 +249,7 @@ export function AppTabBarShell({
 
         {!isNegotiationDetail && (
           <nav
+            aria-label={`${portalLabel} navigation`}
             className="fixed inset-x-0 z-50 flex justify-center px-3"
             style={{ bottom: `calc(${APP_TAB_BAR_BOTTOM_GAP}px + var(--safe-bottom))` }}
           >
@@ -205,6 +264,7 @@ export function AppTabBarShell({
                   <Link
                     key={tab.href}
                     href={tab.href}
+                    aria-current={active ? "page" : undefined}
                     className="relative z-10 flex flex-1 flex-col items-center justify-center gap-0.5 py-2"
                   >
                     {active && (

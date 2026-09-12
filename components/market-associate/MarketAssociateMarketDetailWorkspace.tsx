@@ -28,7 +28,6 @@ import {
 } from "@/components/mobile/MobileUI";
 import { useQueryClient } from "@tanstack/react-query";
 import { useApiQuery } from "@/lib/query";
-import { MarketVendorSheet } from "@/components/market-associate/MarketVendorSheet";
 import { VendorCollectionSheet } from "@/components/market-associate/VendorCollectionSheet";
 import { MarketImage } from "@/components/markets/MarketImage";
 import { money } from "@/lib/admin-utils";
@@ -98,7 +97,6 @@ export function MarketAssociateMarketDetailWorkspace({ id }: { id: string }) {
     void queryClient.invalidateQueries({ queryKey: ["marketassociate", "market-vendors"] });
     void queryClient.invalidateQueries({ queryKey: ["marketassociate", "markets"] });
   }
-  const [vendorOpen, setVendorOpen] = useState(false);
   const [vendorSearch, setVendorSearch] = useState("");
   const [collectionSubmission, setCollectionSubmission] = useState<Submission | null>(null);
   const detail = query.data;
@@ -160,7 +158,7 @@ export function MarketAssociateMarketDetailWorkspace({ id }: { id: string }) {
       </div>
 
       <div className="mb-7">
-        <MobileButton onClick={() => setVendorOpen(true)}>
+        <MobileButton href={`/market-associate/markets/${marketId}/vendors/new`}>
           <Plus size={18} /> Onboard a supplier
         </MobileButton>
       </div>
@@ -289,14 +287,6 @@ export function MarketAssociateMarketDetailWorkspace({ id }: { id: string }) {
         )}
       </MobileSection>
 
-      <MarketVendorSheet
-        key={vendorOpen ? "vendor-open" : "vendor-closed"}
-        marketId={marketId}
-        marketName={detail.market.name}
-        open={vendorOpen}
-        onClose={() => setVendorOpen(false)}
-        onSuccess={syncMarket}
-      />
       <VendorCollectionSheet
         key={collectionSubmission?.publicId || "collection-closed"}
         submission={collectionSubmission}

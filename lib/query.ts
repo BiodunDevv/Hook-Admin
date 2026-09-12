@@ -20,11 +20,19 @@ type ToastOptions = {
   silent?: boolean;
 };
 
-export function useApiQuery<T>(queryKey: readonly unknown[], path: string, enabled = true) {
+type ApiQueryOptions = {
+  staleTime?: number;
+  refetchOnMount?: boolean | "always";
+  refetchOnWindowFocus?: boolean;
+  refetchOnReconnect?: boolean;
+};
+
+export function useApiQuery<T>(queryKey: readonly unknown[], path: string, enabled = true, options?: ApiQueryOptions) {
   return useQuery({
     queryKey,
     queryFn: () => apiGet<T>(path),
     enabled,
+    ...options,
   });
 }
 

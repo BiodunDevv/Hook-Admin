@@ -225,3 +225,25 @@
     animation-duration: 2s;
   }
 }
+
+/* Alert marquee — the "changes requested" ticker at the top of the Market
+   Associate portal. Two copies of the content sit side by side and the pair
+   translates left by exactly half its own width, so the loop is seamless. */
+@keyframes hook-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.hook-marquee-track {
+  animation: hook-marquee 14s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hook-marquee-track {
+    animation-duration: 34s;
+  }
+}

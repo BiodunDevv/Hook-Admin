@@ -90,6 +90,8 @@ function invalidateForEvent(queryClient: QueryClient, event: string) {
   if (event === "notification.created" || event === "notification.updated") {
     invalidateAll(queryClient, NOTIFICATION_KEYS);
   }
+  if (event === 'app-release.updated') queryClient.invalidateQueries({ queryKey: ['admin', 'app-releases'] });
+  if (event === 'negotiation.messages' || event === 'negotiation.updated') queryClient.invalidateQueries({ queryKey: ['admin', 'negotiations'] });
   if (event === "order.updated") {
     invalidateAll(queryClient, ORDER_KEYS);
   }
