@@ -6,8 +6,9 @@ import { dashboardPath, isStaffUser } from "@/lib/auth-routing";
 import { useAccountSession, useBackendHealth } from "@/lib/query";
 import { HookLoader } from "@/components/shared/HookLoader";
 import { MaintenanceScreen } from "@/components/shared/MaintenanceScreen";
+import { AdminServiceWorkerCleanup } from "@/components/auth/AdminServiceWorkerCleanup";
 
-export function AdminGuard({ children }: { children: React.ReactNode }) {
+function AdminGuardBody({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const health = useBackendHealth();
@@ -35,4 +36,13 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
   if (!valid) return null;
 
   return children;
+}
+
+export function AdminGuard({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <AdminServiceWorkerCleanup />
+      <AdminGuardBody>{children}</AdminGuardBody>
+    </>
+  );
 }

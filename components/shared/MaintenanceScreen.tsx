@@ -7,27 +7,9 @@ import { useQueryClient } from "@tanstack/react-query";
 
 const footerCopy = {
   customer: "Your account and cart are safe.",
-  staff: "Your session and pending work are safe — nothing is lost.",
+  staff: "Your session and pending work are safe - nothing is lost.",
 } as const;
 
-/**
- * Shown wherever a guard finds the backend unreachable — the launch screen,
- * the login page, the admin dashboard shell, and the Market Associate/
- * Partner portal shell all render this instead of hanging on a spinner that
- * can never resolve. Centered the same way the launch screen is, so the
- * hand-off between the two reads as one continuous screen rather than a
- * layout jump.
- *
- * Defaults to invalidating the shared `useBackendHealth` query; pass
- * `onRetry` for a caller (like the launch screen) that manages its own
- * health-check loop instead of using that hook.
- *
- * `audience` swaps the reassurance line: "cart" only means something to a
- * Market Associate or Partner — Admin staff don't have one, so they get
- * operational phrasing instead. Defaults to "customer" since that's the
- * more common audience across the two portals this is built for; Admin's
- * guard passes "staff" explicitly.
- */
 export function MaintenanceScreen({
   onRetry,
   audience = "customer",
@@ -48,7 +30,10 @@ export function MaintenanceScreen({
   return (
     <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-[#FFC809] px-6 py-10 text-center">
       <div className="flex w-full max-w-sm flex-1 flex-col items-center justify-center">
-        <HookLogo className="text-3xl" />
+        {/* The gold dot in the wordmark would disappear on this screen's own
+            gold background, so on gold surfaces (matching /launch) the dot
+            goes white instead of gold. */}
+        <HookLogo className="text-3xl text-black" markClassName="text-white" />
         <div className="mt-10 flex size-16 items-center justify-center rounded-[22px] bg-black">
           <Wrench size={29} className="text-[#FFC809]" />
         </div>

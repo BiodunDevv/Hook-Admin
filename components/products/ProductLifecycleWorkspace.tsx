@@ -3,6 +3,8 @@
 import { FormEvent, useState } from "react";
 import { CalendarClock, PauseCircle, PlayCircle, ScaleIcon, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -34,19 +36,14 @@ interface ProductLifecycleData {
   lastAvailabilityConfirmedAt?: string;
 }
 
-const TABS = [
-  ["lifecycle", "Publish & Status"],
-  ["negotiation", "Negotiation Rules"],
-  ["availability", "Availability"],
-] as const;
-
 /**
  * The publish/pause/unpublish, negotiation-rules, and availability-check
- * actions that used to live on the standalone Commercial Catalog page — moved
- * here so every live-product action stays in one workspace.
+ * actions that used to live on the standalone Commercial Catalog page — kept
+ * here so every live-product action stays in one workspace, one card, one
+ * consistent tab pattern with the rest of the admin (Tabs, not hand-rolled
+ * pill buttons).
  */
 export function ProductLifecycleWorkspace({ product, onSaved }: { product: ProductLifecycleData; onSaved: () => void }) {
-  const [activeTab, setActiveTab] = useState<(typeof TABS)[number][0]>("lifecycle");
   const [reason, setReason] = useState("");
   const [rulesEnabled, setRulesEnabled] = useState(product.negotiationRules?.enabled || false);
 
@@ -65,26 +62,24 @@ export function ProductLifecycleWorkspace({ product, onSaved }: { product: Produ
   }
 
   return (
-    <div className="rounded-xl border">
-      <div className="flex gap-1 overflow-x-auto border-b p-2">
-        {TABS.map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => setActiveTab(value)}
-            className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition ${activeTab === value ? "bg-[#fff4b8] text-[#6d5600]" : "text-muted-foreground hover:bg-muted"}`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <div className="p-4">
-        {activeTab === "lifecycle" ? (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between gap-3">
+    <Card className="gap-0 py-0 shadow-none">
+      <CardHeader className="border-b px-4 py-3.5">
+        <CardTitle className="text-sm font-semibold">Manage product</CardTitle>
+        <CardDescription className="text-xs">Publishing, negotiation, and availability actions — every change is version-checked and audited.</CardDescription>
+      </CardHeader>
+      <CardContent className="p-4">
+        <Tabs defaultValue="lifecycle">
+          <TabsList>
+            <TabsTrigger value="lifecycle">Publish &amp; Status</TabsTrigger>
+            <TabsTrigger value="negotiation">Negotiation Rules</TabsTrigger>
+            <TabsTrigger value="availability">Availability</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="lifecycle" className="space-y-4 pt-4">
+            <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 px-3.5 py-3">
               <div>
                 <p className="text-sm font-medium text-foreground">Current status</p>
-                <p className="text-xs text-muted-foreground">Every transition is version-checked and audited.</p>
+                <p className="text-xs text-muted-foreground">What customers see on Hook right now.</p>
               </div>
               <StatusBadge status={product.status} />
             </div>
@@ -96,43 +91,41 @@ export function ProductLifecycleWorkspace({ product, onSaved }: { product: Produ
             <PermissionGuard permission="catalog.product.publish">
               <div className="flex flex-wrap gap-2">
                 {product.status !== "published" ? (
-                  <Button type="button" variant="brand" disabled={lifecyclePending || reason.trim().length < 5} onClick={() => runLifecycle("publish")}>
+                  <Button type="button" variant="brand" size="sm" disabled={lifecyclePending || reason.trim().length < 5} onClick={() => runLifecycle("publish")}>
                     {publish.isPending ? <HookLoader size="button" /> : <><PlayCircle /> Publish</>}
                   </Button>
                 ) : null}
                 {product.status === "published" ? (
-                  <Button type="button" variant="outline" disabled={lifecyclePending || reason.trim().length < 5} onClick={() => runLifecycle("pause")}>
+                  <Button type="button" variant="outline" size="sm" disabled={lifecyclePending || reason.trim().length < 5} onClick={() => runLifecycle("pause")}>
                     {pause.isPending ? <HookLoader size="button" /> : <><PauseCircle /> Pause</>}
                   </Button>
                 ) : null}
                 {["published", "paused"].includes(product.status) ? (
-                  <Button type="button" variant="outline" className="text-destructive" disabled={lifecyclePending || reason.trim().length < 5} onClick={() => runLifecycle("unpublish")}>
+                  <Button type="button" variant="outline" size="sm" className="text-destructive" disabled={lifecyclePending || reason.trim().length < 5} onClick={() => runLifecycle("unpublish")}>
                     {unpublish.isPending ? <HookLoader size="button" /> : <><XCircle /> Unpublish</>}
                   </Button>
                 ) : null}
               </div>
             </PermissionGuard>
-          </div>
-        ) : null}
+          </TabsContent>
 
-        {activeTab === "negotiation" ? (
-          <NegotiationRulesForm productId={product.id} version={version} rules={product.negotiationRules} enabled={rulesEnabled} onEnabledChange={setRulesEnabled} onSaved={onSaved} sellingPriceMinor={product.sellingPriceMinor} />
-        ) : null}
+          <TabsContent value="negotiation" className="pt-4">
+            <NegotiationRulesForm productId={product.id} version={version} rules={product.negotiationRules} enabled={rulesEnabled} onEnabledChange={setRulesEnabled} onSaved={onSaved} sellingPriceMinor={product.sellingPriceMinor} />
+          </TabsContent>
 
-        {activeTab === "availability" ? (
-          <div className="space-y-4">
+          <TabsContent value="availability" className="space-y-4 pt-4">
             <div className="grid gap-3 sm:grid-cols-2">
-              <div>
+              <div className="rounded-lg border bg-muted/30 px-3.5 py-3">
                 <p className="text-xs text-muted-foreground">Availability status</p>
-                <p className="mt-1"><StatusBadge status={product.availabilityStatus || "unconfirmed"} /></p>
+                <p className="mt-1.5"><StatusBadge status={product.availabilityStatus || "unconfirmed"} /></p>
               </div>
-              <div>
+              <div className="rounded-lg border bg-muted/30 px-3.5 py-3">
                 <p className="text-xs text-muted-foreground">Check due</p>
-                <p className="mt-1 text-sm font-medium text-foreground">{product.availabilityCheckDueAt ? new Date(product.availabilityCheckDueAt).toLocaleDateString("en-NG") : "Not scheduled"}</p>
+                <p className="mt-1.5 text-sm font-medium text-foreground">{product.availabilityCheckDueAt ? new Date(product.availabilityCheckDueAt).toLocaleDateString("en-NG") : "Not scheduled"}</p>
               </div>
             </div>
             {product.availabilityCheckNote ? (
-              <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">{product.availabilityCheckNote}</p>
+              <p className="rounded-lg border border-dashed px-3.5 py-3 text-sm text-muted-foreground">{product.availabilityCheckNote}</p>
             ) : null}
             <Field>
               <FieldLabel htmlFor="availability-reason">Reason for the check</FieldLabel>
@@ -142,16 +135,17 @@ export function ProductLifecycleWorkspace({ product, onSaved }: { product: Produ
               <Button
                 type="button"
                 variant="outline"
+                size="sm"
                 disabled={availabilityCheck.isPending || reason.trim().length < 5}
                 onClick={() => availabilityCheck.mutate({ reason: reason.trim(), version }, { onSuccess: () => { setReason(""); onSaved(); } })}
               >
                 {availabilityCheck.isPending ? <HookLoader size="button" /> : <><CalendarClock /> Request availability check</>}
               </Button>
             </PermissionGuard>
-          </div>
-        ) : null}
-      </div>
-    </div>
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -192,9 +186,9 @@ function NegotiationRulesForm({
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
-        <div className="flex items-center gap-2">
-          <ScaleIcon className="size-4 text-muted-foreground" />
+      <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 px-3.5 py-3">
+        <div className="flex items-center gap-2.5">
+          <span className="grid size-8 shrink-0 place-items-center rounded-md bg-background"><ScaleIcon className="size-4 text-muted-foreground" /></span>
           <div>
             <p className="text-sm font-medium text-foreground">AI negotiation</p>
             <p className="text-xs text-muted-foreground">Allow the AI to offer discounts within these limits.</p>
@@ -220,7 +214,7 @@ function NegotiationRulesForm({
         <Textarea id="rules-reason" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Why are the negotiation rules changing?" className="min-h-16" maxLength={1000} />
       </Field>
       <PermissionGuard permission="catalog.negotiation_rules.edit">
-        <Button type="submit" variant="brand" disabled={saveRules.isPending || reason.trim().length < 5}>
+        <Button type="submit" variant="brand" size="sm" disabled={saveRules.isPending || reason.trim().length < 5}>
           {saveRules.isPending ? <HookLoader size="button" /> : "Save negotiation rules"}
         </Button>
       </PermissionGuard>

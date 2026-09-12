@@ -6,7 +6,7 @@
 //
 // Bump CACHE_VERSION on any change here so the old cache is dropped on
 // activate instead of serving stale assets forever.
-const CACHE_VERSION = "hook-shell-v2";
+const CACHE_VERSION = "hook-shell-v3";
 const OFFLINE_URL = "/offline";
 const PRECACHE_URLS = [
   OFFLINE_URL,

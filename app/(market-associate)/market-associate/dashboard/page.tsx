@@ -3,12 +3,14 @@
 import Link from "next/link";
 import {
   Camera,
+  ClipboardCheck,
   ClipboardList,
   MapPinned,
   PackageCheck,
   RotateCcw,
   Store,
   TriangleAlert,
+  UserPlus,
 } from "lucide-react";
 import { HookLoader } from "@/components/shared/HookLoader";
 import {
@@ -25,6 +27,7 @@ interface Dashboard {
   submitted: number;
   changesRequested: number;
   approved: number;
+  availabilityChecksDue: number;
   recentPublished: Array<{ publicId: string; title: string; publishedAt: string }>;
 }
 
@@ -82,20 +85,39 @@ export default function MarketAssociateDashboardPage() {
         />
       </div>
 
-      {data.changesRequested > 0 && (
+      {(data.changesRequested > 0 || data.availabilityChecksDue > 0) && (
         <MobileSection>
-          <MobileRow
-            icon={TriangleAlert}
-            tone="danger"
-            label={`${data.changesRequested} submission${data.changesRequested === 1 ? "" : "s"} need changes`}
-            description="Catalog Review sent these back to you"
-            href="/market-associate/submissions"
-          />
+          {data.changesRequested > 0 && (
+            <MobileRow
+              icon={TriangleAlert}
+              tone="danger"
+              label={`${data.changesRequested} submission${data.changesRequested === 1 ? "" : "s"} need changes`}
+              description="Catalog Review sent these back to you"
+              href="/market-associate/submissions"
+            />
+          )}
+          {data.availabilityChecksDue > 0 && (
+            <MobileRow
+              icon={ClipboardCheck}
+              tone="danger"
+              label={`${data.availabilityChecksDue} product${data.availabilityChecksDue === 1 ? "" : "s"} need an availability check`}
+              description="Confirm or pause products flagged for review"
+              href="/market-associate/availability"
+            />
+          )}
         </MobileSection>
       )}
 
       <MobileSection title="Quick actions">
         <MobileRow icon={Camera} label="Capture a product" description="Add a new product from your market" href="/market-associate/submissions/new" />
+        <MobileRow icon={UserPlus} label="Onboard a vendor" description="Invite a new supplier to one of your markets" href="/market-associate/markets" />
+        <MobileRow
+          icon={ClipboardCheck}
+          label="Availability checks"
+          description="Confirm or pause products flagged for review"
+          href="/market-associate/availability"
+          value={data.availabilityChecksDue > 0 ? data.availabilityChecksDue : undefined}
+        />
         <MobileRow icon={Store} label="Assigned markets" description="Vendors, products, and collections" href="/market-associate/markets" />
       </MobileSection>
 

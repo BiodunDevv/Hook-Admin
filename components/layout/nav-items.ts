@@ -3,7 +3,6 @@ import {
   BarChart3,
   Bot,
   Boxes,
-  ChartNoAxesCombined,
   ClipboardCheck,
   CreditCard,
   Handshake,
@@ -69,12 +68,6 @@ export const navGroups: NavGroup[] = [
         href: "/dashboard/payments",
         icon: CreditCard,
         permission: "commerce.payments.view",
-      },
-      {
-        label: "Checkout Analytics",
-        href: "/dashboard/checkout-analytics",
-        icon: ChartNoAxesCombined,
-        permission: "analytics.checkout",
       },
     ],
   },
@@ -232,6 +225,7 @@ export function canAccessNavItem(
   user: AdminUser | null | undefined,
 ) {
   if (item.superAdminOnly) return isSuperAdmin(user);
+  if (item.href === "/dashboard/settings" && hasPermission(user, "app_releases.view")) return true;
   if (!item.permission) return Boolean(user);
   return hasPermission(user, item.permission);
 }
