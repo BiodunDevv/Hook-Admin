@@ -34,6 +34,10 @@ type OrderDetail = {
   vatMinor?: number;
   vatRate?: number;
   deliveryFeeMinor?: number;
+  couponCode?: string;
+  couponDiscountMinor?: number;
+  creditsAppliedMinor?: number;
+  logisticsProviderSnapshot?: { code?: string; name?: string };
   totalMinor?: number;
   currency?: string;
   customerSnapshot?: Record<string, unknown>;
@@ -238,7 +242,19 @@ export default function OrderDetailPage() {
                 {order.vatMinor != null && order.vatMinor > 0 ? (
                   <Amount label={`VAT${order.vatRate ? ` (${(order.vatRate * 100).toFixed(0)}%)` : ""}`} value={order.vatMinor} />
                 ) : null}
-                <Amount label="Delivery" value={order.deliveryFeeMinor} />
+                {order.couponDiscountMinor ? (
+                  <Amount
+                    label={order.couponCode ? `Coupon (${order.couponCode})` : "Coupon"}
+                    value={-order.couponDiscountMinor}
+                  />
+                ) : null}
+                {order.creditsAppliedMinor ? (
+                  <Amount label="Hook Credits" value={-order.creditsAppliedMinor} />
+                ) : null}
+                <Amount
+                  label={order.logisticsProviderSnapshot?.name ? `Delivery (${order.logisticsProviderSnapshot.name})` : "Delivery"}
+                  value={order.deliveryFeeMinor}
+                />
                 <Amount label="Total" value={order.totalMinor} strong />
               </div>
           </DetailSection>
