@@ -249,7 +249,7 @@ export default function OrderDetailPage() {
                   />
                 ) : null}
                 {order.creditsAppliedMinor ? (
-                  <Amount label="Hook Credits" value={-order.creditsAppliedMinor} />
+                  <Amount label="Hook Coin" value={-order.creditsAppliedMinor} />
                 ) : null}
                 <Amount
                   label={order.logisticsProviderSnapshot?.name ? `Delivery (${order.logisticsProviderSnapshot.name})` : "Delivery"}

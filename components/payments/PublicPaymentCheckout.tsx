@@ -21,6 +21,9 @@ type PaymentDetail = {
     vatRate: number;
     vatMinor: number;
     deliveryFeeMinor: number;
+    couponCode?: string;
+    couponDiscountMinor?: number;
+    creditsAppliedMinor?: number;
     totalMinor: number;
     currency: string;
     items: Array<{ id: string; title: string; imageUrl?: string; quantity: number; selectedVariants?: Record<string, string> }>;
@@ -184,6 +187,12 @@ export function PublicPaymentCheckout({ token, processing = false }: { token: st
             <div className="flex justify-between text-zinc-500"><span>Products</span><span>{money(detail.order.subtotalMinor)}</span></div>
             <div className="flex justify-between text-zinc-500"><span>VAT{detail.order.vatRate ? ` (${detail.order.vatRate * 100}%)` : ""}</span><span>{money(detail.order.vatMinor)}</span></div>
             <div className="flex justify-between text-zinc-500"><span>Delivery</span><span>{money(detail.order.deliveryFeeMinor)}</span></div>
+            {Number(detail.order.couponDiscountMinor || 0) > 0 ? (
+              <div className="flex justify-between text-emerald-600"><span>{detail.order.couponCode ? `Coupon (${detail.order.couponCode})` : "Coupon"}</span><span>−{money(Number(detail.order.couponDiscountMinor))}</span></div>
+            ) : null}
+            {Number(detail.order.creditsAppliedMinor || 0) > 0 ? (
+              <div className="flex justify-between text-emerald-600"><span>Hook Coin</span><span>−{money(Number(detail.order.creditsAppliedMinor))}</span></div>
+            ) : null}
             <div className="flex justify-between pt-2 text-lg font-extrabold text-zinc-950"><span>Total</span><span>{money(detail.order.totalMinor)}</span></div>
           </div>
           {error && <p className="mb-3 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p>}
