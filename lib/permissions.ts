@@ -70,6 +70,8 @@ export const ALL_PERMISSIONS = [
   "market.collections.view", "market.collections.manage",
   "market.payments.view", "market.payments.reconcile",
   "catalog.availability.view", "catalog.availability.manage", "catalog.availability.confirm",
+  "coupons.view", "coupons.manage",
+  "credits.view", "credits.adjust",
 ] as const;
 
 export type Permission = (typeof ALL_PERMISSIONS)[number];
@@ -168,6 +170,10 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   "catalog.availability.view": "View Availability Checks",
   "catalog.availability.manage": "Request Availability Checks",
   "catalog.availability.confirm": "Confirm Product Availability",
+  "coupons.view": "View Coupons",
+  "coupons.manage": "Manage Coupons",
+  "credits.view": "View Customer Credits",
+  "credits.adjust": "Adjust Customer Credits",
 };
 
 export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] = [
@@ -209,6 +215,8 @@ export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] =
       "finance.refunds.view", "finance.refunds.process",
       "commerce.payments.view", "commerce.payments.reconcile",
       "reports.view", "ai_negotiation.view",
+      "coupons.view", "coupons.manage",
+      "credits.view", "credits.adjust",
     ],
   },
   {
