@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowLeft, Check, MessageSquareWarning, Play, X } from "lucide-react";
@@ -78,6 +79,7 @@ export default function ProductSubmissionReviewPage() {
       <QueryState loading={query.isLoading} error={query.error} loadingLabel="Loading submission" errorTitle="Submission unavailable" onRetry={() => query.refetch()}>
         {item ? (
           <div className="space-y-4">
+            <SubmissionPhotoReview item={item} />
             <DetailSection title="Captured by the Market Associate" description="Read-only — this is what was submitted from the field.">
               <DefinitionGrid items={[
                 { label: "Observed price", value: money(item.basePriceMinor, item.currency) },
@@ -143,6 +145,51 @@ export default function ProductSubmissionReviewPage() {
   );
 }
 
+function orderedSubmissionMedia(item: ProductSubmission) {
+  const byId = new Map((item.media || []).map((asset) => [asset.publicId, asset]));
+  const roles = ["front", "side", "back"] as const;
+  const explicit = roles.map((role) => ({ role, asset: item.mediaViews?.[role] ? byId.get(item.mediaViews[role]!) : undefined }));
+  if (explicit.some(({ asset }) => asset)) return explicit;
+  return roles.map((role, index) => ({ role, asset: item.media?.[index] }));
+}
+
+function SubmissionPhotoReview({ item }: { item: ProductSubmission }) {
+  const photos = orderedSubmissionMedia(item);
+  return (
+    <DetailSection
+      title="Required product views"
+      description="Verify that the front, side, and back photos show the same product clearly before starting review."
+    >
+      <div className="grid gap-3 sm:grid-cols-3">
+        {photos.map(({ role, asset }) => {
+          const src = asset?.deliveryUrl || asset?.secureUrl;
+          return (
+            <div key={role} className="overflow-hidden rounded-lg border bg-muted/30">
+              <div className="relative aspect-[4/3] bg-muted">
+                {src ? (
+                  <Image src={src} alt={`${role} view of ${item.basicTitle}`} fill sizes="(max-width: 640px) 100vw, 33vw" className="object-cover" unoptimized />
+                ) : (
+                  <div className="grid size-full place-items-center text-xs font-medium text-muted-foreground">Photo unavailable</div>
+                )}
+              </div>
+              <div className="flex items-center justify-between gap-2 px-3 py-2">
+                <span className="text-xs font-semibold capitalize">{role} view</span>
+                {role === "front" ? <span className="rounded-full bg-[#FFF3C4] px-2 py-0.5 text-[10px] font-semibold text-[#765900]">Primary</span> : null}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className={`mt-3 flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium ${item.captureChecklistConfirmed ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800"}`}>
+        {item.captureChecklistConfirmed ? <Check className="size-4" /> : <MessageSquareWarning className="size-4" />}
+        {item.captureChecklistConfirmed
+          ? "Market Associate confirmed the three-view capture guidelines."
+          : "Legacy capture: the three-view confirmation was not recorded."}
+      </div>
+    </DetailSection>
+  );
+}
+
 /**
  * The full "complete and approve" form. Mounted fresh per submission (parent
  * keys it by `item.publicId`), so its field state can simply initialize from
@@ -170,7 +217,7 @@ function SubmissionApprovalForm({
   // Market options aren't fetched here — the Market field is locked to the
   // submission's own market, so there's nothing to pick from.
   const [images, setImages] = useState<string[]>(
-    (item.media || []).map((asset) => asset.deliveryUrl || asset.secureUrl || "").filter(Boolean),
+    orderedSubmissionMedia(item).map(({ asset }) => asset?.deliveryUrl || asset?.secureUrl || "").filter(Boolean),
   );
   const [colorValue, setColorValue] = useState("#fbbf24");
 

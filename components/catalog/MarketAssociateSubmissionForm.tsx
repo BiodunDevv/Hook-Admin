@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import Link from "next/link";
-import { AlertCircle, ChevronDown, ChevronUp, ImagePlus, Plus, Ruler, Save, Send, Star, Trash2, UserPlus } from "lucide-react";
+import { AlertCircle, Camera, Check, ChevronDown, ChevronUp, ImagePlus, Package, Plus, Ruler, Save, Send, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPatch, apiPost } from "@/lib/api";
 import { money, type ProductSubmission } from "@/lib/catalog";
@@ -55,13 +55,31 @@ interface FormState {
   notes: string;
   basePrice: string;
   mediaIds: string[];
+  mediaViews: { front?: string; side?: string; back?: string };
+  captureChecklistConfirmed: boolean;
   availabilityStatus: string;
   availabilityNote: string;
   internalSellerReference: string;
   variants: Array<{ size: string; colour: string; attributes: Record<string, string>; active: boolean }>;
 }
 
+const submissionFieldLabels: Record<string, string> = {
+  frontSideBackPhotos: "front, side, and back photos",
+  captureChecklistConfirmed: "photo-guideline confirmation",
+  basicTitle: "product title",
+  categorySuggestionId: "category",
+  basePriceMinor: "observed price",
+  variants: "size or colour",
+};
+
 function initialValue(submission?: ProductSubmission): FormState {
+  const mediaViews = submission?.mediaViews && Object.keys(submission.mediaViews).length
+    ? submission.mediaViews
+    : {
+        front: submission?.mediaIds?.[0],
+        side: submission?.mediaIds?.[1],
+        back: submission?.mediaIds?.[2],
+      };
   return {
     marketId: submission?.marketId || "",
     marketVendorId: submission?.marketVendorId || "",
@@ -70,6 +88,8 @@ function initialValue(submission?: ProductSubmission): FormState {
     notes: submission?.notes || "",
     basePrice: submission ? String(submission.basePriceMinor / 100) : "",
     mediaIds: submission?.mediaIds || [],
+    mediaViews,
+    captureChecklistConfirmed: submission?.captureChecklistConfirmed || false,
     availabilityStatus: submission?.availabilityStatus || "available",
     availabilityNote: submission?.availabilityNote || "",
     internalSellerReference: submission?.internalSellerReference || "",
@@ -117,6 +137,8 @@ export function MarketAssociateSubmissionForm({
     staleTime: 30_000,
   });
   const mediaAvailable = mediaReadiness.data?.available === true;
+  const requiredPhotoIds = [form.mediaViews.front, form.mediaViews.side, form.mediaViews.back];
+  const photosComplete = requiredPhotoIds.every(Boolean) && new Set(requiredPhotoIds).size === 3;
 
   useEffect(() => {
     const guard = (event: BeforeUnloadEvent) => {
@@ -133,6 +155,8 @@ export function MarketAssociateSubmissionForm({
     basicTitle: form.basicTitle.trim(),
     notes: form.notes.trim() || undefined,
     mediaIds: form.mediaIds,
+    mediaViews: form.mediaViews,
+    captureChecklistConfirmed: form.captureChecklistConfirmed,
     basePriceMinor: Math.round(Number(form.basePrice) * 100),
     currency: "NGN",
     variants: form.variants.filter((variant) => variant.size || variant.colour),
@@ -149,6 +173,15 @@ export function MarketAssociateSubmissionForm({
 
   async function save(submitAfter = false) {
     if (submitAfter) {
+      const requiredPhotos = [form.mediaViews.front, form.mediaViews.side, form.mediaViews.back];
+      if (requiredPhotos.some((id) => !id) || new Set(requiredPhotos).size !== 3) {
+        toast.error("Take a clear front, side, and back photo before submitting");
+        return;
+      }
+      if (!form.captureChecklistConfirmed) {
+        toast.error("Confirm that the three product-photo guidelines were followed");
+        return;
+      }
       // A variant needs size, colour, or an attribute — mirrors the backend's
       // own submit-time check, so the Market Associate sees this before the round trip,
       // not as a generic "could not be saved" toast after the fact.
@@ -190,7 +223,7 @@ export function MarketAssociateSubmissionForm({
     } catch (error) {
       const details = (error as { details?: { fields?: string[] } })?.details;
       if (details?.fields?.length) {
-        toast.error(`Missing before submitting: ${details.fields.join(", ")}`);
+        toast.error(`Missing before submitting: ${details.fields.map((field) => submissionFieldLabels[field] || field).join(", ")}`);
       } else {
         toast.error(error instanceof Error ? error.message.replace(/^\d+:\s*/, "") : "Submission could not be saved");
       }
@@ -199,7 +232,7 @@ export function MarketAssociateSubmissionForm({
     }
   }
 
-  async function upload(file?: File) {
+  async function upload(view: "front" | "side" | "back", file?: File) {
     if (!file) return;
     if (!mediaAvailable) {
       toast.error("Secure image uploads are temporarily unavailable");
@@ -231,8 +264,17 @@ export function MarketAssociateSubmissionForm({
         ownerType: "submission",
       });
       setMediaById((current) => ({ ...current, [asset.publicId]: asset }));
-      update("mediaIds", [...form.mediaIds, asset.publicId]);
-      toast.success("Image uploaded securely");
+      setForm((current) => {
+        const mediaViews = { ...current.mediaViews, [view]: asset.publicId };
+        return {
+          ...current,
+          mediaViews,
+          mediaIds: [mediaViews.front, mediaViews.side, mediaViews.back].filter((id): id is string => Boolean(id)),
+          captureChecklistConfirmed: false,
+        };
+      });
+      setDirty(true);
+      toast.success(`${view[0].toUpperCase()}${view.slice(1)} view uploaded`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message.replace(/^\d+:\s*/, "") : "Image upload failed");
     } finally {
@@ -277,8 +319,8 @@ export function MarketAssociateSubmissionForm({
         </div>
       ) : null}
 
-      {/* Photos first — this is a capture flow, not a data-entry form. */}
-      <FormBlock title="Photos" hint="The first photo is the primary image shown to Catalog Review.">
+      {/* Photos first — this is a guided field capture, not a generic gallery. */}
+      <FormBlock title="Product photos" hint="Capture exactly three views. The front view becomes the primary catalog image.">
         {mediaReadiness.isError || (mediaReadiness.isSuccess && !mediaAvailable) ? (
           <Alert className="mb-3">
             <AlertCircle />
@@ -288,55 +330,64 @@ export function MarketAssociateSubmissionForm({
             </AlertDescription>
           </Alert>
         ) : null}
-        <div className="grid grid-cols-3 gap-2">
-          {form.mediaIds.map((id, index) => {
-            const asset = mediaById[id];
-            return (
-              <div key={id} className="group relative aspect-square overflow-hidden rounded-[10px] bg-muted">
-                {asset?.deliveryUrl ? (
-                  <Image src={asset.deliveryUrl} alt="Submission media" fill sizes="120px" className="object-cover" unoptimized />
-                ) : (
-                  <div className="flex size-full items-center justify-center"><HookLoader size="inline" /></div>
-                )}
-                {index === 0 && (
-                  <span className="absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                    <Star className="size-2.5 fill-current" /> Primary
-                  </span>
-                )}
-                {editable && (
-                  <button
-                    type="button"
-                    onClick={() => update("mediaIds", form.mediaIds.filter((value) => value !== id))}
-                    className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-full bg-black/60 text-white transition sm:opacity-0 sm:group-hover:opacity-100"
-                    aria-label="Remove photo"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </button>
-                )}
-              </div>
-            );
-          })}
-          <label
-            className={`flex aspect-square flex-col items-center justify-center gap-1.5 rounded-[10px] border-2 border-dashed border-[#D9D9D9] text-[12px] font-semibold text-[#8F8F8F] ${editable && mediaAvailable && !uploading ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
-          >
-            {mediaReadiness.isLoading || uploading ? (
-              <HookLoader size="inline" />
-            ) : (
-              <>
-                <ImagePlus className="size-6" />
-                {mediaAvailable ? "Add photo" : "Unavailable"}
-              </>
-            )}
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/avif"
-              capture="environment"
-              className="sr-only"
-              disabled={!editable || uploading || !mediaAvailable}
-              onChange={(event) => void upload(event.target.files?.[0])}
-            />
-          </label>
+        <div className="rounded-[12px] bg-[#FFF8DF] p-3">
+          <p className="flex items-center gap-2 text-[13px] font-bold text-black"><Camera className="size-4" /> How to photograph the product</p>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <PhotoGuide label="Front" detail="Face the product" position="front" />
+            <PhotoGuide label="Side" detail="Show its profile" position="side" />
+            <PhotoGuide label="Back" detail="Show the rear" position="back" />
+          </div>
+          <p className="mt-3 text-[11px] leading-4 text-[#6f5a12]">Use a clean background, fill the frame, keep the whole product visible, and avoid blur, glare, filters, or people.</p>
         </div>
+
+        <div className="grid grid-cols-3 gap-2">
+          {(["front", "side", "back"] as const).map((view) => (
+            <CaptureSlot
+              key={view}
+              view={view}
+              mediaId={form.mediaViews[view]}
+              asset={form.mediaViews[view] ? mediaById[form.mediaViews[view]!] : undefined}
+              editable={editable}
+              available={mediaAvailable}
+              uploading={uploading || mediaReadiness.isLoading}
+              onUpload={(file) => void upload(view, file)}
+              onRemove={() => {
+                setForm((current) => {
+                  const mediaViews = { ...current.mediaViews, [view]: undefined };
+                  return {
+                    ...current,
+                    mediaViews,
+                    mediaIds: [mediaViews.front, mediaViews.side, mediaViews.back].filter((id): id is string => Boolean(id)),
+                    captureChecklistConfirmed: false,
+                  };
+                });
+                setDirty(true);
+              }}
+            />
+          ))}
+        </div>
+
+        <button
+          type="button"
+          disabled={!editable || !photosComplete}
+          onClick={() => update("captureChecklistConfirmed", !form.captureChecklistConfirmed)}
+          className={cn(
+            "flex w-full items-start gap-3 rounded-[10px] border p-3 text-left transition",
+            form.captureChecklistConfirmed ? "border-[#d4a600] bg-[#FFF3C4]" : "border-[#D9D9D9] bg-white",
+            (!editable || !photosComplete) && "cursor-not-allowed opacity-60",
+          )}
+          aria-pressed={form.captureChecklistConfirmed}
+        >
+          <span className={cn("mt-0.5 grid size-5 shrink-0 place-items-center rounded border", form.captureChecklistConfirmed ? "border-black bg-black text-white" : "border-[#A3A3A6]")}>
+            {form.captureChecklistConfirmed && <Check className="size-3.5" />}
+          </span>
+          <span>
+            <span className="block text-[13px] font-semibold text-black">I followed the product photo guidelines</span>
+            <span className="mt-0.5 block text-[11px] leading-4 text-[#6B6B6B]">
+              {photosComplete ? "I confirm these are clear front, side, and back views of the same product." : "Upload all three required views to enable this confirmation."}
+            </span>
+          </span>
+        </button>
       </FormBlock>
 
       <FormBlock title="Product">
@@ -559,6 +610,100 @@ export function MarketAssociateSubmissionForm({
             {saving ? <HookLoader size="button" /> : <><Send size={16} /> Submit for review</>}
           </MobileButton>
         </StickyActionBar>
+      ) : null}
+    </div>
+  );
+}
+
+const viewLabels = { front: "Front", side: "Side", back: "Back" } as const;
+
+function PhotoGuide({
+  label,
+  detail,
+  position,
+}: {
+  label: string;
+  detail: string;
+  position: keyof typeof viewLabels;
+}) {
+  return (
+    <div className="rounded-[9px] bg-white px-2 py-2.5 text-center">
+      <span className="relative mx-auto grid h-10 w-14 place-items-center rounded-[7px] border border-dashed border-[#D4B33E] bg-[#FFFDF5]">
+        <Package
+          className={cn(
+            "size-6 text-black",
+            position === "side" && "scale-x-75",
+            position === "back" && "-scale-x-100 opacity-70",
+          )}
+          strokeWidth={1.6}
+          aria-hidden
+        />
+        <span className="absolute inset-x-1 bottom-1 h-px bg-[#FFC809]" />
+      </span>
+      <span className="mt-1.5 block text-[11px] font-bold text-black">{label}</span>
+      <span className="block text-[9px] leading-3 text-[#8F8F8F]">{detail}</span>
+    </div>
+  );
+}
+
+function CaptureSlot({
+  view,
+  mediaId,
+  asset,
+  editable,
+  available,
+  uploading,
+  onUpload,
+  onRemove,
+}: {
+  view: keyof typeof viewLabels;
+  mediaId?: string;
+  asset?: { deliveryUrl?: string; width?: number; height?: number };
+  editable: boolean;
+  available: boolean;
+  uploading: boolean;
+  onUpload: (file?: File) => void;
+  onRemove: () => void;
+}) {
+  const label = viewLabels[view];
+  return (
+    <div>
+      <label
+        className={cn(
+          "group relative flex aspect-[4/5] overflow-hidden rounded-[10px] border-2 bg-[#F7F7F7]",
+          mediaId ? "border-[#FFC809]" : "border-dashed border-[#D9D9D9]",
+          editable && available && !uploading ? "cursor-pointer" : "cursor-not-allowed opacity-70",
+        )}
+      >
+        {asset?.deliveryUrl ? (
+          <Image src={asset.deliveryUrl} alt={`${label} view of the product`} fill sizes="160px" className="object-cover" unoptimized />
+        ) : mediaId || uploading ? (
+          <span className="flex size-full items-center justify-center"><HookLoader size="inline" /></span>
+        ) : (
+          <span className="flex size-full flex-col items-center justify-center gap-1 px-1 text-center text-[#8F8F8F]">
+            <ImagePlus className="size-5" />
+            <span className="text-[10px] font-semibold">Take {label.toLowerCase()}</span>
+          </span>
+        )}
+        <span className="absolute inset-x-1.5 bottom-1.5 rounded-full bg-black/75 px-1.5 py-1 text-center text-[9px] font-bold text-white">
+          {label}{view === "front" ? " · Primary" : ""}
+        </span>
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/avif"
+          capture="environment"
+          className="sr-only"
+          disabled={!editable || uploading || !available}
+          onChange={(event) => {
+            onUpload(event.target.files?.[0]);
+            event.currentTarget.value = "";
+          }}
+        />
+      </label>
+      {editable && mediaId ? (
+        <button type="button" onClick={onRemove} className="mt-1 flex w-full items-center justify-center gap-1 text-[10px] font-semibold text-red-600" aria-label={`Remove ${label.toLowerCase()} photo`}>
+          <Trash2 className="size-3" /> Remove
+        </button>
       ) : null}
     </div>
   );

@@ -6,7 +6,7 @@
 //
 // Bump CACHE_VERSION on any change here so the old cache is dropped on
 // activate instead of serving stale assets forever.
-const CACHE_VERSION = "hook-shell-v3";
+const CACHE_VERSION = "hook-shell-v4";
 const OFFLINE_URL = "/offline";
 const PRECACHE_URLS = [
   OFFLINE_URL,
@@ -34,23 +34,11 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
-  // Next's build assets (JS/CSS chunks) are content-hashed per deploy, so
-  // there's no fixed filename to precache ahead of time. Cache them the
-  // first time they're actually fetched (which happens on every normal
-  // page load, including the offline page's own successful first visit) so
-  // that by the time a real outage hits, the offline page's script and
-  // stylesheet are already sitting in cache and it renders fully styled and
-  // interactive, not as bare unstyled HTML.
-  if (url.pathname.startsWith("/_next/static/")) {
-    event.respondWith(
-      caches.open(CACHE_VERSION).then(async (cache) => {
-        const cached = await cache.match(event.request);
-        if (cached) return cached;
-        const response = await fetch(event.request);
-        if (response.ok) cache.put(event.request, response.clone());
-        return response;
-      }),
-    );
+  // Never intercept Next runtime or build chunks. Development reuses some
+  // chunk URLs while replacing their module factories, and production build
+  // assets are already content-hashed and browser-cacheable. Serving either
+  // from a service-worker cache can mix two builds and crash React hydration.
+  if (url.pathname.startsWith("/_next/")) {
     return;
   }
 

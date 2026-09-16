@@ -3,6 +3,7 @@ import {
   BarChart3,
   Bot,
   Boxes,
+  Building2,
   ClipboardCheck,
   CreditCard,
   Handshake,
@@ -14,9 +15,11 @@ import {
   ScrollText,
   KeyRound,
   ShoppingCart,
+  Store,
   Ticket,
   Tags,
   Truck,
+  Undo2,
   UserCog,
   Users,
   UsersRound,
@@ -42,6 +45,12 @@ export interface NavItem {
 export interface NavGroup {
   label: string;
   items: NavItem[];
+  /**
+   * Collapsed by default. Set on sections that are reference or configuration
+   * rather than day-to-day work, so the sidebar opens short and the sections
+   * people actually live in stay visible without scrolling.
+   */
+  defaultCollapsed?: boolean;
 }
 
 export const navGroups: NavGroup[] = [
@@ -108,6 +117,8 @@ export const navGroups: NavGroup[] = [
     ],
   },
   {
+    // Day-to-day fulfilment work, separated from the network of places and
+    // people it runs on — those are reference data, not a daily queue.
     label: "Operations",
     items: [
       {
@@ -117,16 +128,54 @@ export const navGroups: NavGroup[] = [
         permission: "fulfilment.view",
       },
       {
-        label: "Market Associate Operations",
-        href: "/dashboard/market-associates",
-        icon: UsersRound,
-        permission: "runners.view",
+        // The hub's daily operational queue — receiving, QC, consolidation.
+        // Distinct from Network > Dispatch Hubs, which is hub configuration.
+        // Auto-scoped: staff attached to a hub see their own hub's work.
+        label: "Hub Workspace",
+        href: "/dashboard/fulfilment/hub",
+        icon: ClipboardCheck,
+        permission: "fulfilment.hub.view",
       },
+      {
+        label: "Shipments",
+        href: "/dashboard/fulfilment/shipments",
+        icon: Truck,
+        permission: "logistics.view",
+      },
+      {
+        label: "Returns",
+        href: "/dashboard/fulfilment/returns",
+        icon: Undo2,
+        permission: "returns.view",
+      },
+      {
+        label: "Refunds",
+        href: "/dashboard/fulfilment/refunds",
+        icon: RotateCcw,
+        permission: "finance.refunds.view",
+      },
+      {
+        label: "Logistics Providers",
+        href: "/dashboard/logistics",
+        icon: Building2,
+        permission: "logistics.view",
+      },
+    ],
+  },
+  {
+    label: "Network",
+    items: [
       {
         label: "Markets",
         href: "/dashboard/markets",
         icon: MapPinned,
         permission: "markets.view",
+      },
+      {
+        label: "Vendors",
+        href: "/dashboard/vendors",
+        icon: Store,
+        permission: "market.vendors.view",
       },
       {
         label: "Dispatch Hubs",
@@ -135,21 +184,21 @@ export const navGroups: NavGroup[] = [
         permission: "hubs.view",
       },
       {
+        label: "Market Associates",
+        href: "/dashboard/market-associates",
+        icon: UsersRound,
+        permission: "runners.view",
+      },
+      {
         label: "Hook Partners",
         href: "/dashboard/partners",
         icon: Handshake,
         permission: "partners.view",
       },
-      {
-        label: "Logistics Providers",
-        href: "/dashboard/logistics",
-        icon: Truck,
-        permission: "logistics.view",
-      },
     ],
   },
   {
-    label: "Customers",
+    label: "People",
     items: [
       {
         label: "Customers",
@@ -163,6 +212,12 @@ export const navGroups: NavGroup[] = [
         icon: LifeBuoy,
         permission: "deletions.view",
       },
+      {
+        label: "Staff",
+        href: "/dashboard/staff",
+        icon: UserCog,
+        permission: "staff.view",
+      },
     ],
   },
   {
@@ -175,33 +230,35 @@ export const navGroups: NavGroup[] = [
         permission: "financials.view",
       },
       {
-        label: "Refunds",
-        href: "/dashboard/fulfilment/refunds",
-        icon: RotateCcw,
-        permission: "finance.refunds.view",
-      },
-      {
         label: "Reports",
         href: "/dashboard/reports",
         icon: BarChart3,
         permission: "reports.view",
       },
+      {
+        label: "Audit Log",
+        href: "/dashboard/audit-log",
+        icon: ScrollText,
+        permission: "audit.view",
+      },
     ],
   },
   {
-    label: "Platform",
+    // Configuration: visited when something needs changing, not every day.
+    label: "Configuration",
+    defaultCollapsed: true,
     items: [
-      {
-        label: "Staff",
-        href: "/dashboard/staff",
-        icon: UserCog,
-        permission: "staff.view",
-      },
       {
         label: "Settings",
         href: "/dashboard/settings",
         icon: Settings,
         permission: "settings.view",
+      },
+      {
+        label: "Roles & Permissions",
+        href: "/dashboard/roles",
+        icon: KeyRound,
+        permission: "roles.view",
       },
       {
         label: "Operating States",
@@ -215,23 +272,20 @@ export const navGroups: NavGroup[] = [
         icon: Truck,
         permission: "delivery.coverage.view",
       },
-      {
-        label: "Roles & Permissions",
-        href: "/dashboard/roles",
-        icon: KeyRound,
-        permission: "roles.view",
-      },
-      {
-        label: "Audit Log",
-        href: "/dashboard/audit-log",
-        icon: ScrollText,
-        permission: "audit.view",
-      },
     ],
   },
 ];
 
 export const navItems = navGroups.flatMap((group) => group.items);
+
+/**
+ * Sections closed on a first visit. The sidebar seeds its stored state with
+ * these the first time anything is toggled, so collapsing one group does not
+ * silently spring the others open.
+ */
+export const defaultCollapsedGroups = navGroups
+  .filter((group) => group.defaultCollapsed)
+  .map((group) => group.label);
 
 export function canAccessNavItem(
   item: NavItem,

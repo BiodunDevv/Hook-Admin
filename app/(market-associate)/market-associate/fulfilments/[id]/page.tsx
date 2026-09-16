@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
-import { ArrowLeft, AlertTriangle, Camera, Check, KeyRound, Package, ShoppingBag } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Camera, Check, KeyRound, Package } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { toast } from "sonner";
@@ -22,6 +22,7 @@ import { MobileButton, MobileRow, MobileSection } from "@/components/mobile/Mobi
 import { useQueryClient } from "@tanstack/react-query";
 import { apiPost, apiRequest } from "@/lib/api";
 import { useApiQuery } from "@/lib/query";
+import { WorkflowThumbnail } from "@/components/market-associate/WorkflowThumbnail";
 
 type ItemVerification = {
   orderItemId: string;
@@ -37,6 +38,8 @@ type TaskItem = {
   productTitle?: string;
   productImage?: string;
   quantity?: number;
+  selectedVariants?: { color?: string; size?: string };
+  variantSnapshot?: { color?: string; size?: string; name?: string };
 };
 
 type Task = {
@@ -69,6 +72,13 @@ function itemLabel(item: TaskItem) {
 
 function itemReferencePhoto(item: TaskItem) {
   return item.productImage || item.productSnapshot?.images?.[0];
+}
+
+function itemOptions(item: TaskItem) {
+  const color = item.selectedVariants?.color || item.variantSnapshot?.color;
+  const size = item.selectedVariants?.size || item.variantSnapshot?.size;
+  const values = [color, size].filter(Boolean);
+  return values.length ? values.join(" · ") : item.variantSnapshot?.name;
 }
 
 const emptyChecks = { productMatches: false, sizeMatches: false, colorMatches: false, quantityMatches: false };
@@ -247,15 +257,11 @@ export default function MarketAssociateFulfilmentDetailPage() {
         <div className="mb-6 grid grid-cols-2 gap-3">
           <div>
             <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[#8F8F8F]">Ordered</p>
-            <div className="relative aspect-square overflow-hidden rounded-[10px] bg-[#EAEBE7]">
-              {itemReferencePhoto(selectedItem) ? (
-                <Image src={itemReferencePhoto(selectedItem)!} alt="Ordered reference" fill className="object-cover" unoptimized />
-              ) : (
-                <div className="grid h-full place-items-center text-[#8F8F8F]">
-                  <Package size={28} />
-                </div>
-              )}
-            </div>
+            <WorkflowThumbnail
+              src={itemReferencePhoto(selectedItem)}
+              alt={`${itemLabel(selectedItem)} ordered reference`}
+              className="aspect-square size-auto w-full rounded-[10px]"
+            />
           </div>
           <div>
             <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[#8F8F8F]">Picked up</p>
@@ -417,10 +423,19 @@ export default function MarketAssociateFulfilmentDetailPage() {
             return (
               <MobileRow
                 key={id || index}
-                icon={verification?.matched ? Check : ShoppingBag}
+                leading={
+                  <WorkflowThumbnail
+                    src={itemReferencePhoto(item)}
+                    alt={`${itemLabel(item)} product`}
+                    className="size-14"
+                  />
+                }
                 tone={verification?.matched ? "brand" : "neutral"}
                 label={itemLabel(item)}
-                description={canVerify ? (verification?.matched ? "Verified" : "Needs photo verification") : undefined}
+                description={[
+                  itemOptions(item),
+                  canVerify ? (verification?.matched ? "Verified" : "Needs photo verification") : undefined,
+                ].filter(Boolean).join(" · ") || undefined}
                 value={`Qty ${item.quantity ?? 1}`}
                 onClick={canVerify ? () => openItem(item) : undefined}
               />

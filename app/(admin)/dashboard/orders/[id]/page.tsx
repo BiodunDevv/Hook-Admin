@@ -1,9 +1,11 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   ArrowLeft,
   CreditCard,
+  RotateCcw,
   MapPin,
   Package,
   ShieldCheck,
@@ -18,6 +20,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useApiQuery } from "@/lib/query";
+import { PermissionGuard } from "@/components/auth/PermissionGuard";
+import { OrderRefundDialog } from "@/components/orders/OrderRefundDialog";
 
 type OrderDetail = {
   id: string;
@@ -109,6 +113,7 @@ const text = (value: unknown) => String(value || "-");
 export default function OrderDetailPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
+  const [refunding, setRefunding] = useState(false);
   const query = useApiQuery<OrderDetail>(
     ["admin", "orders", id],
     `/admin/orders/${id}`,
@@ -143,17 +148,40 @@ export default function OrderDetailPage() {
     return sum + (hookPriceMinor - marketPriceMinor) * item.quantity;
   }, 0);
   const hasMarginData = (order.items || []).some((item) => item.product?.basePriceMinor != null);
+  // Only CONFIRMED payments are refundable. A Pay-at-Handover order has one
+  // payment per delivery, so the captured total is their sum, not the order
+  // total — which may include deliveries that were never paid for.
+  const capturedMinor = (order.payments?.length ? order.payments : order.payment ? [order.payment] : [])
+    .filter((payment) => String(payment.commerceStatus || "").toUpperCase() === "CONFIRMED")
+    .reduce((sum, payment) => sum + Number(payment.amountMinor || 0), 0);
   return (
     <div className="w-full space-y-5 px-4 py-5">
       <PageHeader
         title={order.publicId || order.orderCode || order.id}
         description={`${text(order.channel).replaceAll("_", " ")} · ${text(order.deliveryMethod).replaceAll("_", " ")}`}
         actions={
-          <Button variant="outline" size="sm" onClick={() => router.back()}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
-          </Button>
+          <>
+            {/* Refunds are raised from the order, where the captured amount is
+                already known. Finance still processes them from the queue. */}
+            <PermissionGuard permission="refunds.manage">
+              <Button variant="outline" size="sm" onClick={() => setRefunding(true)}>
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Refund
+              </Button>
+            </PermissionGuard>
+            <Button variant="outline" size="sm" onClick={() => router.back()}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
+            </Button>
+          </>
         }
+      />
+
+      <OrderRefundDialog
+        open={refunding}
+        onOpenChange={setRefunding}
+        orderId={order.publicId || order.orderCode || String(order.id)}
+        capturedMinor={capturedMinor}
       />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <MetricCard icon={Package} label="Order status" value={text(order.commerceStatus).replaceAll("_", " ")} intent="warning" />
