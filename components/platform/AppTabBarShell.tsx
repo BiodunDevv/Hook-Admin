@@ -37,7 +37,8 @@ import { PortalGuard } from "@/components/platform/PortalGuard";
 import { ServiceWorkerRegistration } from "@/components/platform/ServiceWorkerRegistration";
 import { InstallPrompt } from "@/components/platform/InstallPrompt";
 import { PullToRefresh } from "@/components/platform/PullToRefresh";
-import { ChangesRequestedBanner } from "@/components/market-associate/ChangesRequestedBanner";
+import { ChangesRequestedBanner, type WorkflowAlert } from "@/components/market-associate/ChangesRequestedBanner";
+import { FulfilmentHeaderAction } from "@/components/market-associate/FulfilmentHeaderAction";
 import { APP_TAB_BAR_CONTENT_INSET, APP_TAB_BAR_HEIGHT, APP_TAB_BAR_BOTTOM_GAP } from "@/lib/tab-bar-layout";
 
 type PortalType = "marketassociate" | "partner";
@@ -63,6 +64,20 @@ interface DashboardAlertSummary {
   changesRequested: number;
   availabilityChecksDue: number;
 }
+
+type ActiveFulfilment = {
+  id?: string;
+  publicId?: string;
+  status?: string;
+  previewImage?: string;
+  previewTitle?: string;
+};
+
+type AvailabilityCheck = {
+  publicId?: string;
+  title?: string;
+  images?: string[];
+};
 
 const marketAssociateTabs: TabConfig[] = [
   { label: "Home", icon: Home, href: "/market-associate/dashboard" },
@@ -134,23 +149,50 @@ export function AppTabBarShell({
   // stale 30s cache: it drives whether the alert banner shows at all, so it
   // always refetches on mount/focus/reconnect rather than trusting a cached
   // "0" from before a check existed.
-  const availabilityChecks = useApiQuery<{ id?: string; _id?: string }[]>(
+  const availabilityChecks = useApiQuery<AvailabilityCheck[]>(
     ["marketassociate", "availability-checks"],
     "/market-associate/availability-checks",
     type === "marketassociate",
     { staleTime: 0, refetchOnMount: "always", refetchOnWindowFocus: true, refetchOnReconnect: true },
   );
   const availabilityChecksDue = type === "marketassociate" ? availabilityChecks.data?.length || 0 : 0;
-  const dashboardAlerts = [
-    changesRequested > 0 && {
+  const activeFulfilments = useApiQuery<{ data: ActiveFulfilment[]; total: number }>(
+    ["marketassociate", "fulfilments", { active: true, limit: 100 }],
+    "/market-associate/fulfilments?active=true&limit=100",
+    type === "marketassociate",
+    { staleTime: 0, refetchOnMount: "always", refetchOnWindowFocus: true, refetchOnReconnect: true },
+  );
+  const fulfilments = type === "marketassociate" ? activeFulfilments.data?.data || [] : [];
+  const fulfilmentCount = type === "marketassociate"
+    ? activeFulfilments.data?.total ?? fulfilments.length
+    : 0;
+  const oldestFulfilment = fulfilments[0];
+  const hasBlockedFulfilment = fulfilments.some((task) => task.status === "BLOCKED");
+  const oldestCheck = availabilityChecks.data?.[0];
+  const dashboardAlerts: WorkflowAlert[] = [];
+  if (changesRequested > 0) {
+    dashboardAlerts.push({
+      id: "changes-requested",
+      kind: "changes",
+      tone: "danger",
+      count: changesRequested,
       href: "/market-associate/submissions",
       message: `${changesRequested} submission${changesRequested === 1 ? "" : "s"} need${changesRequested === 1 ? "s" : ""} changes — tap to review and resubmit`,
-    },
-    availabilityChecksDue > 0 && {
+    });
+  }
+  if (availabilityChecksDue > 0) {
+    dashboardAlerts.push({
+      id: "availability-checks",
+      kind: "availability",
+      tone: "brand",
+      count: availabilityChecksDue,
       href: "/market-associate/availability",
-      message: `${availabilityChecksDue} product${availabilityChecksDue === 1 ? "" : "s"} need${availabilityChecksDue === 1 ? "s" : ""} an availability check — tap to confirm`,
-    },
-  ].filter((alert): alert is { href: string; message: string } => Boolean(alert));
+      message: `${availabilityChecksDue} availability check${availabilityChecksDue === 1 ? "" : "s"} waiting`,
+      detail: oldestCheck?.title || "Confirm current product availability",
+      imageUrl: oldestCheck?.images?.[0],
+      imageAlt: oldestCheck?.title ? `${oldestCheck.title} product` : "Product awaiting availability check",
+    });
+  }
 
   if (pathname === `${base}/activate`) return <>{children}</>;
 
@@ -180,28 +222,33 @@ export function AppTabBarShell({
       <ServiceWorkerRegistration scope={`${base}/`} />
       <InstallPrompt />
       <div className="min-h-screen min-h-dvh bg-[#F5F5F5]">
-        {/* In normal flow, not sticky — visible at the top of the page and
-            scrolls away with content, so the sticky header below settles
-            flush against the top of the viewport once you scroll past it.
-            Whichever of the two is actually first owns the safe-area inset,
-            so a notch/status bar is only ever cleared once. */}
-        {dashboardAlerts.length > 0 && (
-          <div style={{ paddingTop: "var(--safe-top)" }}>
-            <ChangesRequestedBanner alerts={dashboardAlerts} />
-          </div>
-        )}
-
         {/* Header shares the page background so the app reads as one continuous surface. */}
         <header
           className="sticky top-0 z-40 bg-[#F5F5F5]/90 backdrop-blur"
-          style={{ paddingTop: dashboardAlerts.length > 0 ? undefined : "var(--safe-top)" }}
+          style={{ paddingTop: "var(--safe-top)" }}
         >
           <div className="mx-auto flex h-16 w-full max-w-2xl items-center justify-between gap-3 px-5">
             <div className="flex min-w-0 items-center gap-3">
               <HookLogo className="shrink-0 text-xl" />
               {type === "partner" && <ShoppingForIndicator />}
             </div>
+            {type === "marketassociate" && fulfilmentCount > 0 && (
+              <div className="min-w-0 flex-1">
+                <FulfilmentHeaderAction
+                  count={fulfilmentCount}
+                  blocked={hasBlockedFulfilment}
+                  href={fulfilmentCount === 1 && oldestFulfilment
+                    ? `/market-associate/fulfilments/${oldestFulfilment.publicId || oldestFulfilment.id}`
+                    : "/market-associate/fulfilments"}
+                  title={oldestFulfilment?.previewTitle || oldestFulfilment?.publicId || oldestFulfilment?.id}
+                  imageUrl={oldestFulfilment?.previewImage}
+                />
+              </div>
+            )}
             <div className="flex shrink-0 items-center gap-1">
+              {type === "marketassociate" && dashboardAlerts.length > 0 && (
+                <ChangesRequestedBanner alerts={dashboardAlerts} />
+              )}
               {type === "partner" && <MessagesBell />}
               <NotificationBell scope={type} />
               <AlertDialog>

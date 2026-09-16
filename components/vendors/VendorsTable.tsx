@@ -1,23 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Eye, PackageSearch } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { QueryState } from "@/components/shared/QueryState";
 import { useApiQuery } from "@/lib/query";
 
-interface ApiOrder {
-  id: string;
-  orderCode?: string;
-  user?: { firstName?: string; lastName?: string; email?: string };
-  items?: Array<{ productTitle?: string }>;
-  status: string;
-  total: number;
-  paymentStatus: string;
+export interface ApiVendor {
+  id?: string;
+  publicId?: string;
+  businessName?: string;
+  contactName?: string;
+  phone?: string;
+  email?: string | null;
+  status?: string;
+  preferredContactChannel?: string;
+  market?: { id: string; name: string };
   createdAt?: string;
-  logistics?: { estimatedDeliveryAt?: string };
 }
 
 interface Page<T> {
@@ -26,20 +27,6 @@ interface Page<T> {
   page: number;
   limit: number;
   totalPages?: number;
-}
-
-interface OrdersTableProps {
-  queryKey: readonly unknown[];
-  path: string;
-  onPageChange: (page: number) => void;
-}
-
-function customerName(order: ApiOrder) {
-  return (
-    `${order.user?.firstName || ""} ${order.user?.lastName || ""}`.trim() ||
-    order.user?.email ||
-    "Customer"
-  );
 }
 
 function initialsOf(name: string) {
@@ -51,49 +38,46 @@ function initialsOf(name: string) {
     .toUpperCase();
 }
 
-function shortDate(value?: string) {
-  if (!value) return "";
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime())
-    ? ""
-    : parsed.toLocaleDateString("en-NG", { day: "numeric", month: "short" });
-}
-
-export function OrdersTable({ queryKey, path, onPageChange }: OrdersTableProps) {
-  const { data, isLoading, isFetching, error, refetch } = useApiQuery<Page<ApiOrder>>(queryKey, path);
-  const orders = data?.data || [];
+export function VendorsTable({
+  queryKey,
+  path,
+  onPageChange,
+}: {
+  queryKey: readonly unknown[];
+  path: string;
+  onPageChange: (page: number) => void;
+}) {
+  const { data, isLoading, isFetching, error, refetch } = useApiQuery<Page<ApiVendor>>(queryKey, path);
+  const rows = data?.data || [];
   const meta = {
     total: data?.total || 0,
     page: data?.page || 1,
     limit: data?.limit || 20,
     totalPages: data?.totalPages || 1,
   };
-  const start = orders.length ? (meta.page - 1) * meta.limit + 1 : 0;
-  const end = orders.length ? start + orders.length - 1 : 0;
+  const start = rows.length ? (meta.page - 1) * meta.limit + 1 : 0;
+  const end = rows.length ? start + rows.length - 1 : 0;
 
   return (
     <>
-      {/* QueryState replaces the three hand-rolled loading/error/empty blocks
-          this component used to carry, so these states now look the same here
-          as everywhere else in the dashboard. */}
       <QueryState
         loading={isLoading}
         error={error}
-        empty={orders.length === 0}
-        loadingLabel="Loading orders..."
-        errorTitle="Orders could not be loaded"
-        emptyTitle="No orders found for this view"
-        emptyDescription="Try another search or adjust the order filters."
-        emptyIcon={PackageSearch}
+        empty={rows.length === 0}
+        loadingLabel="Loading vendors..."
+        errorTitle="Vendors could not be loaded"
+        emptyTitle="No vendors in this view"
+        emptyDescription="Try another search, or onboard a vendor to get started."
+        emptyIcon={Store}
         onRetry={() => refetch()}
         className="border-t border-zinc-100"
       >
         <div className="space-y-3 border-t border-zinc-100 p-3 md:hidden">
-          {orders.map((order) => {
-            const name = customerName(order);
-            const item = order.items?.[0];
+          {rows.map((vendor) => {
+            const id = vendor.publicId || vendor.id || "";
+            const name = vendor.businessName || "Vendor";
             return (
-              <article key={order.id} className="min-w-0 rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+              <article key={id} className="min-w-0 rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
                 <div className="flex min-w-0 items-start justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">
                     <Avatar className="size-9 shrink-0">
@@ -102,34 +86,18 @@ export function OrdersTable({ queryKey, path, onPageChange }: OrdersTableProps) 
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
-                      <Link
-                        href={`/dashboard/orders/${order.id}`}
-                        className="block truncate font-semibold text-zinc-950"
-                      >
-                        {order.orderCode || order.id.slice(0, 8)}
+                      <Link href={`/dashboard/vendors/${id}`} className="block truncate font-semibold text-zinc-950">
+                        {name}
                       </Link>
-                      <p className="mt-0.5 truncate text-sm text-zinc-500">{name}</p>
+                      <p className="mt-0.5 truncate text-sm text-zinc-500">{vendor.contactName || "—"}</p>
                     </div>
                   </div>
-                  <Button asChild variant="outline" size="sm">
-                    <Link href={`/dashboard/orders/${order.id}`}>
-                      <Eye size={15} /> View
-                    </Link>
-                  </Button>
+                  <StatusBadge status={vendor.status || "pending"} />
                 </div>
                 <div className="my-3 border-t border-zinc-100" />
-                <p className="truncate text-sm text-zinc-600">
-                  {item?.productTitle || `${order.items?.length || 0} items`}
-                </p>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <StatusBadge status={order.status} />
-                  <StatusBadge status={order.paymentStatus} />
-                </div>
-                <div className="mt-3 flex items-center justify-between">
-                  <span className="text-xs text-zinc-400">{shortDate(order.createdAt) || "Order total"}</span>
-                  <span className="font-bold tabular-nums">
-                    ₦{Number(order.total || 0).toLocaleString()}
-                  </span>
+                <div className="flex items-center justify-between text-xs text-zinc-500">
+                  <span className="truncate">{vendor.market?.name || "No market"}</span>
+                  <span className="shrink-0">{vendor.phone || "—"}</span>
                 </div>
               </article>
             );
@@ -137,12 +105,12 @@ export function OrdersTable({ queryKey, path, onPageChange }: OrdersTableProps) 
         </div>
 
         <div className="hidden min-w-0 divide-y divide-zinc-100 border-t border-zinc-100 md:block">
-          {orders.map((order, index) => {
-            const name = customerName(order);
-            const item = order.items?.[0];
+          {rows.map((vendor, index) => {
+            const id = vendor.publicId || vendor.id || "";
+            const name = vendor.businessName || "Vendor";
             return (
               <article
-                key={order.id}
+                key={id}
                 className="group flex min-w-0 items-center gap-4 px-4 py-3 transition-colors hover:bg-zinc-50 xl:px-5"
               >
                 <span className="w-6 shrink-0 text-xs font-semibold tabular-nums text-zinc-400">
@@ -156,38 +124,32 @@ export function OrdersTable({ queryKey, path, onPageChange }: OrdersTableProps) 
                 <div className="min-w-0 flex-1">
                   <div className="flex min-w-0 items-center gap-2">
                     <Link
-                      href={`/dashboard/orders/${order.id}`}
+                      href={`/dashboard/vendors/${id}`}
                       className="truncate text-sm font-semibold text-zinc-950 hover:underline"
                     >
-                      {order.orderCode || order.id.slice(0, 8)}
+                      {name}
                     </Link>
                     <span className="text-zinc-300">·</span>
-                    <span className="truncate text-sm font-medium text-zinc-700">{name}</span>
+                    <span className="truncate text-sm font-medium text-zinc-700">
+                      {vendor.contactName || "—"}
+                    </span>
                   </div>
                   <div className="mt-1 flex min-w-0 items-center gap-2 text-xs text-zinc-500">
-                    <span className="truncate">
-                      {item?.productTitle || `${order.items?.length || 0} items`}
-                    </span>
+                    <span className="truncate">{vendor.market?.name || "No market"}</span>
                     <span className="text-zinc-300">|</span>
-                    <span className="shrink-0 font-semibold tabular-nums text-zinc-700">
-                      ₦{Number(order.total || 0).toLocaleString()}
-                    </span>
-                    {shortDate(order.createdAt) ? (
+                    <span className="shrink-0">{vendor.phone || "—"}</span>
+                    {vendor.email ? (
                       <>
                         <span className="text-zinc-300">|</span>
-                        <span className="shrink-0">{shortDate(order.createdAt)}</span>
+                        <span className="truncate">{vendor.email}</span>
                       </>
                     ) : null}
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <StatusBadge status={order.paymentStatus} />
-                  <StatusBadge status={order.status} />
+                  <StatusBadge status={vendor.status || "pending"} />
                   <Button asChild variant="outline" size="icon-sm">
-                    <Link
-                      href={`/dashboard/orders/${order.id}`}
-                      aria-label={`View ${order.orderCode || order.id}`}
-                    >
+                    <Link href={`/dashboard/vendors/${id}`} aria-label={`View ${name}`}>
                       <Eye size={15} />
                     </Link>
                   </Button>

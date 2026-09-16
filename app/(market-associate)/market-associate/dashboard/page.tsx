@@ -48,7 +48,7 @@ function greeting() {
 export default function MarketAssociateDashboardPage() {
   const query = useApiQuery<Dashboard>(["marketassociate", "catalog-dashboard"], "/market-associate/dashboard");
   const tasks = useApiQuery<{ data: FulfilmentRow[]; total: number }>(
-    ["marketassociate", "fulfilments"],
+    ["marketassociate", "fulfilments", { limit: 5 }],
     "/market-associate/fulfilments?limit=5",
   );
 

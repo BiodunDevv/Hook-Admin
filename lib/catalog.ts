@@ -26,6 +26,8 @@ export interface ProductSubmission {
   categorySuggestionId: string;
   notes?: string;
   mediaIds: string[];
+  mediaViews?: { front?: string; side?: string; back?: string };
+  captureChecklistConfirmed?: boolean;
   basePriceMinor: number;
   currency: string;
   variants: Array<{ size?: string; colour?: string; attributes: Record<string, string>; active: boolean }>;

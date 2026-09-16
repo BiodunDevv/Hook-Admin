@@ -21,10 +21,25 @@ import { useEffect } from "react";
 export function ServiceWorkerRegistration({ scope }: { scope: string }) {
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
-    navigator.serviceWorker.register("/sw.js", { scope }).catch(() => {
-      // Registration failing (unsupported browser, blocked storage, etc.)
-      // shouldn't be user-visible — the app works fine without it, it just
-      // loses offline/install support.
+    if (process.env.NODE_ENV !== "production") {
+      // Next development chunks are regenerated in place. A worker left over
+      // from a production/PWA test must never control those module URLs.
+      void Promise.all([
+        navigator.serviceWorker.getRegistrations().then((registrations) =>
+          Promise.all(
+            registrations
+              .filter((registration) => new URL(registration.scope).origin === window.location.origin)
+              .map((registration) => registration.unregister()),
+          )),
+        "caches" in window
+          ? caches.keys().then((keys) => Promise.all(keys.filter((key) => key.startsWith("hook-shell-")).map((key) => caches.delete(key))))
+          : Promise.resolve([]),
+      ]);
+      return;
+    }
+    navigator.serviceWorker.register("/sw.js", { scope, updateViaCache: "none" }).then((registration) => {
+      void registration.update();
+    }).catch(() => {
     });
   }, [scope]);
 

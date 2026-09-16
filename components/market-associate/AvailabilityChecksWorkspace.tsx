@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, Check, Clock3, Loader2, XCircle } from "lucide-react";
+import { Check, Clock3, Loader2, XCircle } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -15,6 +15,7 @@ import { HookLoader } from "@/components/shared/HookLoader";
 import { QueryState } from "@/components/shared/QueryState";
 import { MobileButton, MobileHeader } from "@/components/mobile/MobileUI";
 import { useApiPostTo, useApiQuery } from "@/lib/query";
+import { WorkflowThumbnail } from "@/components/market-associate/WorkflowThumbnail";
 
 type Check = {
   publicId: string;
@@ -24,6 +25,7 @@ type Check = {
   availabilityCheckNote?: string;
   catalogVersion: number;
   status: string;
+  images?: string[];
 };
 
 type ConfirmVariables = {
@@ -50,13 +52,6 @@ function dueLabel(value?: string) {
   return isOverdue(value) ? "Overdue" : `Due ${new Date(value).toLocaleDateString("en-NG")}`;
 }
 
-/** Drops the settled row from the cached list so the card leaves immediately. */
-function withoutCheck(previous: unknown, publicId: string) {
-  const current = previous as Check[] | undefined;
-  if (!Array.isArray(current)) return previous;
-  return current.filter((check) => check.publicId !== publicId);
-}
-
 export function AvailabilityChecksWorkspace() {
   const query = useApiQuery<Check[]>(AVAILABILITY_KEY, "/market-associate/availability-checks");
   const [reporting, setReporting] = useState<Check | null>(null);
@@ -66,7 +61,6 @@ export function AvailabilityChecksWorkspace() {
     (variables) => `/market-associate/products/${variables.publicId}/availability/confirm`,
     {
       invalidate: AVAILABILITY_KEY,
-      optimistic: (previous, variables) => withoutCheck(previous, variables.publicId),
       // The endpoint schema is strict, so publicId stays out of the payload.
       buildBody: ({ status, version, note: body }) => ({ status, version, note: body }),
       successMessage: "Availability updated",
@@ -77,7 +71,6 @@ export function AvailabilityChecksWorkspace() {
     (variables) => `/market-associate/products/${variables.publicId}/availability/report`,
     {
       invalidate: AVAILABILITY_KEY,
-      optimistic: (previous, variables) => withoutCheck(previous, variables.publicId),
       buildBody: ({ version, note: body }) => ({ version, note: body }),
       successMessage: "Product paused and Admin notified",
     },
@@ -160,12 +153,12 @@ export function AvailabilityChecksWorkspace() {
             const busy = confirmingId === item.publicId || reportingId === item.publicId;
             return (
               <div key={item.publicId} className="rounded-[10px] bg-white p-4">
-                <div className="flex items-start gap-2">
-                  <span
-                    className={`mt-0.5 grid size-7.5 shrink-0 place-items-center rounded-[5px] ${overdue ? "bg-red-50 text-red-600" : "bg-[#EAEBE7] text-black"}`}
-                  >
-                    {overdue ? <AlertTriangle size={17} /> : <Clock3 size={17} />}
-                  </span>
+                <div className="flex items-start gap-3">
+                  <WorkflowThumbnail
+                    src={item.images?.[0]}
+                    alt={`${item.title} product`}
+                    className={`size-14 ${overdue ? "ring-2 ring-red-200" : ""}`}
+                  />
                   <div className="min-w-0 flex-1">
                     <p className="text-[15px] font-semibold leading-tight text-black">{item.title}</p>
                     <p className={`mt-1 text-[12px] font-semibold ${overdue ? "text-red-600" : "text-[#8F8F8F]"}`}>

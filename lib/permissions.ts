@@ -19,6 +19,7 @@ export const ALL_PERMISSIONS = [
   "audit.view", "settings.manage",
   "orders.view",
   "orders.edit",
+  "orders.cancel",
   "orders.create",
   "products.view",
   "products.review",
@@ -42,7 +43,7 @@ export const ALL_PERMISSIONS = [
   "customers.view",
   "customers.edit",
   "runners.view",
-  "fulfilment.view", "fulfilment.manage", "fulfilment.assign", "fulfilment.resolve", "fulfilment.consolidate",
+  "fulfilment.view", "fulfilment.manage", "fulfilment.assign", "fulfilment.consolidate",
   "fulfilment.hub.view", "fulfilment.hub.receive", "fulfilment.hub.qc",
   "logistics.view", "logistics.book", "logistics.manage", "logistics.track",
   "returns.view", "returns.review", "returns.manage",
@@ -91,6 +92,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   "audit.view": "View Audit Logs", "settings.manage": "Manage Settings",
   "orders.view": "View Orders",
   "orders.edit": "Edit Orders",
+  "orders.cancel": "Cancel Orders",
   "orders.create": "Create Orders",
   "products.view": "View Products",
   "products.review": "Review Products",
@@ -117,7 +119,6 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   "fulfilment.view": "View Fulfilment",
   "fulfilment.manage": "Manage Fulfilment",
   "fulfilment.assign": "Assign Fulfilment",
-  "fulfilment.resolve": "Resolve Fulfilment Exceptions",
   "fulfilment.consolidate": "Consolidate Orders",
   "fulfilment.hub.view": "View Hub Packages",
   "fulfilment.hub.receive": "Receive Hub Packages",
@@ -179,7 +180,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
 export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] = [
   {
     label: "Orders",
-    permissions: ["orders.view", "orders.edit", "orders.create"],
+    permissions: ["orders.view", "orders.edit", "orders.create", "orders.cancel"],
   },
   {
     label: "Catalog",
@@ -202,7 +203,7 @@ export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] =
     label: "Operations",
     permissions: [
       "runners.view", "runners.manage", "fulfilment.view", "fulfilment.manage",
-      "fulfilment.assign", "fulfilment.resolve", "fulfilment.consolidate",
+      "fulfilment.assign", "fulfilment.consolidate",
       "fulfilment.hub.view", "fulfilment.hub.receive", "fulfilment.hub.qc",
       "logistics.view", "logistics.book", "logistics.manage", "logistics.track",
       "returns.view", "returns.review", "returns.manage", "custody.view", "custody.manage",
