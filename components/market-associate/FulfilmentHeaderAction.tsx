@@ -45,8 +45,11 @@ export function FulfilmentHeaderAction({
         </span>
       )}
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[11px] font-extrabold leading-4 sm:text-[12px]">{heading}</span>
-        <span className={cn("hidden truncate text-[10px] leading-3.5 min-[430px]:block", blocked ? "text-white/85" : "text-black/65")}>
+        <span className="block truncate text-[11px] font-extrabold leading-4 sm:hidden">
+          {count} {count === 1 ? "order" : "orders"}
+        </span>
+        <span className="hidden truncate text-[12px] font-extrabold leading-4 sm:block">{heading}</span>
+        <span className={cn("hidden truncate text-[10px] leading-3.5 sm:block", blocked ? "text-white/85" : "text-black/65")}>
           {detail}
         </span>
       </span>
