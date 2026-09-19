@@ -26,7 +26,14 @@ import { WorkflowThumbnail } from "@/components/market-associate/WorkflowThumbna
 
 type ItemVerification = {
   orderItemId: string;
-  photoUrl: string;
+  photoUrl?: string;
+  photos?: Array<{ view: "front" | "side" | "back"; url: string; assetId?: string }>;
+  actualColor?: string;
+  actualSize?: string;
+  actualQuantity?: number;
+  unitCostMinor?: number;
+  supplierReference?: string;
+  conditionNote?: string;
   matched: boolean;
   checks?: { productMatches: boolean; sizeMatches: boolean; colorMatches: boolean; quantityMatches: boolean };
 };
@@ -51,7 +58,8 @@ type Task = {
   version?: number;
   items?: TaskItem[];
   itemVerifications?: ItemVerification[];
-  package?: { scanCredential?: string };
+  package?: { scanCredential?: string; publicId?: string; labelReference?: string; status?: string };
+  issues?: Array<{ orderItemId?: string; status?: string; type?: string }>;
 };
 
 const actions: Record<string, { label: string; action: string }> = {
@@ -96,10 +104,16 @@ export default function MarketAssociateFulfilmentDetailPage() {
   const [issueOpen, setIssueOpen] = useState(false);
   const [issue, setIssue] = useState("");
   const [credential, setCredential] = useState<string>();
-  const [costOpen, setCostOpen] = useState(false);
-  const [actualCost, setActualCost] = useState("");
   const [selectedItemId, setSelectedItemId] = useState<string>();
-  const [pendingPhotoUrl, setPendingPhotoUrl] = useState<string>();
+  const [photos, setPhotos] = useState<Partial<Record<"front" | "side" | "back", string>>>({});
+  const [photoView, setPhotoView] = useState<"front" | "side" | "back">("front");
+  const [actualColor, setActualColor] = useState("");
+  const [actualSize, setActualSize] = useState("");
+  const [actualQuantity, setActualQuantity] = useState("1");
+  const [unitCost, setUnitCost] = useState("");
+  const [supplierReference, setSupplierReference] = useState("");
+  const [conditionNote, setConditionNote] = useState("");
+  const [issueType, setIssueType] = useState("PRODUCT_UNAVAILABLE");
   const [checks, setChecks] = useState(emptyChecks);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const fileInputId = useId();
@@ -120,13 +134,8 @@ export default function MarketAssociateFulfilmentDetailPage() {
     try {
       const result = await apiPost<Task>(`/market-associate/fulfilments/${params.id}/${action}`, {
         version: query.data?.version,
-        actualCostMinor: action === "secure" ? Math.round(Number(actualCost) * 100) : undefined,
       });
       setCredential(result.package?.scanCredential);
-      if (action === "secure") {
-        setActualCost("");
-        setCostOpen(false);
-      }
       syncTask();
       toast.success("Task updated");
     } catch (error) {
@@ -142,10 +151,13 @@ export default function MarketAssociateFulfilmentDetailPage() {
     if (!issue.trim()) return;
     setPending(true);
     try {
-      await apiPost(`/market-associate/fulfilments/${params.id}/issues`, {
+      await apiPost(selectedItemId
+        ? `/market-associate/fulfilments/${params.id}/items/${selectedItemId}/issues`
+        : `/market-associate/fulfilments/${params.id}/issues`, {
         summary: issue.trim(),
-        type: "ITEM_UNAVAILABLE",
+        type: selectedItemId ? issueType : "ITEM_UNAVAILABLE",
         orderItemId: selectedItemId,
+        idempotencyKey: crypto.randomUUID(),
       });
       syncTask();
       setIssue("");
@@ -160,7 +172,7 @@ export default function MarketAssociateFulfilmentDetailPage() {
     }
   }
 
-  async function uploadPhoto(files: FileList | null) {
+  async function uploadPhoto(files: FileList | null, view: "front" | "side" | "back") {
     const file = files?.[0];
     if (!file) return;
     setUploadingPhoto(true);
@@ -171,7 +183,7 @@ export default function MarketAssociateFulfilmentDetailPage() {
         method: "POST",
         body: formData,
       });
-      setPendingPhotoUrl(uploaded.secureUrl || uploaded.url);
+      setPhotos((current) => ({ ...current, [view]: uploaded.secureUrl || uploaded.url }));
     } catch (error) {
       toast.error(error instanceof Error ? error.message.replace(/^\d+:\s*/, "") : "Photo could not be uploaded");
     } finally {
@@ -180,17 +192,23 @@ export default function MarketAssociateFulfilmentDetailPage() {
   }
 
   async function verifyItem() {
-    if (!selectedItemId || !pendingPhotoUrl) return;
+    if (!selectedItemId || !photos.front || !photos.side || !photos.back) return;
     setPending(true);
     try {
-      await apiPost(`/market-associate/fulfilments/${params.id}/items/${selectedItemId}/verify`, {
-        photoUrl: pendingPhotoUrl,
+      await apiRequest(`/market-associate/fulfilments/${params.id}/items/${selectedItemId}`, { method: "PUT", body: JSON.stringify({
+        photos: (["front", "side", "back"] as const).map((view) => ({ view, url: photos[view] })),
+        actualColor,
+        actualSize,
+        actualQuantity: Number(actualQuantity),
+        unitCostMinor: Math.round(Number(unitCost) * 100),
+        supplierReference: supplierReference || undefined,
+        conditionNote,
         checks,
-      });
+      }) });
       syncTask();
       toast.success(Object.values(checks).every(Boolean) ? "Item verified" : "Verification saved");
       setSelectedItemId(undefined);
-      setPendingPhotoUrl(undefined);
+      setPhotos({});
       setChecks(emptyChecks);
     } catch (error) {
       toast.error(
@@ -204,7 +222,13 @@ export default function MarketAssociateFulfilmentDetailPage() {
   function openItem(item: TaskItem) {
     const id = itemId(item);
     const existing = task?.itemVerifications?.find((v) => v.orderItemId === id);
-    setPendingPhotoUrl(existing?.photoUrl);
+    setPhotos(Object.fromEntries((existing?.photos || (existing?.photoUrl ? [{ view: "front", url: existing.photoUrl }] : [])).map((photo) => [photo.view, photo.url])));
+    setActualColor(existing?.actualColor || item.selectedVariants?.color || item.variantSnapshot?.color || "");
+    setActualSize(existing?.actualSize || item.selectedVariants?.size || item.variantSnapshot?.size || "");
+    setActualQuantity(String(existing?.actualQuantity || item.quantity || 1));
+    setUnitCost(existing?.unitCostMinor != null ? String(existing.unitCostMinor / 100) : "");
+    setSupplierReference(existing?.supplierReference || "");
+    setConditionNote(existing?.conditionNote || "");
     setChecks(existing?.checks || emptyChecks);
     setSelectedItemId(id);
   }
@@ -230,11 +254,12 @@ export default function MarketAssociateFulfilmentDetailPage() {
   const verifications = task.itemVerifications || [];
   const verifiedCount = items.filter((item) => verifications.some((v) => v.orderItemId === itemId(item) && v.matched)).length;
   const allVerified = items.length > 0 && verifiedCount === items.length;
-  const canVerify = task.status === "PRODUCT_SECURED" || task.status === "PACKING";
+  const canVerify = task.status === "SOURCING" || task.status === "PRODUCT_SECURED" || task.status === "PACKING";
 
   const selectedItem = items.find((item) => itemId(item) === selectedItemId);
   const selectedVerification = verifications.find((v) => v.orderItemId === selectedItemId);
   const allChecked = Object.values(checks).every(Boolean);
+  const displayCredential = credential || task.package?.scanCredential;
 
   if (selectedItem) {
     return (
@@ -254,7 +279,7 @@ export default function MarketAssociateFulfilmentDetailPage() {
           <p className="mt-1 text-[13px] text-[#8F8F8F]">{itemLabel(selectedItem)}</p>
         </div>
 
-        <div className="mb-6 grid grid-cols-2 gap-3">
+        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-[180px_1fr]">
           <div>
             <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[#8F8F8F]">Ordered</p>
             <WorkflowThumbnail
@@ -264,7 +289,7 @@ export default function MarketAssociateFulfilmentDetailPage() {
             />
           </div>
           <div>
-            <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[#8F8F8F]">Picked up</p>
+            <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[#8F8F8F]">Required evidence</p>
             <Input
               id={fileInputId}
               type="file"
@@ -272,46 +297,34 @@ export default function MarketAssociateFulfilmentDetailPage() {
               capture="environment"
               className="hidden"
               onChange={(event) => {
-                void uploadPhoto(event.target.files);
+                void uploadPhoto(event.target.files, photoView);
                 event.currentTarget.value = "";
               }}
             />
-            {pendingPhotoUrl ? (
-              <button
-                type="button"
-                onClick={() => document.getElementById(fileInputId)?.click()}
-                className="relative block aspect-square w-full overflow-hidden rounded-[10px] bg-[#EAEBE7]"
-              >
-                <Image src={pendingPhotoUrl} alt="Picked up" fill className="object-cover" unoptimized />
-              </button>
-            ) : (
-              <button
-                type="button"
-                disabled={uploadingPhoto}
-                onClick={() => document.getElementById(fileInputId)?.click()}
-                className="flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-[10px] border-2 border-dashed border-[#D9D9D9] bg-white text-[#8F8F8F]"
-              >
-                {uploadingPhoto ? (
-                  <HookLoader label="Uploading" />
-                ) : (
-                  <>
-                    <Camera size={26} />
-                    <span className="text-[12px] font-medium">Add Photo</span>
-                  </>
-                )}
-              </button>
-            )}
-            {pendingPhotoUrl && (
-              <MobileButton
-                variant="outline"
-                className="mt-2 min-h-9 text-[12px]"
-                onClick={() => document.getElementById(fileInputId)?.click()}
-              >
-                {uploadingPhoto ? <HookLoader size="button" /> : "Take Photo"}
-              </MobileButton>
-            )}
+            <div className="grid grid-cols-3 gap-2">
+              {(["front", "side", "back"] as const).map((view) => (
+                <button key={view} type="button" disabled={uploadingPhoto} onClick={() => { setPhotoView(view); document.getElementById(fileInputId)?.click(); }} className="overflow-hidden rounded-[10px] border bg-white text-[#8F8F8F]">
+                  <span className="relative flex aspect-square items-center justify-center bg-[#EAEBE7]">
+                    {photos[view] ? <Image src={photos[view]!} alt={`${view} view`} fill className="object-cover" unoptimized /> : <Camera size={22} />}
+                  </span>
+                  <span className="block py-2 text-[11px] font-semibold capitalize">{view} view</span>
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-[11px] leading-4 text-[#8F8F8F]">Capture the full product clearly from all three angles.</p>
           </div>
         </div>
+
+        <MobileSection title="Actual product details">
+          <div className="grid gap-3 p-2.5 sm:grid-cols-2">
+            <div><Label>Colour</Label><Input value={actualColor} onChange={(event) => setActualColor(event.target.value)} placeholder="Actual colour" /></div>
+            <div><Label>Size</Label><Input value={actualSize} onChange={(event) => setActualSize(event.target.value)} placeholder="Actual size" /></div>
+            <div><Label>Quantity</Label><Input inputMode="numeric" value={actualQuantity} onChange={(event) => setActualQuantity(event.target.value.replace(/\D/g, ""))} /></div>
+            <div><Label>Unit cost (NGN)</Label><Input inputMode="decimal" value={unitCost} onChange={(event) => setUnitCost(event.target.value.replace(/[^0-9.]/g, ""))} /></div>
+            <div className="sm:col-span-2"><Label>Supplier reference (optional)</Label><Input value={supplierReference} onChange={(event) => setSupplierReference(event.target.value)} /></div>
+            <div className="sm:col-span-2"><Label>Condition note</Label><Textarea value={conditionNote} onChange={(event) => setConditionNote(event.target.value)} placeholder="Describe the product condition" /></div>
+          </div>
+        </MobileSection>
 
         <MobileSection title="Checklist">
           {(
@@ -349,7 +362,7 @@ export default function MarketAssociateFulfilmentDetailPage() {
           </MobileButton>
           <MobileButton
             className="flex-1"
-            disabled={pending || !pendingPhotoUrl || !allChecked}
+            disabled={pending || !photos.front || !photos.side || !photos.back || !actualColor || !actualSize || !actualQuantity || !unitCost || conditionNote.trim().length < 3 || !allChecked}
             onClick={() => void verifyItem()}
           >
             {pending ? <HookLoader size="button" /> : <><Check size={18} /> Item Matches</>}
@@ -365,6 +378,9 @@ export default function MarketAssociateFulfilmentDetailPage() {
               </SheetDescription>
             </SheetHeader>
             <div className="space-y-3 overflow-y-auto px-4 pb-6">
+              <select value={issueType} onChange={(event) => setIssueType(event.target.value)} className="h-12 w-full rounded-[10px] border bg-white px-3 text-sm">
+                <option value="PRODUCT_UNAVAILABLE">Product unavailable</option><option value="COLOR_UNAVAILABLE">Colour unavailable</option><option value="SIZE_UNAVAILABLE">Size unavailable</option><option value="INSUFFICIENT_QUANTITY">Insufficient quantity</option><option value="DAMAGED_PRODUCT">Product damaged</option><option value="PRICE_CHANGED">Price changed</option><option value="WRONG_CATALOG_DETAILS">Wrong catalog details</option><option value="OTHER">Other</option>
+              </select>
               <Textarea
                 value={issue}
                 onChange={(event) => setIssue(event.target.value)}
@@ -401,14 +417,15 @@ export default function MarketAssociateFulfilmentDetailPage() {
         </div>
       </div>
 
-      {credential && (
+      {displayCredential && (
         <div className="mb-7 rounded-[10px] bg-[#FFF3C4] p-4 text-center">
           <p className="flex items-center justify-center gap-1.5 text-[13px] font-semibold text-[#9a7400]">
-            <KeyRound size={14} /> Hub scan credential
+            <KeyRound size={14} /> Write this handover code on the package
           </p>
-          <p className="mt-2 font-mono text-[26px] font-bold tracking-[0.25em] text-black">{credential}</p>
+          <p className="mt-2 font-mono text-[30px] font-bold tracking-[0.3em] text-black">{displayCredential}</p>
+          <p className="mt-1 text-[12px] font-semibold text-black">{task.package?.labelReference || task.package?.publicId}</p>
           <p className="mt-1.5 text-[12px] text-[#9a7400]">
-            Show this once to the Hub officer. It will not be shown again.
+            This remains available until the Hub verifies receipt.
           </p>
         </div>
       )}
@@ -420,6 +437,7 @@ export default function MarketAssociateFulfilmentDetailPage() {
           items.map((item, index) => {
             const id = itemId(item);
             const verification = verifications.find((v) => v.orderItemId === id);
+            const unresolvedIssue = task.issues?.find((issue) => issue.orderItemId === id);
             return (
               <MobileRow
                 key={id || index}
@@ -430,11 +448,11 @@ export default function MarketAssociateFulfilmentDetailPage() {
                     className="size-14"
                   />
                 }
-                tone={verification?.matched ? "brand" : "neutral"}
+                tone={unresolvedIssue ? "danger" : verification?.matched ? "brand" : "neutral"}
                 label={itemLabel(item)}
                 description={[
                   itemOptions(item),
-                  canVerify ? (verification?.matched ? "Verified" : "Needs photo verification") : undefined,
+                  unresolvedIssue ? "Needs resolution" : canVerify ? (verification?.matched ? "Verified" : "Not started") : undefined,
                 ].filter(Boolean).join(" · ") || undefined}
                 value={`Qty ${item.quantity ?? 1}`}
                 onClick={canVerify ? () => openItem(item) : undefined}
@@ -453,10 +471,9 @@ export default function MarketAssociateFulfilmentDetailPage() {
               <p className="text-center text-[13px] text-[#8F8F8F]">Verify all items before packing.</p>
             )}
             <MobileButton
-              disabled={pending || (next.action === "pack" && !allVerified)}
+              disabled={pending || (["secure", "pack"].includes(next.action) && !allVerified)}
               onClick={() => {
-                if (next.action === "secure") setCostOpen(true);
-                else void runAction(next.action);
+                void runAction(next.action);
               }}
             >
               {pending ? <HookLoader size="button" /> : <><Check size={18} /> {next.label}</>}
@@ -467,62 +484,7 @@ export default function MarketAssociateFulfilmentDetailPage() {
             No action is available in this state.
           </p>
         )}
-        <MobileButton variant="outline" onClick={() => openIssueForItem(undefined)} disabled={pending}>
-          <AlertTriangle size={17} /> Report an issue
-        </MobileButton>
       </div>
-
-      <Sheet open={costOpen} onOpenChange={setCostOpen}>
-        <SheetContent side="bottom" className="mx-auto flex max-h-[92dvh] w-full max-w-2xl flex-col rounded-t-2xl border-x">
-          <SheetHeader>
-            <SheetTitle className="text-[17px] font-bold">Sourcing cost</SheetTitle>
-            <SheetDescription className="text-[13px] text-[#8F8F8F]">
-              What did you actually pay at the market?
-            </SheetDescription>
-          </SheetHeader>
-          <div className="space-y-3 overflow-y-auto px-4 pb-6">
-            <Label htmlFor="actual-cost" className="text-[13px] font-semibold">
-              Amount paid (NGN)
-            </Label>
-            <Input
-              id="actual-cost"
-              inputMode="decimal"
-              value={actualCost}
-              onChange={(event) => setActualCost(event.target.value.replace(/[^0-9.]/g, ""))}
-              placeholder="0.00"
-              className="h-12 rounded-[10px]"
-            />
-            <MobileButton
-              disabled={pending || !actualCost.trim() || !Number.isFinite(Number(actualCost))}
-              onClick={() => void runAction("secure")}
-            >
-              {pending ? <HookLoader size="button" /> : "Confirm secured"}
-            </MobileButton>
-          </div>
-        </SheetContent>
-      </Sheet>
-
-      <Sheet open={issueOpen} onOpenChange={setIssueOpen}>
-        <SheetContent side="bottom" className="mx-auto flex max-h-[92dvh] w-full max-w-2xl flex-col rounded-t-2xl border-x">
-          <SheetHeader>
-            <SheetTitle className="text-[17px] font-bold">Report an issue</SheetTitle>
-            <SheetDescription className="text-[13px] text-[#8F8F8F]">
-              Tell operations what is blocking this task.
-            </SheetDescription>
-          </SheetHeader>
-          <div className="space-y-3 overflow-y-auto px-4 pb-6">
-            <Textarea
-              value={issue}
-              onChange={(event) => setIssue(event.target.value)}
-              placeholder="Describe an unavailable, damaged, or sourcing issue"
-              className="min-h-24 rounded-[10px]"
-            />
-            <MobileButton variant="danger" onClick={() => void reportIssue()} disabled={pending || !issue.trim()}>
-              {pending ? <HookLoader size="button" /> : "Submit issue"}
-            </MobileButton>
-          </div>
-        </SheetContent>
-      </Sheet>
     </div>
   );
 }

@@ -11,6 +11,7 @@ import { buildCheckpoints, isTaskHalted, taskAge } from "@/lib/fulfilment-progre
 import { QueryState } from "@/components/shared/QueryState";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { useApiQuery } from "@/lib/query";
+import { ItemResolutionCard, type ItemResolutionView } from "@/components/fulfilment/ItemResolutionCard";
 
 type TaskDetail = {
   task?: {
@@ -43,6 +44,7 @@ type TaskDetail = {
     productImage?: string;
     productSnapshot?: { title?: string; image?: string };
   }>;
+  issues?: ItemResolutionView[];
 };
 
 const label = (value?: string) => String(value || "-").replaceAll("_", " ");
@@ -143,6 +145,7 @@ export default function FulfilmentTaskDetailPage({ params }: { params: Promise<{
 
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1.42fr)_minmax(310px,0.58fr)]">
               <div className="space-y-4">
+                {detail?.issues?.length ? <DetailSection title="Item exceptions" description="Resolve product-specific sourcing problems without blocking work on unaffected items."><div className="space-y-3">{detail.issues.map((issue) => <ItemResolutionCard key={issue.publicId || issue.id} issue={issue} taskId={id} />)}</div></DetailSection> : null}
                 <DetailSection
                   title="Assigned items"
                   description="Products this Market Associate is sourcing for the order."
