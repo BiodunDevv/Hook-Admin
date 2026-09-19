@@ -215,7 +215,7 @@ export default function FulfilmentHubPage() {
         <CardHeader className="flex-row items-center justify-between gap-3">
           <div>
             <CardTitle className="text-base">Inbound Market Associate packages</CardTitle>
-            <p className="mt-1 text-xs text-muted-foreground">Verify the one-time six-digit credential before accepting custody.</p>
+            <p className="mt-1 text-xs text-muted-foreground">Verify the four-digit handover code written on the package before accepting custody.</p>
           </div>
           <Badge variant="outline">{inbound.length} waiting</Badge>
         </CardHeader>
@@ -246,7 +246,7 @@ export default function FulfilmentHubPage() {
                         <div className="flex items-center gap-2">
                           <Input
                             inputMode="numeric"
-                            maxLength={6}
+                            maxLength={4}
                             placeholder="Six-digit credential"
                             className="h-9 w-[168px]"
                             value={credential[id] || ""}

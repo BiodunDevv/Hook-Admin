@@ -1,6 +1,6 @@
 "use client";
 
-import { LegalContentView } from "@/components/legal/LegalContentView";
+import { PublicLegalPage } from "@/components/public/PublicLegalPage";
 import { HookLoader } from "@/components/shared/HookLoader";
 import { useApiQuery } from "@/lib/query";
 
@@ -14,10 +14,10 @@ type LegalContent = {
 export default function ReturnsPage() {
   const query = useApiQuery<LegalContent>(["public", "legal", "returns"], "/public/legal/returns");
   if (query.isLoading) {
-    return <div className="grid min-h-screen place-items-center"><HookLoader label="Loading Returns Policy" /></div>;
+    return <div className="grid min-h-screen place-items-center bg-muted/30"><HookLoader label="Loading Returns Policy" /></div>;
   }
   return (
-    <LegalContentView
+    <PublicLegalPage
       title={query.data?.title || "Returns Policy"}
       bodyHtml={query.data?.bodyHtml || "<p>The Returns Policy is currently unavailable.</p>"}
       effectiveDate={query.data?.effectiveDate}

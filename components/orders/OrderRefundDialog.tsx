@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -46,12 +46,16 @@ export function OrderRefundDialog({
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
+  // One key per refund attempt. Clicking again after a timeout reuses it, so the
+  // server returns the refund it already created instead of raising a second one.
+  const attempt = useRef<{ fingerprint: string; key: string } | null>(null);
 
   const amountMinor = useMemo(() => Math.round(Number(amount || 0) * 100), [amount]);
   const overCaptured = capturedMinor > 0 && amountMinor > capturedMinor;
   const canSubmit = amountMinor > 0 && !overCaptured && reason.trim().length >= 3;
 
   function close() {
+    attempt.current = null;
     setAmount("");
     setReason("");
     onOpenChange(false);
@@ -61,12 +65,17 @@ export function OrderRefundDialog({
     if (!canSubmit || saving) return;
     setSaving(true);
     try {
+      const fingerprint = `${orderId}|${amountMinor}|${reason.trim()}`;
+      if (attempt.current?.fingerprint !== fingerprint) {
+        attempt.current = { fingerprint, key: `refund-${orderId}-${crypto.randomUUID()}` };
+      }
       await apiPost("/admin/fulfilment/refunds", {
         orderId,
         amountMinor,
         reason: reason.trim(),
-        idempotencyKey: `refund-${orderId}-${Date.now()}`,
+        idempotencyKey: attempt.current.key,
       });
+      attempt.current = null;
       toast.success("Refund request created. Finance will process it from the refund queue.");
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["admin", "orders"] }),
