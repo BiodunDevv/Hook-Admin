@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PublicShell } from "@/components/public/PublicShell";
 
 /**
@@ -27,6 +27,69 @@ export function PublicLegalPage({
     return { html: withIds, headings: found };
   }, [bodyHtml]);
 
+  const [active, setActive] = useState<string | null>(headings[0]?.id ?? null);
+  const linkRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
+  // A section chosen by clicking stays highlighted until the reader scrolls
+  // themselves. Without this, a short final section that can never reach the top
+  // of the screen would immediately hand the highlight back to the one before it.
+  const pinned = useRef<string | null>(null);
+
+  useEffect(() => {
+    const sections = headings.map((heading) => document.getElementById(heading.id)).filter((el): el is HTMLElement => Boolean(el));
+    if (!sections.length) return;
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      if (pinned.current) return;
+      // The active section is the first heading still on screen. It stays
+      // active until that heading scrolls off the top, then the next takes over.
+      const first = sections.find((section) => section.getBoundingClientRect().bottom > 8);
+      setActive((first ?? sections[sections.length - 1]).id);
+    };
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
+    // Wheel, touch or keys mean the reader took over from a click's smooth scroll.
+    const release = () => { pinned.current = null; schedule(); };
+    update();
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    window.addEventListener("wheel", release, { passive: true });
+    window.addEventListener("touchmove", release, { passive: true });
+    window.addEventListener("keydown", release);
+    return () => {
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      window.removeEventListener("wheel", release);
+      window.removeEventListener("touchmove", release);
+      window.removeEventListener("keydown", release);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, [headings]);
+
+  // Keep the highlighted entry in view inside the (scrollable) side panel on desktop.
+  useEffect(() => {
+    if (!active || !window.matchMedia("(min-width: 1024px)").matches) return;
+    const link = linkRefs.current[active];
+    const panel = link?.closest("aside");
+    if (!link || !panel) return;
+    const a = panel.getBoundingClientRect();
+    const l = link.getBoundingClientRect();
+    if (l.top < a.top + 120 || l.bottom > a.bottom - 140) {
+      panel.scrollTo({ top: panel.scrollTop + (l.top - a.top) - a.height / 3, behavior: "smooth" });
+    }
+  }, [active]);
+
+  const goTo = useCallback((event: React.MouseEvent, id: string) => {
+    event.preventDefault();
+    const target = document.getElementById(id);
+    if (!target) return;
+    pinned.current = id;
+    setActive(id);
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
+    history.replaceState(null, "", `#${id}`);
+  }, []);
+
+  const position = headings.findIndex((heading) => heading.id === active) + 1;
+
   const effective = effectiveDate
     ? new Date(effectiveDate).toLocaleDateString("en-NG", { day: "numeric", month: "long", year: "numeric" })
     : null;
@@ -40,15 +103,31 @@ export function PublicLegalPage({
       aside={
         headings.length > 1 ? (
           <nav aria-label="Contents" className="space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Contents</p>
-            <ol className="space-y-1.5 border-l border-white/10">
-              {headings.map((heading) => (
-                <li key={heading.id}>
-                  <a className="-ml-px block border-l border-transparent py-1 pl-4 text-sm text-zinc-400 transition hover:border-brand-gold hover:text-white" href={`#${heading.id}`}>
-                    {heading.title}
-                  </a>
-                </li>
-              ))}
+            <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-zinc-500">
+              <p>Contents</p>
+              <p className="tabular-nums" aria-live="polite">{position || 1} / {headings.length}</p>
+            </div>
+            <ol className="relative space-y-0.5 border-l border-white/10">
+              {headings.map((heading) => {
+                const isActive = heading.id === active;
+                return (
+                  <li key={heading.id}>
+                    <a
+                      ref={(node) => { linkRefs.current[heading.id] = node; }}
+                      href={`#${heading.id}`}
+                      aria-current={isActive ? "location" : undefined}
+                      onClick={(event) => goTo(event, heading.id)}
+                      className={`-ml-px block border-l-2 py-1.5 pl-4 text-sm transition-colors duration-200 ${
+                        isActive
+                          ? "border-brand-gold font-medium text-white"
+                          : "border-transparent text-zinc-400 hover:border-white/30 hover:text-zinc-200"
+                      }`}
+                    >
+                      {heading.title}
+                    </a>
+                  </li>
+                );
+              })}
             </ol>
           </nav>
         ) : null

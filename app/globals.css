@@ -157,7 +157,19 @@
   }
   html {
     @apply font-sans;
+    scroll-behavior: smooth;
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+*{
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.832 0.153 84.2) transparent;
 }
 
 ::-webkit-scrollbar {
