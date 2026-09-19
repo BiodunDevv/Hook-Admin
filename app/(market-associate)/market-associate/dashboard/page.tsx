@@ -36,6 +36,7 @@ interface FulfilmentRow {
   id?: string;
   status?: string;
   orderId?: string;
+  orderPublicId?: string;
 }
 
 function greeting() {
@@ -139,7 +140,7 @@ export default function MarketAssociateDashboardPage() {
               key={task.publicId || task.id}
               icon={PackageCheck}
               label={task.publicId || task.id || "Task"}
-              description={`Order ${task.orderId || "-"}`}
+              description={`Order ${task.orderPublicId || task.orderId || "-"}`}
               value={<span className="capitalize">{String(task.status || "").replaceAll("_", " ").toLowerCase()}</span>}
               href={`/market-associate/fulfilments/${task.publicId || task.id}`}
             />

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Check, Truck } from "lucide-react";
+import { AlertTriangle, Check, Printer, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ReceiptPrintDialog } from "@/components/fulfilment/ReceiptPrintDialog";
+import { CourierBadge, type CourierInfo } from "@/components/fulfilment/CourierBadge";
+import { CourierSwitchDialog } from "@/components/fulfilment/CourierSwitchDialog";
+import { Repeat } from "lucide-react";
 import { HookLoader } from "@/components/shared/HookLoader";
+import { MetricCard } from "@/components/shared/MetricCard";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { QueryState } from "@/components/shared/QueryState";
 import { ListRow, initialsOf } from "@/components/shared/ListRow";
@@ -40,7 +46,6 @@ type Shipment = {
   publicId?: string;
   orderId?: string;
   provider?: string;
-  /** The courier the customer chose and paid for, e.g. GIG / GUO / DHL. */
   courierCode?: string;
   courierName?: string;
   substitutedFrom?: string;
@@ -48,8 +53,11 @@ type Shipment = {
   trackingNumber?: string;
   status?: string;
   version?: number;
+  createdAt?: string;
   hub?: { name?: string } | null;
   order?: { publicId?: string } | null;
+  courier?: CourierInfo;
+  alternatives?: CourierInfo[];
 };
 
 type Consolidation = {
@@ -61,14 +69,14 @@ type Consolidation = {
   status?: string;
   hub?: { name?: string } | null;
   order?: { publicId?: string } | null;
-  chosenCourier?: { code?: string; name?: string; feeMinor?: number };
+  chosenCourier?: CourierInfo;
+  alternatives?: CourierInfo[];
 };
 
-type Courier = { code?: string; name?: string };
-
-type LogisticsReadiness = {
-  providers?: Array<{ name: string; enabled: boolean; mode: string; reason?: string }>;
-};
+type Tab = "ready" | "active" | "exceptions" | "all";
+const EXCEPTIONS = ["DELIVERY_FAILED", "RETURN_IN_TRANSIT", "AWAITING_HANDOVER_PAYMENT"];
+const CLOSED = ["DELIVERED", "CANCELLED", "RETURNED_TO_HOOK"];
+const PRE_PICKUP = ["BOOKED_WITH_PROVIDER", "AWAITING_PICKUP"];
 
 const label = (value?: string) => String(value || "-").replaceAll("_", " ");
 const rowId = (row: Shipment | Consolidation, index: number, prefix: string) =>
@@ -89,39 +97,25 @@ const nextStatuses: Record<string, string[]> = {
 export default function FulfilmentShipmentsPage() {
   const shipmentsQuery = useApiQuery<Shipment[]>(
     ["admin", "fulfilment", "shipments"],
-    "/admin/fulfilment/shipments?limit=100",
+    "/admin/fulfilment/shipments?limit=200",
   );
   const consolidationsQuery = useApiQuery<Consolidation[]>(
     ["admin", "fulfilment", "sealed-consolidations"],
     "/admin/fulfilment/consolidations?status=SEALED&limit=100",
   );
-  // The admin-managed courier list — the same options the customer picked from
-  // at checkout, used here only when substituting.
-  const couriersQuery = useApiQuery<{ data?: Courier[] } | Courier[]>(
-    ["admin", "logistics-providers"],
-    "/admin/logistics-providers?limit=100",
-  );
-  const readinessQuery = useApiQuery<LogisticsReadiness>(
-    ["admin", "fulfilment", "logistics-readiness"],
-    "/admin/fulfilment/logistics/readiness",
-  );
 
-  // The booking adapter stays 'manual' — couriers are chosen separately below.
-  const [provider] = useState<Record<string, string>>({});
-  // Substituting is deliberate: staff pick a different courier and say why.
-  const [substituteCode, setSubstituteCode] = useState<Record<string, string>>({});
-  const [substituteReason, setSubstituteReason] = useState<Record<string, string>>({});
-  // The status each row's dropdown is currently showing. Choosing one no
-  // longer fires the transition on its own — that made the neighbouring
-  // Advance button look decorative and moved real shipments on a stray click.
+  const [tab, setTab] = useState<Tab>("ready");
+  const [search, setSearch] = useState("");
   const [chosenStatus, setChosenStatus] = useState<Record<string, string>>({});
   const [confirming, setConfirming] = useState<{ shipment: Shipment; status: string }>();
   const [pending, setPending] = useState<string>();
+  const [receiptOrder, setReceiptOrder] = useState<string>();
+  // Booking with a substitute (chosen courier unavailable) or switching a
+  // booked shipment both go through the same dialog.
+  const [switching, setSwitching] = useState<
+    { kind: "book"; item: Consolidation } | { kind: "reassign"; shipment: Shipment }
+  >();
 
-  const couriers = useMemo(() => {
-    const raw = couriersQuery.data;
-    return (Array.isArray(raw) ? raw : raw?.data || []) as Courier[];
-  }, [couriersQuery.data]);
   const shipments = useMemo(() => shipmentsQuery.data || [], [shipmentsQuery.data]);
   const unbooked = useMemo(() => {
     const bookedOrders = new Set(shipments.map((item) => item.orderId));
@@ -130,41 +124,74 @@ export default function FulfilmentShipmentsPage() {
     );
   }, [consolidationsQuery.data, shipments]);
 
-  const loading =
-    shipmentsQuery.isLoading || consolidationsQuery.isLoading || readinessQuery.isLoading;
-  const error = shipmentsQuery.error || consolidationsQuery.error || readinessQuery.error;
+  const needle = search.trim().toLowerCase();
+  const matches = (...values: Array<string | undefined>) =>
+    !needle || values.some((value) => value?.toLowerCase().includes(needle));
+  const readyRows = unbooked.filter((item) =>
+    matches(item.order?.publicId, item.orderId, item.publicId, item.chosenCourier?.name, item.hub?.name),
+  );
+  const registerRows = shipments.filter((item) => {
+    const status = item.status || "";
+    if (tab === "active" && (CLOSED.includes(status) || EXCEPTIONS.includes(status))) return false;
+    if (tab === "exceptions" && !EXCEPTIONS.includes(status)) return false;
+    return matches(item.publicId, item.order?.publicId, item.orderId, item.courierName, item.trackingNumber, item.hub?.name);
+  });
+  const counts = {
+    ready: unbooked.length,
+    active: shipments.filter((item) => !CLOSED.includes(item.status || "") && !EXCEPTIONS.includes(item.status || "")).length,
+    exceptions: shipments.filter((item) => EXCEPTIONS.includes(item.status || "")).length,
+    all: shipments.length,
+  };
+  const unavailableReady = unbooked.filter((item) => item.chosenCourier?.available === false).length;
+
+  const loading = shipmentsQuery.isLoading || consolidationsQuery.isLoading;
+  const error = shipmentsQuery.error || consolidationsQuery.error;
+  const cleanError = (cause: unknown, fallback: string) =>
+    cause instanceof Error ? cause.message.replace(/^\d+:\s*/, "") : fallback;
 
   function retryAll() {
     void shipmentsQuery.refetch();
     void consolidationsQuery.refetch();
-    void readinessQuery.refetch();
   }
 
-  async function book(item: Consolidation) {
+  async function book(item: Consolidation, substitute?: { code: string; reason: string }) {
     if (!item.orderId || !item.hubId) return;
     const id = item.publicId || item.id || item._id;
     if (!id) return;
     setPending(`book-${id}`);
     try {
       await apiPost(`/admin/fulfilment/orders/${item.orderId}/shipments`, {
-        provider: provider[id] || "manual",
-        // Book with what the customer actually paid for unless staff have
-        // deliberately switched courier.
-        courierCode: substituteCode[id] || item.chosenCourier?.code,
-        ...(substituteCode[id] && substituteReason[id]?.trim()
-          ? { substitutionReason: substituteReason[id].trim() }
-          : {}),
+        provider: "manual",
+        courierCode: substitute?.code || item.chosenCourier?.code,
+        ...(substitute ? { substitutionReason: substitute.reason } : {}),
         hubId: item.hubId,
         idempotencyKey: `shipment-${item.orderId}`,
       });
       toast.success("Shipment booked.");
+      setSwitching(undefined);
       await Promise.all([shipmentsQuery.refetch(), consolidationsQuery.refetch()]);
     } catch (cause) {
-      toast.error(
-        cause instanceof Error
-          ? cause.message.replace(/^\d+:\s*/, "")
-          : "The shipment could not be booked.",
-      );
+      toast.error(cleanError(cause, "The shipment could not be booked."));
+    } finally {
+      setPending(undefined);
+    }
+  }
+
+  async function reassign(shipment: Shipment, courierCode: string, reason: string) {
+    const id = shipment.publicId || shipment.id || shipment._id;
+    if (!id) return;
+    setPending(`switch-${id}`);
+    try {
+      await apiPost(`/admin/fulfilment/shipments/${id}/reassign-courier`, {
+        courierCode,
+        reason,
+        version: shipment.version,
+      });
+      toast.success("Courier switched. The customer has been updated.");
+      setSwitching(undefined);
+      await shipmentsQuery.refetch();
+    } catch (cause) {
+      toast.error(cleanError(cause, "The courier could not be switched."));
     } finally {
       setPending(undefined);
     }
@@ -177,234 +204,240 @@ export default function FulfilmentShipmentsPage() {
     if (!id) return;
     setPending(`status-${id}`);
     try {
-      await apiPatch(`/admin/fulfilment/shipments/${id}`, {
-        status,
-        version: shipment.version,
-      });
+      await apiPatch(`/admin/fulfilment/shipments/${id}`, { status, version: shipment.version });
       toast.success(`Shipment advanced to ${label(status)}.`);
       setConfirming(undefined);
       await shipmentsQuery.refetch();
     } catch (cause) {
-      toast.error(
-        cause instanceof Error
-          ? cause.message.replace(/^\d+:\s*/, "")
-          : "The shipment status could not be changed.",
-      );
+      toast.error(cleanError(cause, "The shipment status could not be changed."));
     } finally {
       setPending(undefined);
     }
   }
 
+  const switchingCurrent = switching?.kind === "book" ? switching.item.chosenCourier : switching?.shipment.courier ?? {
+    code: switching?.shipment.courierCode,
+    name: switching?.shipment.courierName,
+  };
+  const switchingAlternatives =
+    (switching?.kind === "book" ? switching.item.alternatives : switching?.shipment.alternatives) || [];
 
   return (
     <div className="w-full space-y-5 px-4 py-5">
       <PageHeader
         showBack={false}
         title="Shipments"
-        description="Book sealed parcels through the controlled manual logistics path and advance status only through valid transitions. GIG and Fez remain disabled until verified."
+        description="Book sealed parcels with the courier the customer chose. If it is unavailable, switch to another courier and tell the customer why."
       />
 
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <MetricCard label="Ready to book" value={counts.ready} icon={Truck} />
+        <MetricCard
+          label="Courier unavailable"
+          value={unavailableReady}
+          icon={AlertTriangle}
+          intent={unavailableReady ? "danger" : "neutral"}
+          caption="Needs a switch before booking"
+        />
+        <MetricCard label="Active" value={counts.active} icon={Truck} intent="success" />
+        <MetricCard
+          label="Exceptions"
+          value={counts.exceptions}
+          icon={AlertTriangle}
+          intent={counts.exceptions ? "warning" : "neutral"}
+        />
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Tabs value={tab} onValueChange={(value) => setTab(value as Tab)}>
+          <TabsList>
+            <TabsTrigger value="ready">Ready to book ({counts.ready})</TabsTrigger>
+            <TabsTrigger value="active">Active ({counts.active})</TabsTrigger>
+            <TabsTrigger value="exceptions">Exceptions ({counts.exceptions})</TabsTrigger>
+            <TabsTrigger value="all">All ({counts.all})</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <Input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search order, courier, tracking, hub"
+          className="h-9 sm:w-[300px]"
+        />
+      </div>
+
       <Card className="rounded-lg shadow-none">
         <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
-          <CardTitle className="text-base">Ready for booking</CardTitle>
-          <Badge variant="outline">{unbooked.length} waiting</Badge>
+          <CardTitle className="text-base">{tab === "ready" ? "Ready for booking" : "Shipment register"}</CardTitle>
+          <Badge variant="outline">
+            {tab === "ready" ? `${readyRows.length} waiting` : `${registerRows.length} shipments`}
+          </Badge>
         </CardHeader>
         <CardContent className="p-0">
           <QueryState
             loading={loading}
             error={error}
-            empty={unbooked.length === 0}
+            empty={tab === "ready" ? readyRows.length === 0 : registerRows.length === 0}
             loadingLabel="Loading shipments"
             errorTitle="Shipment operations could not be loaded"
-            emptyTitle="Nothing waiting for booking"
-            emptyDescription="Sealed parcels appear here once the hub has consolidated them."
+            emptyTitle={tab === "ready" ? "Nothing waiting for booking" : "No shipments here"}
+            emptyDescription={
+              tab === "ready"
+                ? "Sealed parcels appear here once the hub has consolidated them."
+                : "Booked shipments and their tracking appear here."
+            }
             emptyIcon={Truck}
             onRetry={retryAll}
           >
-            {unbooked.map((item, index) => {
-              const id = rowId(item, index, "consolidation");
-              const orderRef = item.order?.publicId || item.orderId;
-              const substituting = Boolean(substituteCode[id]);
-              return (
-                <div key={id} className="border-t border-zinc-100 first:border-t-0">
-                  <ListRow
-                    index={index + 1}
-                    initials={initialsOf(item.chosenCourier?.name || "courier")}
-                    title={
-                      <span className="truncate text-sm font-semibold text-zinc-950">
-                        {orderRef}
-                      </span>
-                    }
-                    subject={item.chosenCourier?.name || "No courier recorded"}
-                    meta={[
-                      `Sealed ${id}`,
-                      item.hub?.name || `Hub ${item.hubId}`,
-                      substituting ? "substituting courier" : undefined,
-                    ]}
-                    actions={
-                      <PermissionGuard permission="logistics.book">
-                        <Button
-                          size="sm"
-                          onClick={() => void book(item)}
-                          disabled={
-                            pending === `book-${id}` ||
-                            Boolean(substituteCode[id] && !substituteReason[id]?.trim())
-                          }
-                        >
-                          {pending === `book-${id}` ? (
-                            <HookLoader size="button" />
+            {tab === "ready"
+              ? readyRows.map((item, index) => {
+                  const id = rowId(item, index, "consolidation");
+                  const unavailable = item.chosenCourier?.available === false;
+                  return (
+                    <ListRow
+                      key={id}
+                      index={index + 1}
+                      initials={initialsOf(item.chosenCourier?.name || "courier")}
+                      title={
+                        <span className="truncate text-sm font-semibold text-zinc-950">
+                          {item.order?.publicId || item.orderId}
+                        </span>
+                      }
+                      subject={<CourierBadge courier={item.chosenCourier} />}
+                      meta={[`Sealed ${id}`, item.hub?.name || `Hub ${item.hubId}`]}
+                      actions={
+                        <PermissionGuard permission="logistics.book">
+                          <Button size="sm" variant="ghost" onClick={() => setReceiptOrder(item.order?.publicId || item.orderId)}>
+                            <Printer /> Receipt
+                          </Button>
+                          {unavailable ? (
+                            <Button size="sm" variant="destructive" onClick={() => setSwitching({ kind: "book", item })}>
+                              <Repeat /> Switch courier &amp; book
+                            </Button>
                           ) : (
                             <>
-                              <Truck /> Book shipment
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setSwitching({ kind: "book", item })}
+                              >
+                                <Repeat /> Switch
+                              </Button>
+                              <Button size="sm" onClick={() => void book(item)} disabled={pending === `book-${id}`}>
+                                {pending === `book-${id}` ? (
+                                  <HookLoader size="button" />
+                                ) : (
+                                  <>
+                                    <Truck /> Book shipment
+                                  </>
+                                )}
+                              </Button>
                             </>
                           )}
-                        </Button>
-                      </PermissionGuard>
-                    }
-                  />
-
-                  {/* Substitution is opt-in and sits below the row so the
-                      default path — book what the customer paid for — stays a
-                      single click. Switching demands a reason, which is stored
-                      and shown to the customer in the app. */}
-                  <div className="flex flex-col gap-2 border-t border-zinc-100 bg-zinc-50/60 px-4 py-3 sm:flex-row sm:items-center xl:px-5">
-                    <Select
-                      value={substituteCode[id] || "__chosen__"}
-                      onValueChange={(value) =>
-                        setSubstituteCode((current) => {
-                          const next = { ...current };
-                          if (value === "__chosen__") delete next[id];
-                          else next[id] = value;
-                          return next;
-                        })
+                        </PermissionGuard>
                       }
-                    >
-                      <SelectTrigger className="h-9 w-full sm:w-[240px]">
-                        <SelectValue placeholder="Courier" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__chosen__">
-                          {item.chosenCourier?.name || "Customer's courier"}
-                        </SelectItem>
-                        {(couriers || [])
-                          .filter((courier: Courier) => courier.code !== item.chosenCourier?.code)
-                          .map((courier: Courier) => (
-                            <SelectItem key={courier.code} value={String(courier.code)}>
-                              {courier.name} (substitute)
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                    {substituting ? (
-                      <Input
-                        value={substituteReason[id] || ""}
-                        onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                          setSubstituteReason((current) => ({ ...current, [id]: event.target.value }))
-                        }
-                        placeholder="Why the change? (shown to the customer)"
-                        className="h-9 flex-1 text-xs"
-                      />
-                    ) : null}
-                  </div>
-                </div>
-              );
-            })}
-          </QueryState>
-        </CardContent>
-      </Card>
-
-      <Card className="rounded-lg shadow-none">
-        <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
-          <CardTitle className="text-base">Shipment register</CardTitle>
-          <Badge variant="outline">{shipments.length} shipments</Badge>
-        </CardHeader>
-        <CardContent className="p-0">
-          <QueryState
-            loading={loading}
-            error={error}
-            empty={shipments.length === 0}
-            loadingLabel="Loading shipments"
-            errorTitle="Shipment operations could not be loaded"
-            emptyTitle="No shipments recorded"
-            emptyDescription="Booked shipments and their tracking appear here."
-            emptyIcon={Truck}
-            onRetry={retryAll}
-          >
-            {shipments.map((item, index) => {
-              const id = rowId(item, index, "shipment");
-              const options = nextStatuses[item.status || ""] || [];
-              const selected = chosenStatus[id] || options[0] || "";
-              const orderRef = item.order?.publicId || item.orderId;
-
-              return (
-                <ListRow
-                  key={id}
-                  index={index + 1}
-                  initials={initialsOf(item.courierName || item.provider || "shipment")}
-                  title={<span className="truncate text-sm font-semibold text-zinc-950">{id}</span>}
-                  subject={item.courierName || item.provider || "manual"}
-                  meta={[
-                    orderRef ? (
-                      <Link href={`/dashboard/orders/${orderRef}`} className="hover:underline">
-                        {orderRef}
-                      </Link>
-                    ) : (
-                      "No order reference"
-                    ),
-                    item.trackingNumber,
-                    item.substitutedFrom ? `substituted from ${item.substitutedFrom}` : undefined,
-                  ]}
-                  actions={
-                    <>
-                      <StatusBadge status={item.status || "BOOKED_WITH_PROVIDER"} />
-                      {options.length ? (
+                    />
+                  );
+                })
+              : registerRows.map((item, index) => {
+                  const id = rowId(item, index, "shipment");
+                  const options = nextStatuses[item.status || ""] || [];
+                  const selected = chosenStatus[id] || options[0] || "";
+                  const orderRef = item.order?.publicId || item.orderId;
+                  const canSwitch = PRE_PICKUP.includes(item.status || "");
+                  return (
+                    <ListRow
+                      key={id}
+                      index={index + 1}
+                      initials={initialsOf(item.courierName || item.provider || "shipment")}
+                      title={<span className="truncate text-sm font-semibold text-zinc-950">{id}</span>}
+                      subject={
+                        <CourierBadge
+                          courier={{ ...item.courier, code: item.courierCode, name: item.courierName || item.provider }}
+                        />
+                      }
+                      meta={[
+                        orderRef ? (
+                          <Link href={`/dashboard/orders/${orderRef}`} className="hover:underline">
+                            {orderRef}
+                          </Link>
+                        ) : (
+                          "No order reference"
+                        ),
+                        item.trackingNumber,
+                        item.hub?.name,
+                        item.substitutedFrom ? `switched from ${item.substitutedFrom}` : undefined,
+                      ]}
+                      actions={
                         <>
-                          <Select
-                            value={selected}
-                            onValueChange={(value) =>
-                              setChosenStatus((current) => ({ ...current, [id]: value }))
-                            }
-                          >
-                            <SelectTrigger className="h-8 w-[190px]">
-                              <SelectValue placeholder="Advance status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {options.map((option) => (
-                                <SelectItem key={option} value={option}>
-                                  {label(option)}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <PermissionGuard permission="logistics.manage">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={pending === `status-${id}` || !selected}
-                              onClick={() => setConfirming({ shipment: item, status: selected })}
-                            >
-                              {pending === `status-${id}` ? (
-                                <HookLoader size="button" />
-                              ) : (
-                                <>
-                                  <Check /> Advance
-                                </>
-                              )}
+                          <StatusBadge status={item.status || "BOOKED_WITH_PROVIDER"} />
+                          {orderRef ? (
+                            <Button size="sm" variant="ghost" onClick={() => setReceiptOrder(orderRef)}>
+                              <Printer /> Receipt
                             </Button>
+                          ) : null}
+                          <PermissionGuard permission="logistics.manage">
+                            {canSwitch ? (
+                              <Button size="sm" variant="ghost" onClick={() => setSwitching({ kind: "reassign", shipment: item })}>
+                                <Repeat /> Switch courier
+                              </Button>
+                            ) : null}
+                            {options.length ? (
+                              <>
+                                <Select
+                                  value={selected}
+                                  onValueChange={(value) => setChosenStatus((current) => ({ ...current, [id]: value }))}
+                                >
+                                  <SelectTrigger className="h-8 w-[190px]">
+                                    <SelectValue placeholder="Advance status" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {options.map((option) => (
+                                      <SelectItem key={option} value={option}>
+                                        {label(option)}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={pending === `status-${id}` || !selected}
+                                  onClick={() => setConfirming({ shipment: item, status: selected })}
+                                >
+                                  <Check /> Advance
+                                </Button>
+                              </>
+                            ) : null}
                           </PermissionGuard>
                         </>
-                      ) : null}
-                    </>
-                  }
-                />
-              );
-            })}
+                      }
+                    />
+                  );
+                })}
           </QueryState>
         </CardContent>
       </Card>
 
-      {/* Advancing a shipment is reported to the customer and cannot be undone
-          from here, so it is confirmed rather than fired on a single click. */}
+      <ReceiptPrintDialog orderRef={receiptOrder} open={Boolean(receiptOrder)} onOpenChange={(open) => (open ? undefined : setReceiptOrder(undefined))} />
+      <CourierSwitchDialog
+        open={Boolean(switching)}
+        onOpenChange={(open) => (open ? undefined : setSwitching(undefined))}
+        current={switchingCurrent}
+        alternatives={switchingAlternatives}
+        title={switching?.kind === "book" ? "Book with a different courier" : "Switch courier"}
+        description={
+          switching?.kind === "book" && switching.item.chosenCourier?.available === false
+            ? `${switching.item.chosenCourier?.name || "The chosen courier"} is unavailable. Pick another courier to book with.`
+            : undefined
+        }
+        submitting={Boolean(pending?.startsWith("book-") || pending?.startsWith("switch-"))}
+        onConfirm={(code, reason) => {
+          if (!switching) return;
+          if (switching.kind === "book") void book(switching.item, { code, reason });
+          else void reassign(switching.shipment, code, reason);
+        }}
+      />
+
       <AlertDialog
         open={Boolean(confirming)}
         onOpenChange={(open) => (open ? undefined : setConfirming(undefined))}
@@ -425,8 +458,6 @@ export default function FulfilmentShipmentsPage() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={(event) => {
-                // Keep the dialog mounted while the request runs so the
-                // pending state is visible instead of flashing closed.
                 event.preventDefault();
                 void advance();
               }}

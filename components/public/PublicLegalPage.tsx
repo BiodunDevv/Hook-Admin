@@ -69,7 +69,7 @@ export function PublicLegalPage({
   useEffect(() => {
     if (!active || !window.matchMedia("(min-width: 1024px)").matches) return;
     const link = linkRefs.current[active];
-    const panel = link?.closest("aside");
+    const panel = link?.closest<HTMLElement>("[data-shell-scroll]");
     if (!link || !panel) return;
     const a = panel.getBoundingClientRect();
     const l = link.getBoundingClientRect();

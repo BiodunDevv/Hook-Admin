@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { FlickeringGrid } from "@/components/ui/flickering-grid";
 import { HookLogo } from "@/components/shared/HookLogo";
 import { cn } from "@/lib/utils";
 
@@ -12,11 +13,11 @@ export const PUBLIC_LINKS = [
 ];
 
 /**
- * The frame for every customer-facing page that is not part of the admin
- * dashboard (legal pages, account deletion, invitations, activation). A dark
- * brand panel on the left and the content on the right, using the whole
- * screen on desktop and stacking on phones. Keeping it in one place is what
- * keeps those pages looking like one product.
+ * The frame for every customer-facing page outside the admin dashboard, in the
+ * same design as the sign-in screens: the content on the left, and a dark
+ * brand panel on the right with the flickering grid. The panel carries the
+ * page's title, description and any extra guidance (steps, contents list). On
+ * phones the panel is hidden and the title moves above the content.
  */
 export function PublicShell({
   eyebrow,
@@ -30,7 +31,7 @@ export function PublicShell({
   eyebrow?: string;
   title: string;
   description?: string;
-  /** Extra content under the description in the brand panel (steps, contents list…). */
+  /** Extra content in the brand panel under the description (steps, contents list…). Desktop only. */
   aside?: ReactNode;
   children: ReactNode;
   width?: keyof typeof WIDTHS;
@@ -38,32 +39,51 @@ export function PublicShell({
   centered?: boolean;
 }) {
   return (
-    <div className="min-h-screen w-full lg:grid lg:grid-cols-[minmax(340px,5fr)_7fr]">
-      <aside className="flex flex-col justify-between gap-10 bg-zinc-950 px-6 py-10 text-white sm:px-10 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto lg:px-14 lg:py-14">
-        <div className="space-y-10">
-          <HookLogo className="text-3xl" />
-          <div className="space-y-4">
-            {eyebrow ? <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-gold">{eyebrow}</p> : null}
-            <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">{title}</h1>
-            {description ? <p className="max-w-md text-base leading-7 text-zinc-400">{description}</p> : null}
-          </div>
-          {aside}
+    <div className="min-h-dvh w-full bg-background lg:grid lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+      <main className={cn("flex min-h-dvh flex-col bg-muted/30 px-6 py-10 sm:px-10 lg:px-14 lg:py-14", centered && "lg:justify-center")}>
+        <div className={cn("mx-auto w-full", WIDTHS[width])}>
+          {/* The panel is hidden below lg, so the identity moves here. */}
+          <header className="mb-8 space-y-4 lg:hidden">
+            <HookLogo className="text-3xl" />
+            <div className="space-y-2">
+              {eyebrow ? <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-gold">{eyebrow}</p> : null}
+              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1>
+              {description ? <p className="text-sm leading-6 text-muted-foreground">{description}</p> : null}
+            </div>
+          </header>
+          <div className="mb-8 hidden lg:block"><HookLogo className="text-3xl" /></div>
+          {children}
         </div>
-        <nav aria-label="Legal and account" className="space-y-3 text-xs text-zinc-500">
-          <ul className="flex flex-wrap gap-x-5 gap-y-2">
-            {PUBLIC_LINKS.map((link) => (
-              <li key={link.href}>
-                <a className="font-medium text-zinc-300 underline-offset-4 hover:text-white hover:underline" href={link.href}>{link.label}</a>
-              </li>
-            ))}
-          </ul>
-          <p>&copy; {new Date().getFullYear()} Hook</p>
-        </nav>
-      </aside>
-
-      <main className={cn("bg-muted/30 px-4 py-10 sm:px-8 lg:px-14 lg:py-14", centered && "lg:flex lg:min-h-screen lg:items-center")}>
-        <div className={cn("mx-auto w-full", WIDTHS[width])}>{children}</div>
       </main>
+
+      <aside className="relative hidden overflow-hidden border-l border-white/10 bg-zinc-950 text-white lg:sticky lg:top-0 lg:block lg:h-dvh">
+        <FlickeringGrid className="absolute inset-0 z-0" squareSize={4} gridGap={6} color="#FFC809" maxOpacity={0.35} flickerChance={0.12} />
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 z-0 h-56 bg-linear-to-b from-brand-gold/10 to-transparent" />
+        <div aria-hidden className="pointer-events-none absolute inset-0 z-0 bg-linear-to-b from-zinc-950/0 via-zinc-950/40 to-zinc-950/95" />
+
+        {/* The grid stays put; only this layer scrolls when a long contents list needs it. */}
+        <div data-shell-scroll className="relative z-10 flex h-full flex-col justify-between gap-10 overflow-y-auto p-10 xl:p-12">
+          <div className="space-y-8">
+            <div className="max-w-md space-y-4">
+              {eyebrow ? <p className="text-xs font-medium uppercase tracking-[0.28em] text-brand-gold">{eyebrow}</p> : null}
+              <h1 className="text-3xl font-semibold leading-[1.15] tracking-tight text-balance">{title}</h1>
+              {description ? <p className="text-base leading-7 text-zinc-400">{description}</p> : null}
+            </div>
+            {aside}
+          </div>
+
+          <nav aria-label="Legal and account" className="space-y-3 text-xs text-zinc-500">
+            <ul className="flex flex-wrap gap-x-5 gap-y-2">
+              {PUBLIC_LINKS.map((link) => (
+                <li key={link.href}>
+                  <a className="font-medium text-zinc-300 underline-offset-4 hover:text-white hover:underline" href={link.href}>{link.label}</a>
+                </li>
+              ))}
+            </ul>
+            <p>&copy; {new Date().getFullYear()} Hook</p>
+          </nav>
+        </div>
+      </aside>
     </div>
   );
 }

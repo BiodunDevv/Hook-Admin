@@ -27,7 +27,6 @@ export function ItemResolutionCard({ issue, taskId }: { issue: ItemResolutionVie
   const [quantity, setQuantity] = useState(String(original.quantity || 1));
   const [price, setPrice] = useState(String(Number(original.unitPriceMinor || 0) / 100));
   const [reason, setReason] = useState("");
-  const [providerReference, setProviderReference] = useState("");
   const canPropose = ["OPEN", "ADMIN_REVIEW", "DECLINED"].includes(issue.status);
 
   async function submit() {
@@ -42,17 +41,6 @@ export function ItemResolutionCard({ issue, taskId }: { issue: ItemResolutionVie
       await queryClient.invalidateQueries({ queryKey: ["admin", "fulfilment", "task", taskId] });
     } catch (error) {
       toast.error(error instanceof Error ? error.message.replace(/^\d+:\s*/, "") : "Proposal could not be sent");
-    } finally { setPending(false); }
-  }
-
-  async function completeAdjustment() {
-    setPending(true);
-    try {
-      await apiPost(`/admin/fulfilment/issues/${issue.publicId || issue.id}/adjustment-complete`, { providerReference });
-      toast.success("Price adjustment confirmed and replacement applied");
-      await queryClient.invalidateQueries({ queryKey: ["admin", "fulfilment", "task", taskId] });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message.replace(/^\d+:\s*/, "") : "Adjustment could not be confirmed");
     } finally { setPending(false); }
   }
 
@@ -71,6 +59,6 @@ export function ItemResolutionCard({ issue, taskId }: { issue: ItemResolutionVie
       <div className="sm:col-span-2"><Label>Reason shown to customer</Label><Textarea value={reason} onChange={(event) => setReason(event.target.value)} /></div>
       <Button className="sm:col-span-2" disabled={pending || !title || !color || !size || !quantity || !price || reason.trim().length < 3} onClick={() => void submit()}>{pending ? "Sending…" : "Send for customer approval"}</Button>
     </div>}
-    {["PAYMENT_PENDING", "REFUND_PENDING"].includes(issue.status) && <div className="mt-4 grid gap-3 border-t pt-4 sm:grid-cols-[1fr_auto] sm:items-end"><div><Label>{issue.status === "PAYMENT_PENDING" ? "Verified top-up reference" : "Verified refund reference"}</Label><Input value={providerReference} onChange={(event) => setProviderReference(event.target.value)} placeholder="Provider transaction reference" /></div><Button disabled={pending || providerReference.trim().length < 3} onClick={() => void completeAdjustment()}>{pending ? "Confirming…" : "Confirm adjustment"}</Button></div>}
+    {["PAYMENT_PENDING", "REFUND_PENDING"].includes(issue.status) && <div className="mt-4 rounded-lg border border-amber-200 bg-white/70 p-3 text-sm text-amber-950"><p className="font-semibold">{issue.status === "PAYMENT_PENDING" ? "Waiting for the customer’s secure Paystack top-up" : "Paystack refund is being verified"}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">This task resumes automatically after signed provider verification. No manual transaction reference is required.</p></div>}
   </div>;
 }

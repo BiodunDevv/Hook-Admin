@@ -19,6 +19,15 @@ function isRouteActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+// A parent route (/fulfilment) also matches its children (/fulfilment/hub), so
+// only the most specific matching item in the group counts as active.
+function isItemActive(pathname: string, href: string, siblings: Array<{ href: string }>) {
+  return (
+    isRouteActive(pathname, href) &&
+    !siblings.some((other) => other.href.length > href.length && isRouteActive(pathname, other.href))
+  );
+}
+
 const STORAGE_KEY = "hook.sidebar.collapsed-groups";
 
 /**
@@ -97,7 +106,7 @@ export function NavGroup({ label, items, defaultCollapsed }: HookNavGroup) {
         <SidebarMenu>
           {items.map((item) => {
             const Icon = item.icon;
-            const active = isRouteActive(pathname, item.href);
+            const active = isItemActive(pathname, item.href, items);
 
             return (
               <SidebarMenuItem key={item.href}>

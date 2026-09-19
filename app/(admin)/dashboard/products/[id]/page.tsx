@@ -1,5 +1,6 @@
 "use client";
 
+import { ColorLabel } from "@/components/shared/ColorLabel";
 import { FormEvent, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -266,8 +267,7 @@ export default function ProductDetailPage() {
                       <div className="flex flex-wrap gap-2">
                         {(product.colors || []).map((color) => (
                           <span key={color} className="flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-600">
-                            <span className="size-4 rounded-full border border-zinc-200" style={{ backgroundColor: color }} />
-                            {color}
+                            <ColorLabel value={color} swatchClassName="size-4" />
                           </span>
                         ))}
                       </div>

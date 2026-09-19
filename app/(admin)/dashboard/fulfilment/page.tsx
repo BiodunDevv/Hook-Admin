@@ -24,6 +24,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { HookLoader } from "@/components/shared/HookLoader";
 import { AdminWorkflowSheet } from "@/components/shared/AdminWorkflowSheet";
 import { MetricCard } from "@/components/shared/MetricCard";
+import { StageStrip } from "@/components/fulfilment/StageStrip";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { taskAge } from "@/lib/fulfilment-progress";
 import { QueryState } from "@/components/shared/QueryState";
@@ -90,6 +92,12 @@ const identifier = (row?: Row) => row?.publicId || row?.id || "";
 const TASK_PREVIEW_LIMIT = 12;
 
 export default function FulfilmentControlTowerPage() {
+  const router = useRouter();
+  const overviewQuery = useApiQuery<{
+    sourcing: number; blocked: number; inbound: number; awaitingQc: number; readyToConsolidate: number;
+    consolidating: number; readyToBook: number; inTransit: number; exceptions: number; failed?: number;
+  }>(["admin", "fulfilment", "overview"], "/admin/fulfilment/overview");
+  const overview = overviewQuery.data;
   const query = useApiQuery<ControlTower>(
     ["admin", "fulfilment", "control-tower"],
     "/admin/fulfilment/control-tower",
@@ -244,6 +252,22 @@ export default function FulfilmentControlTowerPage() {
                 <MetricCard key={metric.label} {...metric} />
               ))}
             </div>
+
+            {overview ? (
+              <StageStrip
+                onSelect={(key) => router.push(key === "sourcing" ? "/dashboard/fulfilment" : ["inbound", "qc", "failed", "consolidate"].includes(key) ? "/dashboard/fulfilment/hub" : "/dashboard/fulfilment/shipments")}
+                stages={[
+                  { key: "sourcing", label: "Sourcing", count: overview.sourcing, tone: overview.blocked ? "danger" : "default" },
+                  { key: "inbound", label: "At hub", count: overview.inbound },
+                  { key: "qc", label: "Quality check", count: overview.awaitingQc },
+                  { key: "failed", label: "QC failed", count: overview.failed ?? 0, tone: overview.failed ? "danger" : "default" },
+                  { key: "consolidate", label: "Consolidate", count: overview.readyToConsolidate + overview.consolidating },
+                  { key: "book", label: "Ready to book", count: overview.readyToBook, tone: overview.readyToBook ? "warning" : "default" },
+                  { key: "transit", label: "In transit", count: overview.inTransit },
+                  { key: "exceptions", label: "Exceptions", count: overview.exceptions, tone: overview.exceptions ? "danger" : "default" },
+                ]}
+              />
+            ) : null}
 
             <div className="grid gap-4">
               <Card className="gap-0 overflow-hidden rounded-lg py-0 shadow-card">
