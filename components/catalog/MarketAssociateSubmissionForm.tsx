@@ -682,7 +682,7 @@ function CaptureSlot({
         ) : (
           <span className="flex size-full flex-col items-center justify-center gap-1 px-1 text-center text-[#8F8F8F]">
             <ImagePlus className="size-5" />
-            <span className="text-[10px] font-semibold">Take {label.toLowerCase()}</span>
+            <span className="text-[10px] font-semibold">Add {label.toLowerCase()}</span>
           </span>
         )}
         <span className="absolute inset-x-1.5 bottom-1.5 rounded-full bg-black/75 px-1.5 py-1 text-center text-[9px] font-bold text-white">
@@ -691,7 +691,6 @@ function CaptureSlot({
         <input
           type="file"
           accept="image/jpeg,image/png,image/webp,image/avif"
-          capture="environment"
           className="sr-only"
           disabled={!editable || uploading || !available}
           onChange={(event) => {

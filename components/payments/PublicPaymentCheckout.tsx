@@ -1,9 +1,11 @@
 "use client";
 
+import { friendlyVariantValue } from "@/lib/color-name";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check, ChevronRight, Clock3, ExternalLink, LoaderCircle, LockKeyhole, RotateCcw, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PublicShell } from "@/components/public/PublicShell";
 import { PaymentProviderMark } from "@/components/payments/PaymentProviderMark";
 import { publicPaymentRequest } from "@/lib/public-payment-api";
 
@@ -130,24 +132,19 @@ export function PublicPaymentCheckout({ token, processing = false }: { token: st
     }
   }
 
-  if (!detail && !error) return <PaymentShell><div className="flex min-h-80 items-center justify-center"><LoaderCircle className="animate-spin text-[#e6ad00]" size={30} /></div></PaymentShell>;
-  if (!detail) return <PaymentShell><StatePanel icon={LockKeyhole} title="Payment link unavailable" description={error} action={<Button onClick={() => void load()}><RotateCcw /> Try again</Button>} /></PaymentShell>;
+  if (!detail && !error) return <PaymentShell centered><div className="flex min-h-80 items-center justify-center"><LoaderCircle className="animate-spin text-[#e6ad00]" size={30} /></div></PaymentShell>;
+  if (!detail) return <PaymentShell centered width="lg"><StatePanel icon={LockKeyhole} title="Payment link unavailable" description={error} action={<Button onClick={() => void load()}><RotateCcw /> Try again</Button>} /></PaymentShell>;
   if (paid) return (
-    <PaymentShell>
+    <PaymentShell centered width="lg" title="Payment received">
       <StatePanel icon={Check} tone="success" title="Payment successful" description={`Payment for ${detail.order.reference} has been verified. Hook will now continue processing the Order.`} action={appReturn ? <Button onClick={() => window.location.assign(`hook://payments/return?status=success&orderId=${encodeURIComponent(detail.order.id)}`)}>Return to Hook <ExternalLink /></Button> : undefined} />
     </PaymentShell>
   );
 
   return (
-    <PaymentShell>
-      <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
+    <PaymentShell eyebrow={detail.purpose} title="Review and pay" description={`Order ${detail.order.reference}`}>
+      <div className="min-w-0 space-y-5">
         <section className="min-w-0 space-y-4">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#9a7400]">{detail.purpose}</p>
-            <h1 className="mt-2 text-2xl font-extrabold text-zinc-950 sm:text-3xl">Review and pay</h1>
-            <p className="mt-1 text-sm text-zinc-500">Order {detail.order.reference}</p>
-          </div>
-          <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
+          <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
             {detail.order.items.map((item) => (
               <div key={item.id} className="flex min-w-0 items-center gap-3 border-b border-zinc-100 p-3 last:border-b-0 sm:p-4">
                 <div className="relative size-16 shrink-0 overflow-hidden rounded-md bg-zinc-100">
@@ -156,15 +153,15 @@ export function PublicPaymentCheckout({ token, processing = false }: { token: st
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold text-zinc-900">{item.title}</p>
                   <p className="mt-1 text-sm text-zinc-500">Quantity {item.quantity}</p>
-                  {item.selectedVariants && <p className="mt-1 truncate text-xs text-zinc-400">{Object.values(item.selectedVariants).filter(Boolean).join(" · ")}</p>}
+                  {item.selectedVariants && <p className="mt-1 truncate text-xs text-zinc-400">{Object.entries(item.selectedVariants).filter(([, value]) => Boolean(value)).map(([key, value]) => friendlyVariantValue(key, value)).join(" · ")}</p>}
                 </div>
               </div>
             ))}
           </div>
-          <div className="flex items-center gap-2 rounded-lg border border-[#f0d36c] bg-[#fff9df] p-3 text-sm text-[#705700]"><Clock3 size={17} /> Link available until {expiry}{countdown ? ` · ${countdown}` : ""}</div>
+          <div className="flex items-center gap-2 rounded-2xl border border-[#f0d36c] bg-[#fff9df] p-3.5 text-sm text-[#705700]"><Clock3 size={17} /> Link available until {expiry}{countdown ? ` · ${countdown}` : ""}</div>
         </section>
 
-        <aside className="min-w-0 rounded-lg border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
+        <section className="min-w-0 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5 sm:p-6">
           {processing && <div className="mb-4 flex items-center gap-2 rounded-md bg-zinc-50 p-3 text-sm text-zinc-600"><LoaderCircle className="animate-spin" size={16} /> Waiting for verified payment confirmation</div>}
           {attemptFailed && <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">Your last attempt didn&apos;t go through. Choose a payment method and try again.</div>}
           {!detail.providers.length ? (
@@ -196,20 +193,58 @@ export function PublicPaymentCheckout({ token, processing = false }: { token: st
             <div className="flex justify-between pt-2 text-lg font-extrabold text-zinc-950"><span>Total</span><span>{money(detail.order.totalMinor)}</span></div>
           </div>
           {error && <p className="mb-3 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-          <Button className="h-12 w-full bg-[#ffc809] font-bold text-black hover:bg-[#eeb900]" disabled={!selected || !detail.providers.length || submitting} onClick={pay}>
+          <Button variant="brand" size="lg" className="h-12 w-full font-bold" disabled={!selected || !detail.providers.length || submitting} onClick={pay}>
             {submitting ? <LoaderCircle className="animate-spin" /> : <ShieldCheck />} Continue securely
           </Button>
           <p className="mt-3 text-center text-xs leading-5 text-zinc-400">Hook never marks a payment complete from this page alone. Your provider confirms it securely.</p>
-        </aside>
+        </section>
       </div>
     </PaymentShell>
   );
 }
 
-function PaymentShell({ children }: { children: React.ReactNode }) {
-  return <main className="min-h-screen bg-[#f5f5f4] px-4 py-6 sm:px-6 sm:py-10"><div className="mx-auto w-full max-w-5xl"><div className="mb-6 text-3xl font-black tracking-tight">hook<span className="text-[#ffc809]">.</span></div>{children}<div className="mt-6 flex items-center justify-center gap-2 text-xs text-zinc-400"><LockKeyhole size={13} /> Secured by Hook</div></div></main>;
+function PaymentShell({
+  children,
+  eyebrow = "Secure payment",
+  title = "Complete your payment",
+  description = "Pay for your Hook order through a secure hosted checkout.",
+  centered = false,
+  width = "3xl",
+}: {
+  children: React.ReactNode;
+  eyebrow?: string;
+  title?: string;
+  description?: string;
+  centered?: boolean;
+  width?: "lg" | "3xl";
+}) {
+  return (
+    <PublicShell
+      eyebrow={eyebrow}
+      title={title}
+      description={description}
+      width={width}
+      centered={centered}
+      aside={
+        <ul className="space-y-4 text-sm text-zinc-400">
+          {[
+            { icon: ShieldCheck, title: "Secure hosted checkout", body: "You pay on your provider's own page." },
+            { icon: LockKeyhole, title: "Your card stays private", body: "Hook never sees or stores card details." },
+            { icon: Check, title: "Confirmed by your provider", body: "An order is only marked paid after your provider verifies it." },
+          ].map(({ icon: Icon, title: heading, body }) => (
+            <li key={heading} className="flex gap-3">
+              <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-brand-gold/15 text-brand-gold"><Icon className="size-4" /></span>
+              <span><span className="block font-semibold text-white">{heading}</span>{body}</span>
+            </li>
+          ))}
+        </ul>
+      }
+    >
+      {children}
+    </PublicShell>
+  );
 }
 
 function StatePanel({ icon: Icon, title, description, action, tone = "neutral" }: { icon: typeof Check; title: string; description: string; action?: React.ReactNode; tone?: "neutral" | "success" }) {
-  return <div className="mx-auto flex min-h-[420px] max-w-xl flex-col items-center justify-center rounded-lg border border-zinc-200 bg-white p-6 text-center shadow-sm"><div className={`flex size-14 items-center justify-center rounded-full ${tone === "success" ? "bg-emerald-100 text-emerald-700" : "bg-[#fff3bf] text-[#9a7400]"}`}><Icon size={26} /></div><h1 className="mt-5 text-2xl font-extrabold">{title}</h1><p className="mt-2 max-w-md text-sm leading-6 text-zinc-500">{description}</p>{action && <div className="mt-6">{action}</div>}</div>;
+  return <div className="flex min-h-[320px] flex-col items-center justify-center rounded-2xl bg-white p-6 text-center shadow-sm ring-1 ring-black/5"><div className={`flex size-14 items-center justify-center rounded-full ${tone === "success" ? "bg-emerald-100 text-emerald-700" : "bg-[#fff3bf] text-[#9a7400]"}`}><Icon size={26} /></div><h2 className="mt-5 text-2xl font-extrabold">{title}</h2><p className="mt-2 max-w-md text-sm leading-6 text-zinc-500">{description}</p>{action && <div className="mt-6">{action}</div>}</div>;
 }

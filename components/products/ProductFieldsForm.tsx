@@ -1,5 +1,7 @@
 "use client";
 
+import { ColorLabel } from "@/components/shared/ColorLabel";
+import { colorName } from "@/lib/color-name";
 import { Info, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
@@ -174,8 +176,7 @@ export function ProductFieldsForm({
                 onClick={() => onChange({ colors: value.colors.filter((item) => item !== color) })}
                 className="flex h-8 items-center gap-2 rounded-md border border-zinc-200 bg-white px-2 text-xs text-zinc-600"
               >
-                <span className="size-4 rounded-full border border-zinc-200" style={{ backgroundColor: color }} />
-                {color}
+                <ColorLabel value={color} swatchClassName="size-4" />
                 <X size={12} />
               </button>
             ))}
@@ -186,6 +187,7 @@ export function ProductFieldsForm({
               className="h-8 w-10 rounded-md border border-zinc-200 bg-white p-1"
               aria-label="Pick product color"
             />
+            <span className="text-xs text-zinc-500">{colorName(colorValue)}</span>
             <Button
               type="button"
               variant="outline"

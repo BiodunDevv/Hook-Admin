@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/input-group";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { HookLoader } from "@/components/shared/HookLoader";
-import { HookLogo } from "@/components/shared/HookLogo";
 import { useAccountLogin } from "@/lib/query";
 import type { AuthSession } from "@/lib/api";
 
@@ -61,11 +60,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
 
   return (
     <AuthCard
-      title={
-        <>
-          Welcome back to <HookLogo />
-        </>
-      }
+      title="Welcome back"
       description="One secure sign-in for staff, Market Associates, and Hook Partners."
     >
       <form onSubmit={onSubmit} noValidate>

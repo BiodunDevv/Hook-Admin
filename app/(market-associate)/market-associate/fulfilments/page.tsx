@@ -56,7 +56,7 @@ export default function MarketAssociateFulfilmentsPage() {
     <div>
       <MobileHeader
         title="Orders"
-        subtitle="Accept, source, pack, and hand over your assigned tasks."
+        subtitle="Accept a task, complete each product, then submit the package to Hub."
         action={
           rows.length ? (
             <span className="rounded-full bg-white px-2.5 py-1 text-[12px] font-semibold text-[#8F8F8F]">

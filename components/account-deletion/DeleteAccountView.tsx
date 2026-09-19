@@ -80,16 +80,17 @@ const STEPS = [
   { title: "Permanent deletion", body: "Your personal data is erased. This cannot be undone." },
 ];
 
-function Steps() {
+function Steps({ tone = "dark" }: { tone?: "dark" | "light" }) {
+  const dark = tone === "dark";
   return (
     <ol className="space-y-6">
       {STEPS.map((step, index) => (
         <li key={step.title} className="relative flex gap-4">
-          {index < STEPS.length - 1 ? <span aria-hidden className="absolute left-[15px] top-9 h-[calc(100%-0.5rem)] w-px bg-white/15" /> : null}
+          {index < STEPS.length - 1 ? <span aria-hidden className={`absolute left-[15px] top-9 h-[calc(100%-0.5rem)] w-px ${dark ? "bg-white/15" : "bg-border"}`} /> : null}
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-gold text-sm font-bold text-zinc-950">{index + 1}</span>
           <div>
-            <p className="font-semibold text-white">{step.title}</p>
-            <p className="mt-0.5 text-sm leading-6 text-zinc-400">{step.body}</p>
+            <p className={`font-semibold ${dark ? "text-white" : "text-foreground"}`}>{step.title}</p>
+            <p className={`mt-0.5 text-sm leading-6 ${dark ? "text-zinc-400" : "text-muted-foreground"}`}>{step.body}</p>
           </div>
         </li>
       ))}
@@ -191,6 +192,11 @@ export function DeleteAccountView() {
       aside={<Steps />}
     >
       <div className="space-y-8">
+        {/* The dark panel with the steps is desktop only, so phones get them here. */}
+        <Card className="rounded-xl py-5 shadow-sm lg:hidden">
+          <CardHeader className="pb-1"><CardTitle className="text-base">How it works</CardTitle></CardHeader>
+          <CardContent className="px-(--card-spacing)"><Steps tone="light" /></CardContent>
+        </Card>
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="grid h-auto w-full grid-cols-2 p-1">
             <TabsTrigger value="delete" className="py-2.5">Delete my account</TabsTrigger>
