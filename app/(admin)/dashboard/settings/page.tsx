@@ -1,13 +1,14 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { Building2, CreditCard, CalendarClock, FileText, Mail, Boxes, Smartphone } from "lucide-react";
+import { Building2, Coins, CreditCard, CalendarClock, FileText, Mail, Boxes, Smartphone } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { cn } from "@/lib/utils";
 import { SettingsSection } from "@/components/settings/SettingsSection";
 import { CatalogAvailabilitySection } from "@/components/settings/CatalogAvailabilitySection";
 import { PaymentProvidersSection } from "@/components/settings/PaymentProvidersSection";
 import { EmailConfigurationSection } from "@/components/settings/EmailConfigurationSection";
+import { HookCreditSection } from "@/components/settings/HookCreditSection";
 import { InventorySettingsSection } from "@/components/settings/InventorySettingsSection";
 import { LegalContentSection } from "@/components/settings/LegalContentSection";
 import { AppUpdatesSection } from "@/components/settings/AppUpdatesSection";
@@ -19,6 +20,7 @@ const settingsMenu = [
   { slug: "general", name: "General", icon: Building2 },
   { slug: "catalog-availability", name: "Catalog Availability", icon: CalendarClock },
   { slug: "inventory", name: "Inventory", icon: Boxes },
+  { slug: "hook-credit", name: "Hook Credit", icon: Coins },
   { slug: "payment-providers", name: "Payment Providers", icon: CreditCard },
   { slug: "email-configuration", name: "Email Configuration", icon: Mail },
   { slug: "legal-content", name: "Legal Content", icon: FileText },
@@ -31,6 +33,7 @@ const DEFAULT_SECTION = settingsMenu[0].slug;
 const SETTINGS_PANELS: Record<string, () => React.ReactElement> = {
   "catalog-availability": () => <CatalogAvailabilitySection />,
   inventory: () => <InventorySettingsSection />,
+  "hook-credit": () => <HookCreditSection />,
   "payment-providers": () => <PaymentProvidersSection />,
   "email-configuration": () => <EmailConfigurationSection />,
   "legal-content": () => <LegalContentSection />,

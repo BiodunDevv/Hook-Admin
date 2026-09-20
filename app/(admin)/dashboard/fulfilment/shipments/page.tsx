@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ReceiptPrintDialog } from "@/components/fulfilment/ReceiptPrintDialog";
+import { ReceiptSheet } from "@/components/fulfilment/ReceiptSheet";
 import { CourierBadge, type CourierInfo } from "@/components/fulfilment/CourierBadge";
 import { CourierSwitchDialog } from "@/components/fulfilment/CourierSwitchDialog";
 import { Repeat } from "lucide-react";
@@ -418,7 +418,7 @@ export default function FulfilmentShipmentsPage() {
         </CardContent>
       </Card>
 
-      <ReceiptPrintDialog orderRef={receiptOrder} open={Boolean(receiptOrder)} onOpenChange={(open) => (open ? undefined : setReceiptOrder(undefined))} />
+      <ReceiptSheet orderRef={receiptOrder} open={Boolean(receiptOrder)} onOpenChange={(open) => (open ? undefined : setReceiptOrder(undefined))} />
       <CourierSwitchDialog
         open={Boolean(switching)}
         onOpenChange={(open) => (open ? undefined : setSwitching(undefined))}

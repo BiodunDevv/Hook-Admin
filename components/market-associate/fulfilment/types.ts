@@ -1,5 +1,8 @@
-export type ViewKey = "front" | "side" | "back";
+export type ViewKey = "front" | "side" | "back" | "extra1" | "extra2" | "extra3" | "extra4";
+/** Compulsory angles. */
 export const VIEWS: ViewKey[] = ["front", "side", "back"];
+/** Optional extra detail photos, up to four (seven in total). */
+export const EXTRA_VIEWS: ViewKey[] = ["extra1", "extra2", "extra3", "extra4"];
 
 export type ItemChecks = { productMatches: boolean; sizeMatches: boolean; colorMatches: boolean; quantityMatches: boolean };
 export const EMPTY_CHECKS: ItemChecks = { productMatches: false, sizeMatches: false, colorMatches: false, quantityMatches: false };

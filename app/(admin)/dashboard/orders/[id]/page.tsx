@@ -3,7 +3,7 @@
 import { friendlyVariantValue } from "@/lib/color-name";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
-import { ReceiptPrintDialog } from "@/components/fulfilment/ReceiptPrintDialog";
+import { ReceiptSheet } from "@/components/fulfilment/ReceiptSheet";
 import {
   ArrowLeft,
   CreditCard,
@@ -168,7 +168,7 @@ export default function OrderDetailPage() {
             <Button variant="outline" size="sm" onClick={() => setReceiptOpen(true)}>
               <Printer className="mr-2 h-4 w-4" /> Hook receipt
             </Button>
-            <ReceiptPrintDialog orderRef={order.publicId || order.id} open={receiptOpen} onOpenChange={setReceiptOpen} />
+            <ReceiptSheet orderRef={order.publicId || order.id} open={receiptOpen} onOpenChange={setReceiptOpen} />
             {/* Refunds are raised from the order, where the captured amount is
                 already known. Finance still processes them from the queue. */}
             <PermissionGuard permission="refunds.manage">
@@ -285,7 +285,7 @@ export default function OrderDetailPage() {
                   />
                 ) : null}
                 {order.creditsAppliedMinor ? (
-                  <Amount label="Hook Coin" value={-order.creditsAppliedMinor} />
+                  <Amount label="Hook credit" value={-order.creditsAppliedMinor} />
                 ) : null}
                 <Amount
                   label={order.logisticsProviderSnapshot?.name ? `Delivery (${order.logisticsProviderSnapshot.name})` : "Delivery"}

@@ -11,7 +11,7 @@ import { HookLoader } from "@/components/shared/HookLoader";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PackageReviewSheet, type FailureDraft } from "@/components/fulfilment/PackageReviewSheet";
-import { ReceiptPrintDialog } from "@/components/fulfilment/ReceiptPrintDialog";
+import { ReceiptSheet } from "@/components/fulfilment/ReceiptSheet";
 import { StageStrip } from "@/components/fulfilment/StageStrip";
 import { QueryState } from "@/components/shared/QueryState";
 import { ListRow, initialsOf } from "@/components/shared/ListRow";
@@ -588,7 +588,7 @@ export default function FulfilmentHubPage() {
         </CardContent>
       </Card>
       ) : null}
-      <ReceiptPrintDialog orderRef={receiptOrder} open={Boolean(receiptOrder)} onOpenChange={(open) => (open ? undefined : setReceiptOrder(undefined))} />
+      <ReceiptSheet orderRef={receiptOrder} open={Boolean(receiptOrder)} onOpenChange={(open) => (open ? undefined : setReceiptOrder(undefined))} />
       <PackageReviewSheet
         pkg={reviewing}
         open={Boolean(reviewing)}
