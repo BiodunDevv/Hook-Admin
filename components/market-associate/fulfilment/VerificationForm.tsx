@@ -19,7 +19,7 @@ import { compressImage } from "@/lib/compress-image";
 import { cn } from "@/lib/utils";
 import { PhotoSlot } from "./PhotoSlot";
 import {
-  EMPTY_CHECKS, VIEWS, cleanError, itemLabel, itemReferencePhoto, naira, orderedColor, orderedSize, sameText,
+  EMPTY_CHECKS, EXTRA_VIEWS, VIEWS, cleanError, itemLabel, itemReferencePhoto, naira, orderedColor, orderedSize, sameText,
   type ItemChecks, type ItemVerification, type TaskItem, type ViewKey,
 } from "./types";
 
@@ -164,7 +164,7 @@ export function VerificationForm({
       await apiRequest(`/market-associate/fulfilments/${taskRouteId}/items/${id}`, {
         method: "PUT",
         body: JSON.stringify({
-          photos: VIEWS.map((view) => ({ view, url: draft.photos[view] })),
+          photos: [...VIEWS, ...EXTRA_VIEWS].filter((view) => draft.photos[view]).map((view) => ({ view, url: draft.photos[view] })),
           actualColor: draft.color,
           actualSize: draft.size,
           actualQuantity: quantity,
@@ -213,7 +213,7 @@ export function VerificationForm({
       <section className={card}>
         <div className="mb-3 flex items-end justify-between gap-2">
           <h2 className="text-[13px] font-bold uppercase tracking-[0.08em] text-[#6B6B6B]">Photos of what you found</h2>
-          <span className="text-[12px] font-semibold tabular-nums text-[#8F8F8F]">{VIEWS.filter((view) => draft.photos[view]).length}/3</span>
+          <span className="text-[12px] font-semibold tabular-nums text-[#8F8F8F]">{[...VIEWS, ...EXTRA_VIEWS].filter((view) => draft.photos[view]).length}/7</span>
         </div>
         <div className="grid grid-cols-3 gap-2.5">
           {VIEWS.map((view) => (
@@ -228,7 +228,24 @@ export function VerificationForm({
             />
           ))}
         </div>
-        <p className="mt-2.5 text-[12px] leading-5 text-[#8F8F8F]">Show the whole product in good light from each angle. Photos are shrunk automatically to save data.</p>
+        <div className="mt-4 border-t border-dashed pt-3">
+          <p className="mb-2 text-[12px] font-semibold text-[#6B6B6B]">More photos <span className="font-normal text-[#8F8F8F]">(optional, up to 4: labels, stitching, flaws)</span></p>
+          <div className="grid grid-cols-4 gap-2">
+            {EXTRA_VIEWS.map((view) => (
+              <PhotoSlot
+                key={view}
+                view={view}
+                optional
+                url={draft.photos[view]}
+                uploading={uploading === view}
+                disabled={saving || (uploading !== null && uploading !== view)}
+                onPick={(file) => void upload(file, view)}
+                onRemove={() => patch({ photos: { ...draft.photos, [view]: undefined } })}
+              />
+            ))}
+          </div>
+        </div>
+        <p className="mt-2.5 text-[12px] leading-5 text-[#8F8F8F]">Front, side and back are required. Show the whole product in good light. Photos are shrunk automatically to save data.</p>
       </section>
 
       <section className={card}>

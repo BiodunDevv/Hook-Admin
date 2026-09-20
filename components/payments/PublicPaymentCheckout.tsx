@@ -188,7 +188,7 @@ export function PublicPaymentCheckout({ token, processing = false }: { token: st
               <div className="flex justify-between text-emerald-600"><span>{detail.order.couponCode ? `Coupon (${detail.order.couponCode})` : "Coupon"}</span><span>−{money(Number(detail.order.couponDiscountMinor))}</span></div>
             ) : null}
             {Number(detail.order.creditsAppliedMinor || 0) > 0 ? (
-              <div className="flex justify-between text-emerald-600"><span>Hook Coin</span><span>−{money(Number(detail.order.creditsAppliedMinor))}</span></div>
+              <div className="flex justify-between text-emerald-600"><span>Hook credit</span><span>−{money(Number(detail.order.creditsAppliedMinor))}</span></div>
             ) : null}
             <div className="flex justify-between pt-2 text-lg font-extrabold text-zinc-950"><span>Total</span><span>{money(detail.order.totalMinor)}</span></div>
           </div>

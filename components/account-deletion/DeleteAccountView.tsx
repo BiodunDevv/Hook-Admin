@@ -52,7 +52,7 @@ function Facts() {
               <li>Your cart, saved items and notifications</li>
               <li>Sign-in details and push-notification tokens</li>
               <li>Messages you sent while negotiating prices</li>
-              <li>Any unused Hook Coin balance</li>
+              <li>Any unused Hook credit balance</li>
             </ul>
           </CardContent>
         </Card>
@@ -222,7 +222,7 @@ export function DeleteAccountView() {
                     <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm">
                       <Checkbox checked={confirmed} disabled={busy} onCheckedChange={(next) => setConfirmed(next === true)} className="mt-0.5" />
                       <span>
-                        I understand my account and personal data will be permanently deleted after {COOLING_OFF_DAYS} days, and that any Hook Coin balance will be lost.
+                        I understand my account and personal data will be permanently deleted after {COOLING_OFF_DAYS} days, and that any Hook credit balance will be lost.
                       </span>
                     </label>
                     {error ? <ErrorNotice error={error} /> : null}

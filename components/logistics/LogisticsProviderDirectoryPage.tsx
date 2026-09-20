@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Activity, Pencil, Plus, Search, Trash2, Truck, Wallet, X } from "lucide-react";
+import { Activity, Pencil, Plus, Search, Trash2, Truck, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,19 +25,18 @@ import { PermissionGuard } from "@/components/auth/PermissionGuard";
 import { useAdminSession, useApiQuery } from "@/lib/query";
 import { apiDelete, apiPatch, apiPost } from "@/lib/api";
 import { hasPermission } from "@/lib/permissions";
-import { formatNaira, type CollectionResponse, type LogisticsProviderRecord } from "./logistics-types";
+import { type CollectionResponse, type LogisticsProviderRecord } from "./logistics-types";
 
 type FormState = {
   code: string;
   name: string;
   description: string;
   logoUrl: string;
-  fee: string;
   status: "active" | "inactive";
   sortOrder: string;
 };
 
-const emptyForm: FormState = { code: "", name: "", description: "", logoUrl: "", fee: "", status: "active", sortOrder: "0" };
+const emptyForm: FormState = { code: "", name: "", description: "", logoUrl: "", status: "active", sortOrder: "0" };
 
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message.replace(/^\d+:\s*/, "") : fallback;
@@ -123,11 +122,6 @@ export function LogisticsProviderDirectoryPage() {
   }, [providers, search, status]);
 
   const activeCount = providers.filter((provider) => provider.status === "active").length;
-  const cheapest = providers.filter((p) => p.status === "active").reduce<number | null>(
-    (low, provider) => (low === null ? provider.feeMinor : Math.min(low, provider.feeMinor)),
-    null,
-  );
-
   function openCreate() {
     setForm(emptyForm);
     setCreating(true);
@@ -140,7 +134,6 @@ export function LogisticsProviderDirectoryPage() {
       description: provider.description || "",
       logoUrl: provider.logoUrl || "",
       // Admins think in naira; the API speaks minor units.
-      fee: String(Number(provider.feeMinor || 0) / 100),
       status: provider.status,
       sortOrder: String(provider.sortOrder ?? 0),
     });
@@ -153,8 +146,7 @@ export function LogisticsProviderDirectoryPage() {
     setForm(emptyForm);
   }
 
-  const feeValid = form.fee.trim() !== "" && Number.isFinite(Number(form.fee)) && Number(form.fee) >= 0;
-  const formValid = form.code.trim().length >= 2 && form.name.trim().length >= 2 && feeValid;
+  const formValid = form.code.trim().length >= 2 && form.name.trim().length >= 2;
 
   async function save() {
     if (!formValid) return;
@@ -165,7 +157,6 @@ export function LogisticsProviderDirectoryPage() {
         name: form.name.trim(),
         description: form.description.trim() || undefined,
         logoUrl: form.logoUrl.trim() || undefined,
-        feeMinor: Math.round(Number(form.fee) * 100),
         status: form.status,
         sortOrder: Number(form.sortOrder) || 0,
       };
@@ -218,7 +209,7 @@ export function LogisticsProviderDirectoryPage() {
     <div className="w-full space-y-5 px-4 py-5">
       <PageHeader
         title="Logistics Providers"
-        description="The couriers customers choose from at checkout, and the delivery fee each one charges."
+        description="The couriers customers choose from at checkout. Delivery prices are set per State under Delivery States."
         actions={
           <PermissionGuard permission="logistics.manage">
             <Button variant="brand" size="sm" onClick={openCreate}>
@@ -228,10 +219,9 @@ export function LogisticsProviderDirectoryPage() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3">
         <Stat icon={Truck} label="Total providers" value={providers.length} detail="Configured for Hook checkout" tone="bg-[#fff8dc] text-[#8a6900]" />
         <Stat icon={Activity} label="Active" value={activeCount} detail="Offered to customers right now" tone="bg-emerald-50 text-emerald-700" />
-        <Stat icon={Wallet} label="Lowest fee" value={cheapest === null ? "—" : formatNaira(cheapest)} detail="Cheapest active delivery option" tone="bg-blue-50 text-blue-700" />
       </div>
 
       <Card className="rounded-xl shadow-none">
@@ -289,9 +279,6 @@ export function LogisticsProviderDirectoryPage() {
                       <p className="mt-1 text-xs font-medium text-muted-foreground">{provider.code}</p>
                     </div>
                   </div>
-                  <span className="shrink-0 text-lg font-semibold tabular-nums text-foreground">
-                    {formatNaira(provider.feeMinor)}
-                  </span>
                 </div>
                 {provider.description ? (
                   <p className="mt-3 line-clamp-2 text-xs text-muted-foreground">{provider.description}</p>
@@ -317,7 +304,7 @@ export function LogisticsProviderDirectoryPage() {
           <DialogHeader>
             <DialogTitle>{editing ? "Edit logistics provider" : "Add logistics provider"}</DialogTitle>
             <DialogDescription>
-              Customers see active providers at checkout, and the fee here becomes their delivery fee.
+              Customers see active providers at checkout. The delivery price comes from the State they deliver to, set under Delivery States.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -335,9 +322,6 @@ export function LogisticsProviderDirectoryPage() {
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   {form.code ? form.code.toUpperCase() : "Customer-facing preview"}
                 </p>
-                <p className="mt-1 text-sm font-semibold tabular-nums text-[#8a6900]">
-                  {feeValid ? formatNaira(Math.round(Number(form.fee) * 100)) : "Delivery fee not set"}
-                </p>
               </div>
             </div>
 
@@ -350,17 +334,6 @@ export function LogisticsProviderDirectoryPage() {
                   onChange={(event) => setForm((current) => ({ ...current, code: event.target.value.toUpperCase() }))}
                   placeholder="GIG"
                   maxLength={40}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="provider-fee">Delivery fee (₦)</Label>
-                <Input
-                  id="provider-fee"
-                  type="number"
-                  min={0}
-                  value={form.fee}
-                  onChange={(event) => setForm((current) => ({ ...current, fee: event.target.value }))}
-                  placeholder="5000"
                 />
               </div>
             </div>

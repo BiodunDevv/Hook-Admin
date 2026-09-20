@@ -5,7 +5,8 @@ export interface LogisticsProviderRecord {
   name: string;
   logoUrl?: string;
   description?: string;
-  feeMinor: number;
+  /** Deprecated: delivery is priced per State. */
+  feeMinor?: number;
   status: "active" | "inactive";
   sortOrder: number;
   createdAt?: string;

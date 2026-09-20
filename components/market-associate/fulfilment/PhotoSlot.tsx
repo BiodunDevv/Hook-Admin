@@ -5,7 +5,7 @@ import { Camera, Check, RefreshCw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ViewKey } from "./types";
 
-const LABEL: Record<ViewKey, string> = { front: "Front", side: "Side", back: "Back" };
+const LABEL: Record<ViewKey, string> = { front: "Front", side: "Side", back: "Back", extra1: "Extra 1", extra2: "Extra 2", extra3: "Extra 3", extra4: "Extra 4" };
 
 /**
  * One required angle. Tap to take a photo or choose one from the gallery or
@@ -19,6 +19,7 @@ export function PhotoSlot({
   disabled,
   onPick,
   onRemove,
+  optional,
 }: {
   view: ViewKey;
   url?: string;
@@ -26,12 +27,14 @@ export function PhotoSlot({
   disabled?: boolean;
   onPick: (file: File) => void;
   onRemove: () => void;
+  optional?: boolean;
 }) {
   return (
     <div className="relative">
       <label
         className={cn(
-          "group relative flex aspect-[3/4] cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed text-[#8F8F8F] transition",
+          "group relative flex cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed text-[#8F8F8F] transition",
+          optional ? "aspect-square" : "aspect-[3/4]",
           url ? "border-transparent" : "border-[#D4D4D4] bg-[#FAFAFA] hover:border-[#FFC809] hover:bg-[#FFFBEA]",
           (disabled || uploading) && "pointer-events-none",
         )}
@@ -57,8 +60,9 @@ export function PhotoSlot({
           </>
         ) : (
           <>
-            <Camera className="size-6" />
+            <Camera className={optional ? "size-5" : "size-6"} />
             <span className="mt-1.5 text-[12px] font-semibold text-[#555]">{LABEL[view]}</span>
+            {optional ? <span className="text-[10px] text-[#8F8F8F]">Optional</span> : null}
           </>
         )}
         {uploading && (

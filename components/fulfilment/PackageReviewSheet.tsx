@@ -210,6 +210,16 @@ export function PackageReviewSheet({
                     <Photo key={view} src={photos.find((photo) => photo.view === view)?.url} caption={`Picked · ${view}`} />
                   ))}
                 </div>
+                {photos.some((photo) => photo.view.startsWith("extra")) ? (
+                  <div>
+                    <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">More photos from the associate</p>
+                    <div className="grid grid-cols-4 gap-2">
+                      {photos.filter((photo) => photo.view.startsWith("extra")).map((photo, extraIndex) => (
+                        <Photo key={photo.view} src={photo.url} caption={`Extra ${extraIndex + 1}`} />
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
 
                 <div>
                   <div className="grid grid-cols-[5.5rem_1fr_1fr] gap-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">

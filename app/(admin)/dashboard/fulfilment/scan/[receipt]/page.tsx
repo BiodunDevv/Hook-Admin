@@ -83,7 +83,7 @@ export default function ParcelScanPage({ params }: { params: Promise<{ receipt: 
                   </PermissionGuard>
                 ) : null}
                 <Button variant="outline" className="w-full" asChild>
-                  <Link href={`/dashboard/fulfilment/receipt/${data.order.publicId}`}><Printer /> Open receipt</Link>
+                  <Link href={`/dashboard/fulfilment/receipts/${data.order.publicId}`}><Printer /> Open receipt</Link>
                 </Button>
               </CardContent>
             </Card>

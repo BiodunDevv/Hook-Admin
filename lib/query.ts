@@ -25,6 +25,8 @@ type ApiQueryOptions = {
   refetchOnMount?: boolean | "always";
   refetchOnWindowFocus?: boolean;
   refetchOnReconnect?: boolean;
+  /** Poll this often (ms) so a page stays live even if the socket drops. */
+  refetchInterval?: number | false;
 };
 
 export function useApiQuery<T>(queryKey: readonly unknown[], path: string, enabled = true, options?: ApiQueryOptions) {

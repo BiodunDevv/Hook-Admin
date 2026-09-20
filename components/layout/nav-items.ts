@@ -25,6 +25,7 @@ import {
   UsersRound,
   Wallet,
   Warehouse,
+  ReceiptText,
 } from "lucide-react";
 import type { AdminUser } from "@/lib/api";
 import {
@@ -141,6 +142,13 @@ export const navGroups: NavGroup[] = [
         href: "/dashboard/fulfilment/shipments",
         icon: Truck,
         permission: "logistics.view",
+      },
+      {
+        // Parcel labels for sealed orders: preview, print or download.
+        label: "Hook Receipts",
+        href: "/dashboard/fulfilment/receipts",
+        icon: ReceiptText,
+        permission: "fulfilment.hub.view",
       },
       {
         label: "Returns",

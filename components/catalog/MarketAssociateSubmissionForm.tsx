@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import Link from "next/link";
-import { AlertCircle, Camera, Check, ChevronDown, ChevronUp, ImagePlus, Package, Plus, Ruler, Save, Send, Trash2, UserPlus } from "lucide-react";
+import { PhotoAngleGuide } from "@/components/catalog/PhotoAngleGuide";
+import { AlertCircle, Camera, Check, ChevronDown, ChevronUp, ImagePlus, Plus, Ruler, Save, Send, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPatch, apiPost } from "@/lib/api";
 import { money, type ProductSubmission } from "@/lib/catalog";
@@ -72,6 +73,10 @@ const submissionFieldLabels: Record<string, string> = {
   variants: "size or colour",
 };
 
+const requiredIds = (views: { front?: string; side?: string; back?: string }) =>
+  [views.front, views.side, views.back].filter((id): id is string => Boolean(id));
+const MAX_EXTRA_PHOTOS = 4;
+
 function initialValue(submission?: ProductSubmission): FormState {
   const mediaViews = submission?.mediaViews && Object.keys(submission.mediaViews).length
     ? submission.mediaViews
@@ -118,7 +123,8 @@ export function MarketAssociateSubmissionForm({
     () => Object.fromEntries((submission?.media || []).map((item) => [item.publicId, item])),
   );
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  // Which slot is uploading. Only that slot shows a spinner; the rest are just disabled.
+  const [uploading, setUploading] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [sizingGuideExpanded, setSizingGuideExpanded] = useState(false);
   const editable = !submission || ["draft", "changes_requested"].includes(submission.status);
@@ -138,6 +144,8 @@ export function MarketAssociateSubmissionForm({
   });
   const mediaAvailable = mediaReadiness.data?.available === true;
   const requiredPhotoIds = [form.mediaViews.front, form.mediaViews.side, form.mediaViews.back];
+  const [extrasOpen, setExtrasOpen] = useState(false);
+  const extraIds = form.mediaIds.filter((id) => ![form.mediaViews.front, form.mediaViews.side, form.mediaViews.back].includes(id));
   const photosComplete = requiredPhotoIds.every(Boolean) && new Set(requiredPhotoIds).size === 3;
 
   useEffect(() => {
@@ -232,13 +240,13 @@ export function MarketAssociateSubmissionForm({
     }
   }
 
-  async function upload(view: "front" | "side" | "back", file?: File) {
+  async function upload(view: "front" | "side" | "back" | "extra", file?: File) {
     if (!file) return;
     if (!mediaAvailable) {
       toast.error("Secure image uploads are temporarily unavailable");
       return;
     }
-    setUploading(true);
+    setUploading(view);
     try {
       const intent = await apiPost<UploadIntent>("/catalog/media/upload-intents", {
         ownerType: "submission",
@@ -265,20 +273,19 @@ export function MarketAssociateSubmissionForm({
       });
       setMediaById((current) => ({ ...current, [asset.publicId]: asset }));
       setForm((current) => {
+        const extras = current.mediaIds.filter((id) => ![current.mediaViews.front, current.mediaViews.side, current.mediaViews.back].includes(id));
+        if (view === "extra") {
+          return { ...current, mediaIds: [...requiredIds(current.mediaViews), ...extras, asset.publicId], captureChecklistConfirmed: false };
+        }
         const mediaViews = { ...current.mediaViews, [view]: asset.publicId };
-        return {
-          ...current,
-          mediaViews,
-          mediaIds: [mediaViews.front, mediaViews.side, mediaViews.back].filter((id): id is string => Boolean(id)),
-          captureChecklistConfirmed: false,
-        };
+        return { ...current, mediaViews, mediaIds: [...requiredIds(mediaViews), ...extras], captureChecklistConfirmed: false };
       });
       setDirty(true);
-      toast.success(`${view[0].toUpperCase()}${view.slice(1)} view uploaded`);
+      toast.success(view === "extra" ? "Extra photo uploaded" : `${view[0].toUpperCase()}${view.slice(1)} view uploaded`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message.replace(/^\d+:\s*/, "") : "Image upload failed");
     } finally {
-      setUploading(false);
+      setUploading(null);
     }
   }
 
@@ -320,7 +327,7 @@ export function MarketAssociateSubmissionForm({
       ) : null}
 
       {/* Photos first — this is a guided field capture, not a generic gallery. */}
-      <FormBlock title="Product photos" hint="Capture exactly three views. The front view becomes the primary catalog image.">
+      <FormBlock title="Product photos" hint="Front, side and back are required. You can add up to 4 more. The front view becomes the primary catalog image.">
         {mediaReadiness.isError || (mediaReadiness.isSuccess && !mediaAvailable) ? (
           <Alert className="mb-3">
             <AlertCircle />
@@ -333,9 +340,9 @@ export function MarketAssociateSubmissionForm({
         <div className="rounded-[12px] bg-[#FFF8DF] p-3">
           <p className="flex items-center gap-2 text-[13px] font-bold text-black"><Camera className="size-4" /> How to photograph the product</p>
           <div className="mt-3 grid grid-cols-3 gap-2">
-            <PhotoGuide label="Front" detail="Face the product" position="front" />
-            <PhotoGuide label="Side" detail="Show its profile" position="side" />
-            <PhotoGuide label="Back" detail="Show the rear" position="back" />
+            <PhotoGuide label="Front" detail="Face the camera straight on with the whole product in frame." position="front" />
+            <PhotoGuide label="Side" detail="Turn it 90° to show its profile, shape and depth." position="side" />
+            <PhotoGuide label="Back" detail="Rotate to the rear and show the tag, label or stitching." position="back" />
           </div>
           <p className="mt-3 text-[11px] leading-4 text-[#6f5a12]">Use a clean background, fill the frame, keep the whole product visible, and avoid blur, glare, filters, or people.</p>
         </div>
@@ -349,23 +356,75 @@ export function MarketAssociateSubmissionForm({
               asset={form.mediaViews[view] ? mediaById[form.mediaViews[view]!] : undefined}
               editable={editable}
               available={mediaAvailable}
-              uploading={uploading || mediaReadiness.isLoading}
+              uploading={uploading === view || mediaReadiness.isLoading}
+              busy={uploading !== null}
               onUpload={(file) => void upload(view, file)}
               onRemove={() => {
                 setForm((current) => {
                   const mediaViews = { ...current.mediaViews, [view]: undefined };
-                  return {
-                    ...current,
-                    mediaViews,
-                    mediaIds: [mediaViews.front, mediaViews.side, mediaViews.back].filter((id): id is string => Boolean(id)),
-                    captureChecklistConfirmed: false,
-                  };
+                  const extras = current.mediaIds.filter((id) => ![current.mediaViews.front, current.mediaViews.side, current.mediaViews.back].includes(id));
+                  return { ...current, mediaViews, mediaIds: [...requiredIds(mediaViews), ...extras], captureChecklistConfirmed: false };
                 });
                 setDirty(true);
               }}
             />
           ))}
         </div>
+
+        {editable && !extrasOpen && extraIds.length === 0 ? (
+          <div className="flex items-center justify-between gap-3 rounded-[12px] border border-dashed border-[#E2E2E2] p-3">
+            <div className="min-w-0">
+              <p className="text-[13px] font-semibold text-black">Do you want to add more images?</p>
+              <p className="mt-0.5 text-[11px] leading-4 text-[#8F8F8F]">Optional close-ups of labels, stitching or flaws. Up to 4 more.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setExtrasOpen(true)}
+              className="flex shrink-0 items-center gap-1.5 rounded-full bg-black px-3.5 py-2 text-[12px] font-bold text-white transition active:scale-95"
+            >
+              <Plus className="size-3.5" /> Add images
+            </button>
+          </div>
+        ) : (
+        <div className="rounded-[12px] border border-dashed border-[#E2E2E2] p-3">
+          <div className="flex items-center justify-between">
+            <p className="text-[13px] font-semibold text-black">More photos <span className="font-normal text-[#8F8F8F]">(optional)</span></p>
+            <span className="text-[11px] font-semibold tabular-nums text-[#8F8F8F]">{extraIds.length}/{MAX_EXTRA_PHOTOS}</span>
+          </div>
+          <p className="mt-0.5 text-[11px] leading-4 text-[#8F8F8F]">Close-ups of labels, stitching, texture or any flaw help the team approve faster.</p>
+          <div className="mt-2.5 grid grid-cols-4 gap-2">
+            {extraIds.map((id) => (
+              <CaptureSlot
+                key={id}
+                view="extra"
+                mediaId={id}
+                asset={mediaById[id]}
+                editable={editable}
+                available={mediaAvailable}
+                uploading={false}
+                busy={uploading !== null}
+                onUpload={() => undefined}
+                onRemove={() => {
+                  setForm((current) => ({ ...current, mediaIds: current.mediaIds.filter((mediaId) => mediaId !== id), captureChecklistConfirmed: false }));
+                  setDirty(true);
+                }}
+              />
+            ))}
+            {editable && extraIds.length < MAX_EXTRA_PHOTOS ? (
+              <CaptureSlot
+                view="extra"
+                editable={editable}
+                available={mediaAvailable}
+                uploading={uploading === "extra"}
+                busy={uploading !== null}
+                onUpload={(file) => void upload("extra", file)}
+                onRemove={() => undefined}
+              />
+            ) : null}
+          </div>
+        </div>
+
+        )}
 
         <button
           type="button"
@@ -596,14 +655,14 @@ export function MarketAssociateSubmissionForm({
         <StickyActionBar>
           <MobileButton
             variant="outline"
-            disabled={saving || uploading}
+            disabled={saving || uploading !== null}
             onClick={() => void save(false)}
             className={cn(ACTION_BAR_BUTTON, "w-auto shrink-0 border-0 px-4")}
           >
             <Save size={16} /> Draft
           </MobileButton>
           <MobileButton
-            disabled={saving || uploading}
+            disabled={saving || uploading !== null}
             onClick={() => void save(true)}
             className={cn(ACTION_BAR_BUTTON, "flex-1")}
           >
@@ -615,7 +674,7 @@ export function MarketAssociateSubmissionForm({
   );
 }
 
-const viewLabels = { front: "Front", side: "Side", back: "Back" } as const;
+const viewLabels = { front: "Front", side: "Side", back: "Back", extra: "Extra" } as const;
 
 function PhotoGuide({
   label,
@@ -624,24 +683,17 @@ function PhotoGuide({
 }: {
   label: string;
   detail: string;
-  position: keyof typeof viewLabels;
+  position: "front" | "side" | "back";
 }) {
   return (
-    <div className="rounded-[9px] bg-white px-2 py-2.5 text-center">
-      <span className="relative mx-auto grid h-10 w-14 place-items-center rounded-[7px] border border-dashed border-[#D4B33E] bg-[#FFFDF5]">
-        <Package
-          className={cn(
-            "size-6 text-black",
-            position === "side" && "scale-x-75",
-            position === "back" && "-scale-x-100 opacity-70",
-          )}
-          strokeWidth={1.6}
-          aria-hidden
-        />
-        <span className="absolute inset-x-1 bottom-1 h-px bg-[#FFC809]" />
-      </span>
-      <span className="mt-1.5 block text-[11px] font-bold text-black">{label}</span>
-      <span className="block text-[9px] leading-3 text-[#8F8F8F]">{detail}</span>
+    <div className="overflow-hidden rounded-[10px] bg-white text-center">
+      <div className="aspect-[10/7] w-full border-b border-[#F1E7C2]">
+        <PhotoAngleGuide angle={position} />
+      </div>
+      <div className="px-2 py-2.5">
+        <span className="block text-[12px] font-bold text-black">{label}</span>
+        <span className="mt-0.5 block text-[10px] leading-[14px] text-[#777]">{detail}</span>
+      </div>
     </div>
   );
 }
@@ -653,6 +705,7 @@ function CaptureSlot({
   editable,
   available,
   uploading,
+  busy,
   onUpload,
   onRemove,
 }: {
@@ -662,6 +715,8 @@ function CaptureSlot({
   editable: boolean;
   available: boolean;
   uploading: boolean;
+  /** Another slot is uploading: keep this one disabled without a spinner. */
+  busy?: boolean;
   onUpload: (file?: File) => void;
   onRemove: () => void;
 }) {
@@ -672,27 +727,27 @@ function CaptureSlot({
         className={cn(
           "group relative flex aspect-[4/5] overflow-hidden rounded-[10px] border-2 bg-[#F7F7F7]",
           mediaId ? "border-[#FFC809]" : "border-dashed border-[#D9D9D9]",
-          editable && available && !uploading ? "cursor-pointer" : "cursor-not-allowed opacity-70",
+          editable && available && !uploading && !busy ? "cursor-pointer" : "cursor-not-allowed opacity-70",
         )}
       >
         {asset?.deliveryUrl ? (
           <Image src={asset.deliveryUrl} alt={`${label} view of the product`} fill sizes="160px" className="object-cover" unoptimized />
-        ) : mediaId || uploading ? (
+        ) : uploading ? (
           <span className="flex size-full items-center justify-center"><HookLoader size="inline" /></span>
         ) : (
           <span className="flex size-full flex-col items-center justify-center gap-1 px-1 text-center text-[#8F8F8F]">
             <ImagePlus className="size-5" />
-            <span className="text-[10px] font-semibold">Add {label.toLowerCase()}</span>
+            <span className="text-[10px] font-semibold">{view === "extra" ? "Add photo" : `Add ${label.toLowerCase()}`}</span>
           </span>
         )}
         <span className="absolute inset-x-1.5 bottom-1.5 rounded-full bg-black/75 px-1.5 py-1 text-center text-[9px] font-bold text-white">
-          {label}{view === "front" ? " · Primary" : ""}
+          {view === "extra" ? "Extra" : label}{view === "front" ? " · Primary" : ""}
         </span>
         <input
           type="file"
           accept="image/jpeg,image/png,image/webp,image/avif"
           className="sr-only"
-          disabled={!editable || uploading || !available}
+          disabled={!editable || uploading || busy || !available}
           onChange={(event) => {
             onUpload(event.target.files?.[0]);
             event.currentTarget.value = "";

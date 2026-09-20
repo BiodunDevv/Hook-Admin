@@ -49,6 +49,7 @@ const ORDER_KEYS = [
   ["admin", "orders"],
   ["admin", "recent-orders"],
   ["admin", "dashboard"],
+  ["admin", "overview"],
   ["admin", "sidebar-summary"],
   ["orders"],
   ["marketassociate", "fulfilments"],
