@@ -28,6 +28,8 @@ export function MarketAssociateCreateDialog({ open, onClose, onSuccess }: { open
   const [marketIds, setMarketIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  // A conflict names the field it is about, so the message sits under that field.
+  const [fieldError, setFieldError] = useState<{ field: "email" | "phone"; message: string } | null>(null);
   const marketsQuery = useApiQuery<{ data: MarketOption[] }>(["admin", "markets", "for-associate-create"], "/admin/markets?limit=200", open && stateIds.length > 0);
   const eligible = useMemo(
     () => (marketsQuery.data?.data || []).filter((market) => market.status === "active" && stateIds.includes(stateOf(market))),
@@ -40,6 +42,7 @@ export function MarketAssociateCreateDialog({ open, onClose, onSuccess }: { open
     setStateIds([]);
     setMarketIds([]);
     setError("");
+    setFieldError(null);
   }
 
   function toggleMarket(id: string) {
@@ -50,6 +53,7 @@ export function MarketAssociateCreateDialog({ open, onClose, onSuccess }: { open
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     setError("");
+    setFieldError(null);
     if (!stateIds.length) return setError("Choose at least one state this person will work in.");
     setSaving(true);
     try {
@@ -66,7 +70,13 @@ export function MarketAssociateCreateDialog({ open, onClose, onSuccess }: { open
       onClose();
       await onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message.replace(/^\d+:\s*/, "") : "Unable to create the invitation");
+      const message = err instanceof Error ? err.message.replace(/^\d+:\s*/, "") : "Unable to create the invitation";
+      const field = (err as { details?: { field?: string } }).details?.field;
+      if (field === "email" || field === "phone") {
+        setFieldError({ field, message });
+        // Bring the field into view and ready to edit.
+        requestAnimationFrame(() => document.getElementById(field === "email" ? "ma-email" : "ma-phone")?.focus());
+      } else setError(message);
     } finally {
       setSaving(false);
     }
@@ -89,8 +99,8 @@ export function MarketAssociateCreateDialog({ open, onClose, onSuccess }: { open
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5"><Label htmlFor="ma-first-name">First name</Label><Input id="ma-first-name" name="firstName" placeholder="Chidi" autoComplete="off" required /></div>
               <div className="space-y-1.5"><Label htmlFor="ma-last-name">Last name</Label><Input id="ma-last-name" name="lastName" placeholder="Eze" autoComplete="off" required /></div>
-              <div className="space-y-1.5"><Label htmlFor="ma-email">Email</Label><Input id="ma-email" name="email" type="email" placeholder="name@example.com" autoComplete="off" required /></div>
-              <div className="space-y-1.5"><Label htmlFor="ma-phone">Phone number</Label><Input id="ma-phone" name="phone" type="tel" placeholder="+234 801 234 5678" autoComplete="off" required /></div>
+              <div className="space-y-1.5"><Label htmlFor="ma-email">Email</Label><Input id="ma-email" name="email" type="email" placeholder="name@example.com" autoComplete="off" required aria-invalid={fieldError?.field === "email"} aria-describedby={fieldError?.field === "email" ? "ma-email-error" : undefined} onChange={() => fieldError?.field === "email" && setFieldError(null)} className={fieldError?.field === "email" ? "border-red-400 focus-visible:ring-red-300" : ""} />{fieldError?.field === "email" ? <p id="ma-email-error" role="alert" className="text-xs font-medium text-red-600">This email is already used by another account. Use a different email, or find that person in the Market Associates or Staff list.</p> : null}</div>
+              <div className="space-y-1.5"><Label htmlFor="ma-phone">Phone number</Label><Input id="ma-phone" name="phone" type="tel" placeholder="+234 801 234 5678" autoComplete="off" required aria-invalid={fieldError?.field === "phone"} aria-describedby={fieldError?.field === "phone" ? "ma-phone-error" : undefined} onChange={() => fieldError?.field === "phone" && setFieldError(null)} className={fieldError?.field === "phone" ? "border-red-400 focus-visible:ring-red-300" : ""} />{fieldError?.field === "phone" ? <p id="ma-phone-error" role="alert" className="text-xs font-medium text-red-600">This phone number is already used by another account. Use a different number.</p> : null}</div>
             </div>
           </section>
 
