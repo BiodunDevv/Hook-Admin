@@ -37,10 +37,12 @@ type StateRow = {
   status: string;
   deliveryEnabled: boolean;
   deliveryFeeMinor?: number;
+  podEnabled?: boolean;
+  podMinimumOrderMinor?: number | null;
   lgaCount?: number;
 };
 
-type DeliveryQueryData = { states: StateRow[] };
+type DeliveryQueryData = { states: StateRow[]; settings?: { podMinimumOrderMinor?: number } };
 type Filter = "all" | DeliveryRegion | "unpriced";
 
 const naira = (minor?: number) =>
@@ -65,6 +67,9 @@ export function DeliveryCoveragePage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<string>();
+  // Pay on Delivery order limits being edited, keyed by State; saved with the Save button.
+  const [podDrafts, setPodDrafts] = useState<Record<string, string>>({});
+  const [podSaving, setPodSaving] = useState<string>();
   const [refreshingCatalog, setRefreshingCatalog] = useState(false);
   const [confirmDefaults, setConfirmDefaults] = useState(false);
   const [applying, setApplying] = useState(false);
@@ -108,6 +113,30 @@ export function DeliveryCoveragePage() {
       await refresh();
     } catch (error) {
       toast.error(cleanError(error, "Could not update delivery coverage"));
+    }
+  }
+
+  /** Pay on Delivery for one State: the switch, and the smallest order allowed (blank uses the global minimum). */
+  async function saveMinimum(state: StateRow) {
+    const raw = (podDrafts[state.publicId] ?? "").trim();
+    const next = raw === "" ? null : Math.round(Number(raw) * 100);
+    if (next !== null && (!Number.isFinite(next) || next < 0)) return toast.error("Enter a valid amount in naira");
+    setPodSaving(state.publicId);
+    await savePod(state, { podMinimumOrderMinor: next });
+    setPodDrafts((current) => { const copy = { ...current }; delete copy[state.publicId]; return copy; });
+    setPodSaving(undefined);
+  }
+
+  async function savePod(state: StateRow, change: { podEnabled?: boolean; podMinimumOrderMinor?: number | null }) {
+    try {
+      await apiPatch(`/admin/delivery/states/${state.publicId}`, {
+        ...change,
+        reason: change.podEnabled !== undefined ? (change.podEnabled ? "Enabled Pay on Delivery" : "Paused Pay on Delivery") : "Updated Pay on Delivery minimum order",
+      });
+      toast.success(`${state.name}: Pay on Delivery updated`);
+      await refresh();
+    } catch (error) {
+      toast.error(cleanError(error, "Could not update Pay on Delivery"));
     }
   }
 
@@ -243,6 +272,7 @@ export function DeliveryCoveragePage() {
                     <TableHead>Region</TableHead>
                     <TableHead>LGAs</TableHead>
                     <TableHead className="w-[250px]">Delivery price</TableHead>
+                    <TableHead className="w-[300px]">Pay on Delivery <span className="ml-1 text-[11px] font-normal text-muted-foreground">on/off · minimum order</span></TableHead>
                     <TableHead className="text-right">Delivery</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -287,6 +317,42 @@ export function DeliveryCoveragePage() {
                               </Button>
                             ) : null}
                             {!dirty && current === "" ? <Badge variant="secondary">Default fee</Badge> : null}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={Boolean(state.podEnabled)}
+                              disabled={!canManageCoverage}
+                              onCheckedChange={(value) => void savePod(state, { podEnabled: value })}
+                              aria-label={`${state.podEnabled ? "Pause" : "Enable"} Pay on Delivery in ${state.name}`}
+                            />
+                            {state.podEnabled ? (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[11px] font-medium text-muted-foreground">Min. order</span>
+                                <div className="relative w-36">
+                                  <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">₦</span>
+                                  <Input
+                                    inputMode="numeric"
+                                    value={podDrafts[state.publicId] ?? (state.podMinimumOrderMinor != null ? String(state.podMinimumOrderMinor / 100) : "")}
+                                    placeholder={query.data?.settings?.podMinimumOrderMinor ? `Default ${naira(query.data.settings.podMinimumOrderMinor)}` : "Default minimum"}
+                                    disabled={!canManageCoverage}
+                                    onChange={(event) => setPodDrafts((current) => ({ ...current, [state.publicId]: event.target.value.replace(/[^\d]/g, "") }))}
+                                    onKeyDown={(event) => { if (event.key === "Enter" && state.publicId in podDrafts) void saveMinimum(state); if (event.key === "Escape") setPodDrafts((current) => { const copy = { ...current }; delete copy[state.publicId]; return copy; }); }}
+                                    className="h-8 pl-5 text-xs tabular-nums"
+                                    aria-label={`Pay on Delivery minimum order for ${state.name}`}
+                                  />
+                                </div>
+                                {state.publicId in podDrafts ? (
+                                  <>
+                                    <Button size="sm" className="h-8" onClick={() => void saveMinimum(state)} disabled={podSaving === state.publicId}>
+                                      {podSaving === state.publicId ? <Loader2 className="animate-spin" /> : <Save />} Save
+                                    </Button>
+                                    <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => setPodDrafts((current) => { const copy = { ...current }; delete copy[state.publicId]; return copy; })} aria-label="Discard change">Cancel</Button>
+                                  </>
+                                ) : null}
+                              </div>
+                            ) : <span className="text-xs text-muted-foreground">Off</span>}
                           </div>
                         </TableCell>
                         <TableCell className="text-right">

@@ -92,6 +92,8 @@ export function clearSession() {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(ADMIN_USER_KEY);
+  // A shared counter device must not carry one partner's selected customer (name, email, phone) to the next person.
+  localStorage.removeItem('hook_partner_selected_customer');
   notifyAuthChanged();
 }
 

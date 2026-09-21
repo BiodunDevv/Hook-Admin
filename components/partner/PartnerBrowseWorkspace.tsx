@@ -11,6 +11,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { toast } from "sonner";
+import { apiGet } from "@/lib/api";
 import { useApiQuery } from "@/lib/query";
 import { PartnerProductSheet } from "@/components/partner/PartnerProductSheet";
 import { ShoppingForBanner, type SelectedCustomer } from "@/components/partner/ShoppingForBanner";
@@ -29,7 +31,7 @@ type CatalogProduct = {
   negotiationAvailable?: boolean;
   isPurchasable?: boolean;
 };
-type DiscoverResponse = { categories: Category[]; products: CatalogProduct[]; resultCount: number };
+type DiscoverResponse = { categories: Category[]; products: CatalogProduct[]; resultCount: number; hasMore?: boolean };
 
 const ALL_CATEGORY: Category = { publicId: "all", name: "All" };
 
@@ -72,7 +74,29 @@ export function PartnerBrowseWorkspace({
     `/public/discover?${query}`,
   );
   const categoryRows = [ALL_CATEGORY, ...(discover.data?.categories || [])];
-  const products = discover.data?.products || [];
+  // Sub-categories of the chosen category, from the category tree.
+  const tree = useApiQuery<Array<Category & { children?: Category[] }>>(["public", "categories"], "/public/categories");
+  const activeParent = (tree.data || []).find(
+    (category) => category.publicId === categoryId || category.children?.some((child) => child.publicId === categoryId),
+  );
+  const subCategories = activeParent?.children || [];
+  // "Load more" appends the next pages; any filter change starts the list over.
+  const [more, setMore] = useState<{ key: string; items: CatalogProduct[]; hasMore: boolean }>({ key: "", items: [], hasMore: true });
+  const [loadingMore, setLoadingMore] = useState(false);
+  const extra = more.key === query ? more.items : [];
+  const products = [...(discover.data?.products || []), ...extra];
+  const canLoadMore = Boolean(discover.data?.hasMore) && (more.key !== query || more.hasMore);
+  async function loadMore() {
+    setLoadingMore(true);
+    try {
+      const page = await apiGet<DiscoverResponse>(`/public/discover?${query}&offset=${products.length}`);
+      setMore({ key: query, items: [...extra, ...(page.products || [])], hasMore: Boolean(page.hasMore) });
+    } catch {
+      toast.error("Could not load more products");
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   return (
     <div>
@@ -138,6 +162,23 @@ export function PartnerBrowseWorkspace({
         })}
       </div>
 
+      {subCategories.length ? (
+        <div className="-mt-2 mb-4 flex gap-2 overflow-x-auto pb-1">
+          {[{ publicId: activeParent!.publicId, name: `All ${activeParent!.name}` }, ...subCategories].map((sub) => (
+            <button
+              key={sub.publicId}
+              type="button"
+              onClick={() => setCategoryId(sub.publicId)}
+              className={`shrink-0 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition ${
+                categoryId === sub.publicId ? "border-black bg-black text-white" : "border-black/20 bg-white text-black/70"
+              }`}
+            >
+              {sub.name}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
       <div className="mb-4 flex items-center justify-between">
         <p className="text-[18px] font-black text-black">Explore</p>
         <p className="text-[12px] text-[#8F8F8F]">{discover.data?.resultCount ?? products.length} products</p>
@@ -172,6 +213,11 @@ export function PartnerBrowseWorkspace({
               />
             );
           })}
+          {canLoadMore ? (
+            <button type="button" onClick={() => void loadMore()} disabled={loadingMore} className="col-span-full mx-auto mt-2 rounded-full bg-white px-6 py-2.5 text-[14px] font-semibold text-black shadow-sm disabled:opacity-60">
+              {loadingMore ? "Loading…" : "Load more"}
+            </button>
+          ) : null}
         </div>
       ) : (
         <MobileEmpty

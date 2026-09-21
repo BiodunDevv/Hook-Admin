@@ -11,6 +11,11 @@ export function ProductSubmissionCard({ submission }: { submission: ProductSubmi
   const id = submission.publicId;
   const cover = submission.media?.[0]?.deliveryUrl || submission.media?.[0]?.secureUrl || submission.imageUrl;
 
+  const waitingHours = submission.status === "submitted" || submission.status === "in_review"
+    ? Math.max(0, Math.floor((Date.now() - new Date((submission as { submittedAt?: string; createdAt?: string }).submittedAt || (submission as { createdAt?: string }).createdAt || Date.now()).getTime()) / 3_600_000))
+    : null;
+  const late = waitingHours !== null && waitingHours >= 24;
+
   return (
     <Card className="group overflow-hidden rounded-xl shadow-none transition-shadow hover:shadow-md">
       <Link href={`/dashboard/product-submissions/${id}`} className="block outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -21,6 +26,11 @@ export function ProductSubmissionCard({ submission }: { submission: ProductSubmi
             <div className="grid size-full place-items-center text-muted-foreground"><ImageOff className="size-6" /></div>
           )}
           <div className="absolute left-3 top-3"><CatalogStatusBadge status={submission.status} /></div>
+          {waitingHours !== null ? (
+            <div className={`absolute right-3 top-3 rounded-full px-2 py-0.5 text-[10px] font-semibold ${late ? "bg-red-600 text-white" : "bg-white/90 text-zinc-700"}`}>
+              {waitingHours < 1 ? "New" : waitingHours < 48 ? `${waitingHours}h waiting` : `${Math.floor(waitingHours / 24)}d waiting`}
+            </div>
+          ) : null}
           <div className="absolute bottom-3 right-3 rounded-full bg-black/65 px-2.5 py-1 text-[10px] font-semibold text-white backdrop-blur-sm">{id}</div>
         </div>
       </Link>

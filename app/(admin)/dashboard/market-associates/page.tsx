@@ -14,6 +14,7 @@ import { MarketAssociateActionDialog } from "@/components/market-associates/Mark
 import { MarketAssociateCreateDialog } from "@/components/market-associates/MarketAssociateCreateDialog";
 import { MarketAssociateDirectory } from "@/components/market-associates/MarketAssociateDirectory";
 import { MarketAssociateFilters, type MarketAssociateFiltersValue } from "@/components/market-associates/MarketAssociateFilters";
+import { ArchiveTabs, type DirectoryTab } from "@/components/shared/ArchiveTabs";
 import { MarketAssociateOverview } from "@/components/market-associates/MarketAssociateOverview";
 import type { MarketAssociateAction, MarketAssociateListResponse, MarketAssociateMember } from "@/components/market-associates/market-associate-types";
 
@@ -27,15 +28,17 @@ export default function MarketAssociatesPage() {
   const { data: session } = useAdminSession();
   const [filters, setFilters] = useState<MarketAssociateFiltersValue>(initialFilters);
   const [createOpen, setCreateOpen] = useState(false);
+  const [tab, setTab] = useState<DirectoryTab>("active");
   const [action, setAction] = useState<{ member: MarketAssociateMember; action: MarketAssociateAction } | null>(null);
   const deferredSearch = useDeferredValue(filters.search.trim());
   const queryString = useMemo(() => {
     const params = new URLSearchParams({ limit: "100" });
     if (deferredSearch) params.set("q", deferredSearch);
-    if (filters.status !== "all") params.set("status", filters.status);
+    if (tab === "archived") params.set("status", "disabled");
+    else if (filters.status !== "all") params.set("status", filters.status);
     if (filters.availability !== "all") params.set("availability", filters.availability);
     return params.toString();
-  }, [deferredSearch, filters.availability, filters.status]);
+  }, [deferredSearch, filters.availability, filters.status, tab]);
   const allowed = hasPermission(session, "runners.view");
   const query = useApiQuery<MarketAssociateListResponse>(["admin", "market-associates", queryString], `/admin/market-associates?${queryString}`, Boolean(session && allowed));
   const members = query.data?.data || [];
@@ -57,7 +60,8 @@ export default function MarketAssociatesPage() {
   return (
     <div className="w-full space-y-5 px-4 py-5">
       <PageHeader title="Market Associates" description="Manage Market Associate identities, availability, operational scope, and Market assignments." actions={<PermissionGuard permission="runners.manage"><Button variant="brand" onClick={() => setCreateOpen(true)}><Plus /> Add Market Associate</Button></PermissionGuard>} />
-      <MarketAssociateOverview members={members} />
+      <ArchiveTabs value={tab} onChange={setTab} />
+      {tab === "active" ? <MarketAssociateOverview members={members} /> : null}
       <MarketAssociateFilters value={filters} onChange={setFilters} />
       <QueryState loading={query.isLoading} error={query.error} loadingLabel="Loading Market Associate directory" errorTitle="Market Associate directory unavailable" empty={!query.isLoading && !query.isError && !members.length} emptyIcon={Users} emptyTitle="No Market Associates found" emptyDescription="Adjust the filters or create the first Market Associate invitation." onRetry={() => query.refetch()}>
         <MarketAssociateDirectory members={members} onAction={(member, nextAction) => setAction({ member, action: nextAction })} onResend={(member) => void resendInvitation(member)} />

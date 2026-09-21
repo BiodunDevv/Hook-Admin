@@ -27,7 +27,6 @@ export function MarketAssociateFilters({ value, onChange }: { value: MarketAssoc
             <SelectItem value="active">Active</SelectItem>
             <SelectItem value="invited">Invited</SelectItem>
             <SelectItem value="suspended">Suspended</SelectItem>
-            <SelectItem value="disabled">Archived</SelectItem>
           </SelectContent>
         </Select>
         <Select value={value.availability} onValueChange={(availability) => onChange({ ...value, availability })}>

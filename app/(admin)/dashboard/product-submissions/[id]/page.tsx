@@ -1,5 +1,6 @@
 "use client";
 
+import { PermissionGuard } from "@/components/auth/PermissionGuard";
 import { FormEvent, useState } from "react";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
@@ -89,6 +90,31 @@ export default function ProductSubmissionReviewPage() {
                 { label: "Source vendor", value: item.marketVendor?.businessName || "Not specified" },
                 { label: "Market Associate notes", value: item.notes || "No notes supplied", span: 2 },
               ]} />
+              <div className="mt-4">
+                <p className="mb-2 text-xs font-medium text-zinc-500">Variants captured ({item.variants?.length || 0})</p>
+                {item.variants?.length ? (
+                  <div className="overflow-hidden rounded-lg border">
+                    <table className="w-full text-sm">
+                      <thead className="bg-zinc-50 text-left text-xs text-zinc-500">
+                        <tr><th className="px-3 py-2 font-medium">Size</th><th className="px-3 py-2 font-medium">Colour</th><th className="px-3 py-2 font-medium">Other details</th><th className="px-3 py-2 font-medium">Active</th></tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {item.variants.map((variant, index) => (
+                          <tr key={index}>
+                            <td className="px-3 py-2">{variant.size || "—"}</td>
+                            <td className="px-3 py-2">{variant.colour || "—"}</td>
+                            <td className="px-3 py-2 text-zinc-600">
+                              {Object.entries(variant.attributes || {}).filter(([, value]) => value).map(([key, value]) => `${key.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase())}: ${value}`).join(" · ") || "—"}
+                            </td>
+                            <td className="px-3 py-2">{variant.active ? "Yes" : "No"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : <p className="text-sm text-zinc-500">No variants were captured.</p>}
+                <p className="mt-2 text-xs text-zinc-400">These are checked against the product category when you approve. If you change the category, the details it asks for must match these.</p>
+              </div>
             </DetailSection>
 
             {item.status === "submitted" ? (
@@ -103,6 +129,7 @@ export default function ProductSubmissionReviewPage() {
             ) : null}
 
             {canDecide ? (
+              <PermissionGuard permission="catalog.submission.approve" fallback={<p className="rounded-lg border border-dashed p-4 text-sm text-zinc-500">You can view this submission. Approving it needs the “Approve Catalog Submissions” permission.</p>}>
               <SubmissionApprovalForm
                 key={item.publicId}
                 item={item}
@@ -113,6 +140,7 @@ export default function ProductSubmissionReviewPage() {
                 onReject={() => setDecision("reject")}
                 onApproved={(productId) => router.push(productId ? `/dashboard/products/${productId}` : "/dashboard/product-submissions")}
               />
+              </PermissionGuard>
             ) : null}
           </div>
         ) : null}
@@ -235,7 +263,7 @@ function SubmissionApprovalForm({
     categoryId: item.categorySuggestionId,
     marketId: item.marketId,
     status: "published",
-    colors: capturedColors.length ? capturedColors : ["#111827", "#ffffff"],
+    colors: capturedColors,
   });
 
   async function approve(event: FormEvent<HTMLFormElement>) {

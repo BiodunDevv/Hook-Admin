@@ -13,13 +13,20 @@ import {
   Trash2,
   Phone,
   CheckCircle2,
+  Check,
   UserX,
   Upload,
   X,
   ImagePlus,
   Ruler,
+  ChevronDown,
+  ChevronRight,
+  FolderTree,
+  CornerDownRight,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -55,6 +62,9 @@ import { hasPermission } from "@/lib/permissions";
 import { PermissionGuard } from "@/components/auth/PermissionGuard";
 import { AdminWorkflowSheet } from "@/components/shared/AdminWorkflowSheet";
 import { toast } from "sonner";
+import Link from "next/link";
+import { CategoryAttributeEditor } from "@/components/categories/CategoryAttributeEditor";
+import { attributeSummary, type CategoryAttribute } from "@/lib/category-attributes";
 
 interface CategoryManager {
   id: string;
@@ -76,6 +86,12 @@ interface CategoryRow {
   createdAt?: string;
   productCount: number;
   managers: CategoryManager[];
+  parentId?: string | null;
+  parentName?: string | null;
+  level?: number;
+  childCount?: number;
+  attributes?: CategoryAttribute[];
+  inheritsAttributes?: boolean;
   hasSizingGuide: boolean;
   attributeSchema?: { sizingGuide?: SizingGuide | null };
 }
@@ -94,15 +110,30 @@ function managerInitials(manager: CategoryManager) {
   return name.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase() || "?";
 }
 
+const ATTRIBUTE_TEMPLATES: Array<{ name: string; attributes: CategoryAttribute[] }> = [
+  { name: "Shoes", attributes: [{ key: "size", label: "Size", type: "size", required: true, preset: "shoes", variantAxis: true }, { key: "colour", label: "Colour", type: "colour", required: true, variantAxis: true }] },
+  { name: "Clothing", attributes: [{ key: "size", label: "Size", type: "size", required: true, preset: "clothing", variantAxis: true }, { key: "colour", label: "Colour", type: "colour", required: true, variantAxis: true }] },
+  { name: "Phone case", attributes: [{ key: "phoneModel", label: "Phone model", type: "text", required: true, variantAxis: true }, { key: "colour", label: "Colour", type: "colour", required: false, variantAxis: true }] },
+  { name: "Powerbank", attributes: [{ key: "capacity", label: "Capacity", type: "select", required: true, options: ["10,000mAh", "20,000mAh", "30,000mAh"], variantAxis: true }, { key: "colour", label: "Colour", type: "colour", required: false, variantAxis: true }] },
+  { name: "Wig", attributes: [{ key: "length", label: "Length", type: "select", required: true, options: ['10"', '12"', '14"', '16"', '18"', '20"', '22"'], variantAxis: true }, { key: "texture", label: "Texture", type: "select", required: true, options: ["Straight", "Body wave", "Deep wave", "Curly"], variantAxis: true }, { key: "colour", label: "Colour", type: "colour", required: false, variantAxis: true }] },
+  { name: "Fabric", attributes: [{ key: "length", label: "Length", type: "select", required: true, options: ["2 yards", "4 yards", "6 yards"], variantAxis: true }, { key: "colour", label: "Colour", type: "colour", required: false, variantAxis: true }] },
+];
+
 // ─── Create / Edit sheet ─────────────────────────────────────────────────────
 
 function CategoryDialog({
   category,
+  parent,
+  topLevel = [],
   open,
   onClose,
   onSuccess,
 }: {
   category?: CategoryRow;
+  /** When set, a new category is created as a sub-category of this one. */
+  parent?: CategoryRow;
+  /** Top-level categories a sub-category can be moved to. */
+  topLevel?: CategoryRow[];
   open: boolean;
   onClose: () => void;
   onSuccess: () => void;
@@ -112,11 +143,29 @@ function CategoryDialog({
   const [uploading, setUploading] = useState(false);
   const fileInputId = `category-icon-${useId().replace(/:/g, "")}`;
   const isEdit = Boolean(category);
+  const [parentId, setParentId] = useState<string>(category?.parentId || parent?.id || "none");
+  const [attributes, setAttributes] = useState<CategoryAttribute[]>(category?.attributes || []);
+  const isSub = parentId !== "none";
+  const [tab, setTab] = useState<"basics" | "details" | "sizing" | "managers">("basics");
+  // Who is in charge: loaded when the sheet opens for an existing category, saved with the rest.
+  const managerOptions = useApiQuery<Array<CategoryManager & { assigned: boolean }>>(["admin", "category-manager-options", category?.id], `/admin/categories/${category?.id}/manager-options`, open && isEdit);
+  const [managerIds, setManagerIds] = useState<string[] | null>(null);
+  const [managerSearch, setManagerSearch] = useState("");
+  const staff = managerOptions.data || [];
+  const selectedManagers = managerIds ?? staff.filter((person) => person.assigned).map((person) => person.id);
+  const toggleManager = (id: string) => setManagerIds(selectedManagers.includes(id) ? selectedManagers.filter((item) => item !== id) : [...selectedManagers, id]);
+  const parentName = parent?.name || topLevel.find((item) => item.id === parentId)?.name;
 
   const existingGuide = category?.attributeSchema?.sizingGuide;
+  const [sizingEnabled, setSizingEnabled] = useState(existingGuide?.enabled !== false);
   const [sizingSummary, setSizingSummary] = useState(existingGuide?.summary || "");
   const [sizingHowToMeasure, setSizingHowToMeasure] = useState(existingGuide?.howToMeasure || "");
   const [sizingPresetGroups, setSizingPresetGroups] = useState<SizingPresetGroup[]>(existingGuide?.presetGroups || []);
+  // Measurements follow what is being sized: feet for shoes, band and bust for bras, the body for clothes.
+  const scales = new Set<string>([...sizingPresetGroups, ...attributes.filter((item) => item.type === "size").map((item) => item.preset || "clothing")]);
+  const chartColumns: string[] = scales.has("clothing") || scales.has("general") || !scales.size
+    ? ["Chest", "Waist", "Hip"]
+    : scales.has("bra") ? ["Band", "Bust"] : ["Foot length (cm)"];
   const [sizingChart, setSizingChart] = useState<Array<{ size: string; measurements: Record<string, string> }>>(existingGuide?.chart || []);
 
   function togglePresetGroup(group: SizingPresetGroup) {
@@ -199,11 +248,13 @@ function CategoryDialog({
       }));
     const hasSizingGuide = Boolean(summary || howToMeasure || sizingPresetGroups.length || chart.length);
 
-    const payload: Record<string, unknown> = { name, sortOrder };
+    const payload: Record<string, unknown> = { name, sortOrder, attributes };
+    if (isEdit ? parentId !== (category?.parentId || "none") && parentId !== "none" : isSub) payload.parentId = parentId;
     if (description) payload.description = description;
     if (icon) payload.iconUrl = icon;
-    if (hasSizingGuide) {
+    if (hasSizingGuide || existingGuide) {
       payload.sizingGuide = {
+        enabled: sizingEnabled,
         ...(summary ? { summary } : {}),
         ...(howToMeasure ? { howToMeasure } : {}),
         presetGroups: sizingPresetGroups,
@@ -215,6 +266,7 @@ function CategoryDialog({
     try {
       if (isEdit) {
         await apiPatch(`/admin/categories/${category!.id}`, payload);
+        if (managerIds) await apiRequest(`/admin/categories/${category!.id}/managers`, { method: "PUT", body: JSON.stringify({ userIds: managerIds }) });
         toast.success(`"${name}" updated`);
       } else {
         await apiPost("/admin/categories", payload);
@@ -239,10 +291,10 @@ function CategoryDialog({
       onOpenChange={(next) => {
         if (!next) close();
       }}
-      title={isEdit ? "Edit category" : "Create category"}
+      title={isEdit ? (category?.parentId ? "Edit sub-category" : "Edit category") : isSub ? "Add sub-category" : "Create category"}
       description={isEdit
         ? `Update "${category!.name}". Changes apply across the catalog.`
-        : "Create a reusable category for the Hook catalog."}
+        : isSub ? `Products can be filed under this sub-category of ${parentName}.` : "Create a top-level category for the Hook catalog."}
       footer={(
         <>
           <Button type="button" variant="outline" onClick={close} disabled={loading || uploading}>
@@ -257,13 +309,29 @@ function CategoryDialog({
       )}
     >
         <form id="category-form" onSubmit={handleSubmit} className="space-y-5">
+          <div role="tablist" className={`grid gap-1 rounded-lg bg-zinc-100 p-1 ${isEdit ? "grid-cols-4" : "grid-cols-3"}`}>
+            {([
+              ["basics", "Basics", ""],
+              ["details", "Details", attributes.length ? String(attributes.length) : isSub ? "inherits" : ""],
+              ["sizing", "Sizing guide", sizingEnabled && (sizingSummary || sizingChart.length || sizingPresetGroups.length) ? "on" : ""],
+              ...(isEdit ? [["managers", "In charge", selectedManagers.length ? String(selectedManagers.length) : ""] as const] : []),
+            ] as const).map(([key, label, badge]) => (
+              <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => setTab(key)} className={`flex items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium transition ${tab === key ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-800"}`}>
+                {label}
+                {badge ? <span className="rounded-full bg-zinc-200 px-1.5 text-[10px] text-zinc-600">{badge}</span> : null}
+              </button>
+            ))}
+          </div>
+
+          <div className={tab === "basics" ? "space-y-5" : "hidden"}>
+          <div><h3 className="text-sm font-semibold text-zinc-900">Basics</h3><p className="text-xs text-zinc-500">The name and picture customers see in the app.</p></div>
           <div className="space-y-1.5">
             <Label htmlFor="name">Name *</Label>
             <Input
               id="name"
               name="name"
               defaultValue={category?.name}
-              placeholder="e.g. Sneakers"
+              placeholder={isSub ? "e.g. Sneakers male" : "e.g. Shoes"}
               required
               minLength={2}
               maxLength={60}
@@ -280,6 +348,24 @@ function CategoryDialog({
               maxLength={300}
             />
           </div>
+
+          {(topLevel.length > 0 || isSub) && !(isEdit && (category?.childCount || 0) > 0) ? (
+            <div className="space-y-1.5">
+              <Label>Parent category</Label>
+              <Select value={parentId} onValueChange={setParentId} disabled={Boolean(parent) || (isEdit && !category?.parentId)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None (top-level category)</SelectItem>
+                  {topLevel.filter((item) => item.id !== category?.id).map((item) => (
+                    <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-zinc-400">
+                Products are filed under sub-categories. A category with no sub-categories (like Wigs) holds products itself.
+              </p>
+            </div>
+          ) : null}
 
           {/* Category image — upload or paste a link */}
           <div className="space-y-1.5">
@@ -339,14 +425,59 @@ function CategoryDialog({
             <p className="text-xs text-zinc-400">Shown on the category card and anywhere the category is featured.</p>
           </div>
 
-          <div className="space-y-3 rounded-lg border border-border bg-zinc-50 p-3">
-            <div className="flex items-center gap-1.5">
-              <Ruler size={14} className="text-zinc-500" />
-              <Label>Sizing guide</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="sortOrder">Sort Order</Label>
+            <Input
+              id="sortOrder"
+              name="sortOrder"
+              type="number"
+              min={0}
+              defaultValue={category?.sortOrder ?? 0}
+              className="w-32"
+            />
+          </div>
+          </div>
+
+          <div className={tab === "details" ? "space-y-4" : "hidden"}>
+            <div><h3 className="text-sm font-semibold text-zinc-900">Product details</h3><p className="text-xs text-zinc-500">The questions a Market Associate answers when adding a product here (size, colour, capacity…).</p></div>
+            {isSub && !attributes.length ? (
+              <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-xs leading-5 text-sky-900">
+                This sub-category has no details of its own, so it uses {parentName || "its parent"}&apos;s. Add details below only if it needs different ones.
+              </div>
+            ) : null}
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-zinc-600">Quick start: fill in the usual questions for…</p>
+              <div className="flex flex-wrap gap-1.5">
+                {ATTRIBUTE_TEMPLATES.map((template) => (
+                  <button key={template.name} type="button" onClick={() => { if (!attributes.length || confirm(`Replace the current details with the ${template.name} template?`)) setAttributes(template.attributes); }} className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs text-zinc-700 hover:border-zinc-900">{template.name}</button>
+                ))}
+              </div>
+            </div>
+          <CategoryAttributeEditor
+            attributes={attributes}
+            onChange={setAttributes}
+            inheritedNote={isSub ? `Leave empty to use ${parentName || "the parent"}'s details.` : undefined}
+          />
+
+          </div>
+
+          <div className={tab === "sizing" ? "space-y-3" : "hidden"}>
+            <div><h3 className="text-sm font-semibold text-zinc-900">Sizing guide</h3><p className="text-xs text-zinc-500">Helps Market Associates and customers pick the right size.</p></div>
+          <div className="space-y-3 rounded-xl border border-border bg-zinc-50 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-1.5">
+                <Ruler size={14} className="text-zinc-500" />
+                <Label>Sizing guide</Label>
+              </div>
+              <label className="flex items-center gap-2 text-xs font-medium text-zinc-600">
+                {sizingEnabled ? "Shown" : "Hidden"}
+                <Switch checked={sizingEnabled} onCheckedChange={setSizingEnabled} aria-label="Show the sizing guide" />
+              </label>
             </div>
             <p className="text-xs leading-5 text-zinc-400">
-              Shown to Market Associates while they capture products in this category, and to customers
-              on the product page — helps everyone use sizes consistently.
+              {sizingEnabled
+                ? "Shown to Market Associates and Partners while they capture or browse products here, and to customers on the product page. Sub-categories without their own guide use this one."
+                : "Hidden everywhere. Your guide is kept, so switching it back on restores it."}
             </p>
 
             <div className="space-y-1.5">
@@ -400,14 +531,14 @@ function CategoryDialog({
               {sizingChart.length ? (
                 <div className="space-y-2">
                   {sizingChart.map((row, index) => (
-                    <div key={index} className="grid grid-cols-[80px_1fr_1fr_1fr_auto] gap-1.5 rounded-md border border-border bg-white p-2">
+                    <div key={index} style={{ gridTemplateColumns: `80px repeat(${chartColumns.length}, minmax(0, 1fr)) auto` }} className="grid gap-1.5 rounded-md border border-border bg-white p-2">
                       <Input
                         value={row.size}
                         onChange={(e) => updateChartRowSize(index, e.target.value)}
                         placeholder="Size"
                         className="h-8 text-xs"
                       />
-                      {(["Chest", "Waist", "Hip"] as const).map((label) => (
+                      {chartColumns.map((label) => (
                         <Input
                           key={label}
                           value={row.measurements[label] || ""}
@@ -433,27 +564,48 @@ function CategoryDialog({
               )}
             </div>
           </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="sortOrder">Sort Order</Label>
-            <Input
-              id="sortOrder"
-              name="sortOrder"
-              type="number"
-              min={0}
-              defaultValue={category?.sortOrder ?? 0}
-              className="w-32"
-            />
           </div>
 
+          {isEdit ? (
+            <div className={tab === "managers" ? "space-y-3" : "hidden"}>
+              <div><h3 className="text-sm font-semibold text-zinc-900">In charge</h3><p className="text-xs text-zinc-500">Staff who look after this category. They see it in their work and get its updates.</p></div>
+              <Input value={managerSearch} onChange={(event) => setManagerSearch(event.target.value)} placeholder="Search staff by name or email" />
+              {managerOptions.isLoading ? (
+                <div className="grid min-h-32 place-items-center"><HookLoader label="Loading staff" /></div>
+              ) : managerOptions.isError ? (
+                <p className="rounded-lg border border-dashed p-4 text-center text-sm text-zinc-500">Staff could not load. Close and reopen this sheet to try again.</p>
+              ) : (
+                <ul className="divide-y rounded-xl border bg-white">
+                  {staff.filter((person) => `${managerName(person)} ${person.email}`.toLowerCase().includes(managerSearch.trim().toLowerCase())).map((person) => {
+                    const on = selectedManagers.includes(person.id);
+                    return (
+                      <li key={person.id}>
+                        <button type="button" onClick={() => toggleManager(person.id)} aria-pressed={on} className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-zinc-50">
+                          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-zinc-100 text-xs font-semibold text-zinc-600">{managerInitials(person)}</span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium text-zinc-900">{managerName(person)}</span>
+                            <span className="block truncate text-xs text-zinc-500">{person.email}</span>
+                          </span>
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize ${person.role === "admin" ? "bg-blue-50 text-blue-700" : "bg-purple-50 text-purple-700"}`}>{person.role}</span>
+                          <span className={`grid size-5 shrink-0 place-items-center rounded-md border ${on ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-300"}`}>{on ? <Check size={13} /> : null}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                  {!staff.length ? <li className="p-4 text-center text-sm text-zinc-500">No support or admin staff to assign yet.</li> : null}
+                </ul>
+              )}
+              <p className="text-xs text-zinc-500">{selectedManagers.length ? `${selectedManagers.length} selected.` : "Nobody is in charge yet."} Applied when you save.</p>
+            </div>
+          ) : null}
         </form>
     </AdminWorkflowSheet>
   );
 }
 
-// ─── Category card ───────────────────────────────────────────────────────────
+// ─── Sub-category row ────────────────────────────────────────────────────────
 
-function CategoryCard({
+function SubCategoryRow({
   category,
   onEdit,
   onRefresh,
@@ -466,6 +618,84 @@ function CategoryCard({
 }) {
   const [busy, setBusy] = useState(false);
   const canDelete = category.productCount === 0;
+
+  async function run(action: () => Promise<unknown>, success: string) {
+    setBusy(true);
+    try {
+      await action();
+      toast.success(success);
+      onRefresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message.replace(/^\d+:\s*/, "") : "Failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-zinc-50">
+      <CornerDownRight size={13} className="shrink-0 text-zinc-300" />
+      <span className={`size-1.5 shrink-0 rounded-full ${category.isActive ? "bg-emerald-500" : "bg-zinc-300"}`} />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-zinc-800">{category.name}</p>
+        <p className="truncate text-[11px] text-zinc-400">
+          {category.inheritsAttributes ? "Uses parent's details" : attributeSummary(category.attributes || []) || "No details"}
+        </p>
+      </div>
+      <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-600">
+        {category.productCount}
+      </span>
+      {canManage ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon-sm" className="shrink-0 text-zinc-400" disabled={busy}><MoreHorizontal size={15} /></Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem onClick={onEdit}><Pencil size={14} /> Edit</DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => run(() => apiPatch(`/admin/categories/${category.id}/toggle`), category.isActive ? "Deactivated" : "Activated")}
+            >
+              <Power size={14} /> {category.isActive ? "Deactivate" : "Activate"}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              disabled={!canDelete}
+              className="text-destructive focus:text-destructive"
+              onClick={canDelete ? () => {
+                if (confirm(`Delete "${category.name}"? This cannot be undone.`)) void run(() => apiRequest(`/admin/categories/${category.id}`, { method: "DELETE" }), "Deleted");
+              } : undefined}
+            >
+              <Trash2 size={14} /> {canDelete ? "Delete" : "Delete (has products)"}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
+    </div>
+  );
+}
+
+// ─── Category card ───────────────────────────────────────────────────────────
+
+function CategoryCard({
+  category,
+  subs,
+  onEdit,
+  onAddSub,
+  onEditSub,
+  onRefresh,
+  canManage,
+}: {
+  category: CategoryRow;
+  subs: CategoryRow[];
+  onEdit: () => void;
+  onAddSub: () => void;
+  onEditSub: (sub: CategoryRow) => void;
+  onRefresh: () => void;
+  canManage: boolean;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(true);
+  const canDelete = category.productCount === 0 && subs.length === 0;
 
   async function handleToggle() {
     setBusy(true);
@@ -532,6 +762,10 @@ function CategoryCard({
                   <Pencil size={14} />
                   Edit Category
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={onAddSub}>
+                  <FolderTree size={14} />
+                  Add sub-category
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleToggle} disabled={busy}>
                   <Power size={14} />
                   {category.isActive ? "Deactivate" : "Activate"}
@@ -543,7 +777,7 @@ function CategoryCard({
                   className="text-destructive focus:text-destructive"
                 >
                   <Trash2 size={14} />
-                  {canDelete ? "Delete" : "Delete (has products)"}
+                  {canDelete ? "Delete" : subs.length ? "Delete (has sub-categories)" : "Delete (has products)"}
                 </DropdownMenuItem>
               </> : <DropdownMenuItem disabled>View-only access</DropdownMenuItem>}
             </DropdownMenuContent>
@@ -578,6 +812,28 @@ function CategoryCard({
             {category.isActive ? "Active" : "Inactive"}
           </Badge>
         </div>
+
+        {/* Product details this category asks for */}
+        <p className="mt-2.5 text-xs text-zinc-500">
+          <span className="font-medium text-zinc-600">Asks for: </span>
+          {category.attributes?.length ? attributeSummary(category.attributes) : subs.length ? "Set per sub-category" : "Nothing set"}
+        </p>
+
+        {/* Sub-categories */}
+        {subs.length > 0 ? (
+          <div className="mt-3 border-t border-dashed border-border pt-2">
+            <button type="button" onClick={() => setOpen((current) => !current)} className="flex w-full items-center gap-1.5 py-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+              {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />} Sub-categories ({subs.length})
+            </button>
+            {open ? (
+              <div className="mt-1 space-y-0.5">
+                {subs.map((sub) => (
+                  <SubCategoryRow key={sub.id} category={sub} onEdit={() => onEditSub(sub)} onRefresh={onRefresh} canManage={canManage} />
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         {/* Managers */}
         <div className="mt-3 border-t border-dashed border-border pt-3">
@@ -624,16 +880,99 @@ function CategoryCard({
 
 // ─── Main page ───────────────────────────────────────────────────────────────
 
+// ─── Tree view ───────────────────────────────────────────────────────────────
+
+function CategoryTree({
+  roots,
+  subsOf,
+  onEdit,
+  onAddSub,
+  canManage,
+}: {
+  roots: CategoryRow[];
+  subsOf: (id: string) => CategoryRow[];
+  onEdit: (category: CategoryRow) => void;
+  onAddSub: (category: CategoryRow) => void;
+  canManage: boolean;
+}) {
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const toggle = (id: string) => setCollapsed((current) => {
+    const next = new Set(current);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const rollup = (category: CategoryRow) => category.productCount + subsOf(category.id).reduce((sum, sub) => sum + sub.productCount, 0);
+
+  return (
+    <div className="rounded-xl border border-border bg-white">
+      <div className="flex items-center justify-between border-b px-4 py-2.5 text-xs text-zinc-500">
+        <span>{roots.length} categories · products attach to the last level</span>
+        <div className="flex gap-1">
+          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setCollapsed(new Set())}>Expand all</Button>
+          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setCollapsed(new Set(roots.map((root) => root.id)))}>Collapse all</Button>
+        </div>
+      </div>
+      <ul className="divide-y">
+        {roots.map((root) => {
+          const children = subsOf(root.id);
+          const isOpen = !collapsed.has(root.id);
+          return (
+            <li key={root.id} className="px-2 py-1.5">
+              <div className="group flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-zinc-50">
+                <button type="button" onClick={() => toggle(root.id)} disabled={!children.length} className="flex size-6 items-center justify-center rounded text-zinc-500 hover:bg-zinc-100 disabled:opacity-0" aria-label={isOpen ? "Collapse" : "Expand"}>
+                  {isOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+                </button>
+                <span className="flex size-8 items-center justify-center rounded-lg bg-amber-50 text-brand-gold"><FolderTree size={15} /></span>
+                <button type="button" onClick={() => onEdit(root)} className="min-w-0 flex-1 text-left">
+                  <span className="flex items-center gap-2">
+                    <span className="truncate text-sm font-semibold text-zinc-900">{root.name}</span>
+                    <span className={`size-1.5 rounded-full ${root.isActive ? "bg-emerald-500" : "bg-zinc-300"}`} />
+                  </span>
+                  <span className="block truncate text-xs text-zinc-400">{children.length ? `${children.length} sub-categories` : "Leaf category · holds products"}</span>
+                </button>
+                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-600">{rollup(root)} products</span>
+                {canManage ? <Button variant="outline" size="sm" className="h-7 gap-1 px-2 text-xs opacity-0 transition group-hover:opacity-100 focus-visible:opacity-100" onClick={() => onAddSub(root)}><Plus size={12} /> Sub-category</Button> : null}
+              </div>
+              {isOpen && children.length ? (
+                <ul className="relative ml-[22px] border-l border-zinc-200 pl-0">
+                  {children.map((child) => (
+                    <li key={child.id} className="relative">
+                      <span className="absolute left-0 top-1/2 h-px w-4 bg-zinc-200" />
+                      <button type="button" onClick={() => onEdit(child)} className="group/child ml-5 flex w-[calc(100%-1.25rem)] items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-zinc-50">
+                        <span className={`size-1.5 shrink-0 rounded-full ${child.isActive ? "bg-emerald-500" : "bg-zinc-300"}`} />
+                        <span className="min-w-0 flex-1 truncate text-sm text-zinc-800">{child.name}</span>
+                        <span className="hidden truncate text-xs text-zinc-400 md:block">{child.attributes?.length ? attributeSummary(child.attributes) : "Inherits parent"}</span>
+                        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-500">{child.productCount}</span>
+                        <Pencil size={12} className="text-zinc-300 group-hover/child:text-zinc-600" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 export default function CategoriesPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<CategoryRow | null>(null);
+  const [addingUnder, setAddingUnder] = useState<CategoryRow | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [view, setView] = useState<"tree" | "cards">("tree");
   const { data: session } = useAdminSession();
   const router = useRouter();
   const { data, isLoading, error, refetch } = useApiQuery<CategoriesResponse>(
     ["admin", "categories"],
     "/admin/categories",
+  );
+  const needsSubQuery = useApiQuery<{ total?: number; pagination?: { total?: number } }>(
+    ["admin", "categories", "needs-sub"],
+    "/admin/products?needsRecategorisation=true&limit=1",
   );
 
   const canView = hasPermission(session, "categories.view");
@@ -644,14 +983,20 @@ export default function CategoriesPage() {
   if (session && !canView) return null;
 
   const all = data?.data ?? [];
-  const filtered = all.filter((category) => {
-    if (statusFilter === "active" && !category.isActive) return false;
-    if (statusFilter === "inactive" && category.isActive) return false;
-    if (search && ![category.name, category.slug, category.description].some((v) =>
-      v?.toLowerCase().includes(search.toLowerCase()),
-    )) return false;
-    return true;
-  });
+  const topLevel = all.filter((category) => !category.parentId);
+  const subsOf = (id: string) => all.filter((category) => category.parentId === id);
+  const matches = (category: CategoryRow) =>
+    (statusFilter === "all" || (statusFilter === "active") === category.isActive) &&
+    (!search || [category.name, category.slug, category.description].some((v) => v?.toLowerCase().includes(search.toLowerCase())));
+  // A parent shows when it matches, or when any of its sub-categories does.
+  // Retired categories (hidden from the app, kept for their history) sort last so the live tree reads first.
+  const filtered = topLevel
+    .filter((category) => matches(category) || subsOf(category.id).some(matches))
+    .sort((a, b) => Number(b.isActive) - Number(a.isActive));
+  const liveRoots = topLevel.filter((category) => category.isActive);
+  const retiredRoots = topLevel.length - liveRoots.length;
+  const subCount = all.length - topLevel.length;
+  const needsSub = needsSubQuery.data?.total ?? needsSubQuery.data?.pagination?.total ?? 0;
 
   const productsCategorized = all.reduce((sum, category) => sum + category.productCount, 0);
   const withoutManager = all.filter((category) => category.managers.length === 0).length;
@@ -673,11 +1018,18 @@ export default function CategoriesPage() {
 
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <KpiCard icon={Tags} tone="amber" label="Total Categories" value={all.length} caption="Organization-wide" />
+        <KpiCard icon={Tags} tone="amber" label="Categories" value={liveRoots.length} caption={`${subCount} sub-categories${retiredRoots ? ` · ${retiredRoots} retired, hidden from the app` : ""}`} />
         <KpiCard icon={CheckCircle2} tone="green" label="Active" value={all.filter((c) => c.isActive).length} caption="Available for products" />
         <KpiCard icon={Package} tone="blue" label="Products Categorized" value={productsCategorized} caption="Across all categories" />
         <KpiCard icon={UserX} tone={withoutManager > 0 ? "red" : "zinc"} label="Without Manager" value={withoutManager} caption="Need an assignee" />
       </div>
+
+      {needsSub > 0 ? (
+        <div className="flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
+          <p className="flex items-start gap-2"><AlertTriangle size={16} className="mt-0.5 shrink-0" /> {needsSub} product{needsSub === 1 ? "" : "s"} still need a sub-category. They stay live until you move them.</p>
+          <Button asChild size="sm" variant="outline"><Link href="/dashboard/categories/recategorise">Move products</Link></Button>
+        </div>
+      ) : null}
 
       {/* Filters */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -700,6 +1052,11 @@ export default function CategoriesPage() {
             <SelectItem value="inactive">Inactive</SelectItem>
           </SelectContent>
         </Select>
+        <div className="inline-flex rounded-lg border border-border bg-white p-0.5 sm:ml-auto">
+          {(["tree", "cards"] as const).map((mode) => (
+            <button key={mode} type="button" onClick={() => setView(mode)} className={`rounded-md px-3 py-1 text-xs font-medium capitalize ${view === mode ? "bg-zinc-900 text-white" : "text-zinc-600 hover:bg-zinc-100"}`}>{mode}</button>
+          ))}
+        </div>
       </div>
 
       {/* Content */}
@@ -731,13 +1088,26 @@ export default function CategoriesPage() {
         </div>
       )}
 
-      {!isLoading && !error && filtered.length > 0 && (
+      {!isLoading && !error && filtered.length > 0 && view === "tree" && (
+        <CategoryTree
+          roots={filtered}
+          subsOf={(id) => subsOf(id).filter((sub) => matches(sub) || filtered.some((root) => root.id === id && matches(root)))}
+          onEdit={setEditing}
+          onAddSub={setAddingUnder}
+          canManage={canManage}
+        />
+      )}
+
+      {!isLoading && !error && filtered.length > 0 && view === "cards" && (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((category) => (
             <CategoryCard
               key={category.id}
               category={category}
+              subs={subsOf(category.id).filter((sub) => matches(category) || matches(sub))}
               onEdit={() => setEditing(category)}
+              onAddSub={() => setAddingUnder(category)}
+              onEditSub={setEditing}
               onRefresh={refetch}
               canManage={canManage}
             />
@@ -748,14 +1118,27 @@ export default function CategoriesPage() {
       {createOpen && (
         <CategoryDialog
           open
+          topLevel={topLevel}
           onClose={() => setCreateOpen(false)}
+          onSuccess={() => refetch()}
+        />
+      )}
+
+      {addingUnder && (
+        <CategoryDialog
+          open
+          parent={addingUnder}
+          topLevel={topLevel}
+          onClose={() => setAddingUnder(null)}
           onSuccess={() => refetch()}
         />
       )}
 
       {editing && (
         <CategoryDialog
+          key={editing.id}
           category={editing}
+          topLevel={topLevel}
           open={Boolean(editing)}
           onClose={() => setEditing(null)}
           onSuccess={() => refetch()}

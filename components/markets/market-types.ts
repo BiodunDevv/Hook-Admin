@@ -17,6 +17,7 @@ export type MarketRecord = {
   cityName?: string | null;
   zoneName?: string | null;
   hubName?: string | null;
+  associateCount?: number;
   state?: { publicId?: string; name?: string; code?: string } | null;
   city?: { publicId?: string; name?: string; code?: string } | null;
   zone?: { publicId?: string; name?: string; code?: string } | null;
@@ -36,6 +37,7 @@ export type MarketRecord = {
   vendors?: MarketVendorRecord[];
   assignments?: Array<Record<string, unknown>>;
   marketAssociates?: Array<Record<string, unknown>>;
+  associates?: Array<import("./MarketAssociatePanel").MarketAssociateRow>;
   submissions?: Array<Record<string, unknown>>;
   products?: Array<Record<string, unknown>>;
   collections?: Array<Record<string, unknown>>;

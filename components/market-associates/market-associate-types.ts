@@ -4,7 +4,8 @@ export type MarketAssociateAction =
   | "restore"
   | "archive"
   | "revoke-sessions"
-  | "cancel-invitation";
+  | "cancel-invitation"
+  | "delete";
 
 export interface MarketAssociateAccount {
   id?: string;
@@ -33,7 +34,7 @@ export interface MarketAssociateRelation {
 export interface MarketAssociateAssignment {
   id?: string;
   publicId?: string;
-  market?: { id?: string; publicId?: string; name?: string } | null;
+  market?: { id?: string; publicId?: string; name?: string; hubName?: string | null } | null;
   isPrimary?: boolean;
   priority?: number;
   status?: string;

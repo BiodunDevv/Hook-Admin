@@ -131,11 +131,14 @@ export function BasketLine({
   quantity,
   negotiated,
   busy,
+  details,
   onIncrease,
   onDecrease,
   onRemove,
 }: {
   title: string;
+  /** The chosen options, e.g. "Size 42 · Black" or "Capacity: 10,000 mAh". Two lines of one product differ by these. */
+  details?: string;
   imageUrl?: string;
   unitPriceMinor?: number;
   totalPriceMinor?: number;
@@ -151,6 +154,7 @@ export function BasketLine({
       <ProductImage src={imageUrl} alt={title} className="size-16 shrink-0" sizes="64px" rounded="rounded-[10px]" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-[14px] font-semibold text-black">{title}</p>
+        {details ? <p className="mt-0.5 truncate text-[12px] font-medium text-[#555]">{details}</p> : null}
         <p className="mt-0.5 text-[12px] text-[#8F8F8F]">
           {money(unitPriceMinor)} each · {money(totalPriceMinor)} total
         </p>

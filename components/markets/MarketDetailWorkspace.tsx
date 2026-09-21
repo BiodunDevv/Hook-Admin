@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { Clock3, Edit3, Eye, MapPin, Power, Users, Package, WalletCards, Phone, Mail, CheckCircle2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import { useAdminSession, useApiQuery } from "@/lib/query";
 import { apiPost } from "@/lib/api";
 import { hasPermission } from "@/lib/permissions";
 import { MarketImage } from "./MarketImage";
+import { MarketAssociatePanel } from "./MarketAssociatePanel";
 import { MarketVendorEditSheet } from "./MarketVendorEditSheet";
 import { VendorCollectionReconcileSheet, type ReconcileCollection } from "./VendorCollectionReconcileSheet";
 import type { MarketRecord, MarketVendorRecord } from "./market-types";
@@ -43,7 +44,8 @@ export function MarketDetailWorkspace() {
   const [lifecycleOpen, setLifecycleOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [acting, setActing] = useState(false);
-  const [activeTab, setActiveTab] = useState("vendors");
+  const requestedTab = useSearchParams().get("tab");
+  const [activeTab, setActiveTab] = useState(["vendors", "marketAssociates", "products", "collections"].includes(String(requestedTab)) ? String(requestedTab) : "marketAssociates");
   const [editingVendor, setEditingVendor] = useState<MarketVendorRecord | null>(null);
   const [reconcilingCollection, setReconcilingCollection] = useState<ReconcileCollection | null>(null);
   const [previewImage, setPreviewImage] = useState<{ src: string; alt: string } | null>(null);
@@ -51,6 +53,15 @@ export function MarketDetailWorkspace() {
   const market = query.data;
   const canManage = hasPermission(session, "markets.manage");
   const canManageVendors = hasPermission(session, "market.vendors.manage");
+  // What still stands between this Market and being usable, each with the place to fix it.
+  const readiness: Array<{ text: string; action?: React.ReactNode }> = [];
+  if (market && !(market.hubName || market.hub?.name)) {
+    readiness.push({ text: "No Dispatch Hub yet. Orders from this Market can't be routed until one is set.", action: canManage ? <Button asChild size="sm" variant="outline"><Link href={`/dashboard/markets/${market.publicId || market.id}/edit`}>Choose a hub</Link></Button> : undefined });
+  }
+  if (market && market.status === "active" && !(market.summary?.assignedMarketAssociates ?? 0)) {
+    readiness.push({ text: "No Market Associate is assigned, so nobody can capture products here.", action: <Button size="sm" variant="outline" onClick={() => setActiveTab("marketAssociates")}>Assign someone</Button> });
+  }
+  if (market && market.status !== "active") readiness.push({ text: "This Market is inactive. It is hidden from customers and can't take new assignments." });
   const canReconcilePayments = hasPermission(session, "market.payments.reconcile");
 
   async function changeLifecycle() {
@@ -76,60 +87,59 @@ export function MarketDetailWorkspace() {
       <QueryState loading={query.isLoading} error={query.error} loadingLabel="Loading market workspace" errorTitle="Market details unavailable" onRetry={() => query.refetch()}>
         {market ? <>
           <Card className="min-w-0 overflow-hidden rounded-xl shadow-none">
-            <div className="grid min-w-0 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
-              <div className="relative aspect-[16/9] max-h-[360px] min-h-52 overflow-hidden bg-muted sm:aspect-[16/7] xl:aspect-auto xl:max-h-none xl:min-h-[460px]">
+            <div className="flex min-w-0 flex-col gap-5 p-4 sm:flex-row sm:p-5">
+              <button type="button" onClick={() => market.imageUrl && setPreviewImage({ src: absoluteImageUrl(market.imageUrl), alt: market.name })} disabled={!market.imageUrl} className="relative aspect-[16/10] w-full shrink-0 overflow-hidden rounded-xl bg-muted sm:aspect-auto sm:h-40 sm:w-60" aria-label={market.imageUrl ? `Preview ${market.name}` : undefined}>
                 <MarketImage src={market.imageUrl} alt={`${market.name} market`} className="size-full" />
-              </div>
-              <div className="flex min-w-0 flex-col justify-between gap-6 p-4 sm:p-5 md:p-7">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Market operations</p>
-                  <h2 className="mt-2 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">{market.name}</h2>
-                  <p className="mt-3 flex items-start gap-2 text-sm leading-6 text-muted-foreground"><MapPin className="mt-0.5 size-4 shrink-0 text-[#b18b00]" />{market.address || "Location not recorded"}</p>
+              </button>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">{market.name}</h2>
+                  {market.isFeatured ? <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800">Featured</span> : null}
                 </div>
-                <div className="space-y-5 border-t pt-5">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">Operational context</p>
-                      <p className="mt-1 text-xs leading-5 text-muted-foreground">The geography and dispatch relationships used by Hook operations.</p>
-                    </div>
-                    <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-[#fff4b8] text-[#806300]"><MapPin className="size-4" /></span>
-                  </div>
-                  <dl className="grid min-w-0 gap-x-5 gap-y-4 text-sm sm:grid-cols-2">
-                    <div><dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Operation State</dt><dd className="mt-1 font-medium">{market.stateName || market.state?.name || "Not assigned"}</dd></div>
-                    <div><dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Operation City</dt><dd className="mt-1 font-medium">{market.cityName || market.city?.name || "Not assigned"}</dd></div>
-                    <div><dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Service Zone</dt><dd className="mt-1 font-medium">{market.zoneName || market.zone?.name || "Not assigned"}</dd></div>
-                    <div><dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Dispatch Hub</dt><dd className="mt-1 truncate font-medium">{market.hubName || market.hub?.name || "Not assigned"}</dd></div>
-                    <div className="sm:col-span-2"><dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Address</dt><dd className="mt-1 font-medium">{market.address || "Not recorded"}</dd></div>
-                    <div><dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Coordinates</dt><dd className="mt-1 font-medium">{market.coordinates?.lat !== undefined && market.coordinates?.lng !== undefined ? `${market.coordinates.lat}, ${market.coordinates.lng}` : "Not recorded"}</dd></div>
-                    <div><dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Market ID</dt><dd className="mt-1 font-mono text-xs font-medium">{market.publicId || market.id}</dd></div>
-                  </dl>
-                  <div className="grid gap-3 border-t pt-4 sm:grid-cols-2">
-                    <div><p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Market notes</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{market.notes || "No internal notes have been added for this market."}</p></div>
-                    <div><p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Dispatch readiness</p><p className="mt-1 font-medium">{market.hubName || market.hub?.name ? "Connected to a Dispatch Hub" : "Awaiting Hub assignment"}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{market.hubName || market.hub?.name || "Assign a compatible Hub before this market is used for fulfilment operations."}</p></div>
-                  </div>
-                </div>
+                <p className="mt-1 flex items-start gap-1.5 text-sm text-muted-foreground"><MapPin className="mt-0.5 size-4 shrink-0" />{market.address || "Address not recorded"}</p>
+                <dl className="mt-4 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                  {[
+                    ["State", market.stateName || market.state?.name],
+                    ["City", market.cityName || market.city?.name],
+                    ["Dispatch Hub", market.hubName || market.hub?.name],
+                    ["Market ID", market.publicId || market.id],
+                  ].map(([label, value]) => (
+                    <div key={label} className="min-w-0"><dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</dt><dd className={`mt-0.5 truncate font-medium ${value ? "" : "text-muted-foreground"} ${label === "Market ID" ? "font-mono text-xs" : ""}`}>{value || "Not set"}</dd></div>
+                  ))}
+                </dl>
+                {market.notes ? <p className="mt-4 rounded-lg bg-muted/50 px-3 py-2 text-xs leading-5 text-muted-foreground">{market.notes}</p> : null}
               </div>
             </div>
+            {readiness.length ? (
+              <div className="space-y-2 border-t bg-amber-50/60 p-4">
+                {readiness.map((item) => (
+                  <div key={item.text} className="flex flex-wrap items-center justify-between gap-2 text-sm text-amber-900">
+                    <span className="flex items-center gap-2"><AlertTriangle className="size-4 shrink-0" />{item.text}</span>
+                    {item.action}
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </Card>
           <div className="grid min-w-0 grid-cols-2 gap-3 lg:grid-cols-5">
             {[
-              [Users, "Vendors", market.summary?.vendors ?? market.vendors?.length ?? 0, "bg-[#fff8dc] text-[#8a6900]"],
-              [Users, "Assigned Market Associates", market.summary?.assignedMarketAssociates ?? market.marketAssociates?.length ?? 0, "bg-blue-50 text-blue-700"],
-              [Package, "Products", market.summary?.products ?? market.products?.length ?? 0, "bg-emerald-50 text-emerald-700"],
-              [AlertTriangle, "Availability checks", market.summary?.pendingAvailability ?? 0, "bg-amber-50 text-amber-700"],
-              [WalletCards, "Collections", market.summary?.collections ?? market.collections?.length ?? 0, "bg-violet-50 text-violet-700"],
-            ].map(([Icon, label, value, tone]) => {
+              ["vendors", Users, "Vendors", market.summary?.vendors ?? market.vendors?.length ?? 0, "bg-[#fff8dc] text-[#8a6900]"],
+              ["marketAssociates", Users, "Market Associates", market.summary?.assignedMarketAssociates ?? 0, "bg-blue-50 text-blue-700"],
+              ["products", Package, "Products", market.summary?.products ?? market.products?.length ?? 0, "bg-emerald-50 text-emerald-700"],
+              ["products", AlertTriangle, "Availability checks", market.summary?.pendingAvailability ?? 0, "bg-amber-50 text-amber-700"],
+              ["collections", WalletCards, "Collections", market.summary?.collections ?? market.collections?.length ?? 0, "bg-violet-50 text-violet-700"],
+            ].map(([tab, Icon, label, value, tone]) => {
               const MetricIcon = Icon as typeof Users;
-              return <Card key={String(label)} className="min-w-0 rounded-xl shadow-none last:col-span-2 lg:last:col-span-1"><CardContent className="min-w-0 p-3 sm:p-4"><span className={`grid size-8 place-items-center rounded-lg ${tone}`}><MetricIcon className="size-4" /></span><p className="mt-3 text-2xl font-semibold tabular-nums">{String(value)}</p><p className="truncate text-xs text-muted-foreground">{String(label)}</p></CardContent></Card>;
+              return <button key={String(label)} type="button" onClick={() => setActiveTab(String(tab))} className="min-w-0 rounded-xl border bg-card p-3 text-left transition hover:border-zinc-300 hover:shadow-sm last:col-span-2 sm:p-4 lg:last:col-span-1"><span className={`grid size-8 place-items-center rounded-lg ${tone}`}><MetricIcon className="size-4" /></span><p className="mt-3 text-2xl font-semibold tabular-nums">{String(value)}</p><p className="truncate text-xs text-muted-foreground">{String(label)}</p></button>;
             })}
           </div>
           <div className="min-w-0 overflow-hidden rounded-xl border bg-background shadow-none">
             <div className="flex gap-1 overflow-x-auto border-b p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {[['vendors', 'Vendors'], ['products', 'Products'], ['marketAssociates', 'Market Associates'], ['collections', 'Collections']].map(([value, label]) => <button key={value} type="button" onClick={() => setActiveTab(value)} className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition ${activeTab === value ? "bg-[#fff4b8] text-[#6d5600]" : "text-muted-foreground hover:bg-muted"}`}>{label}</button>)}
+              {[['vendors', 'Vendors'], ['marketAssociates', 'Market Associates'], ['products', 'Products'], ['collections', 'Collections']].map(([value, label]) => <button key={value} type="button" onClick={() => setActiveTab(value)} className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition ${activeTab === value ? "bg-[#fff4b8] text-[#6d5600]" : "text-muted-foreground hover:bg-muted"}`}>{label}</button>)}
             </div>
             {activeTab === "vendors" ? <VendorList vendors={market.vendors || []} canManage={canManageVendors} onEdit={setEditingVendor} /> : null}
             {activeTab === "products" ? <ProductList products={market.products || []} onPreview={(src, alt) => setPreviewImage({ src, alt })} /> : null}
-            {activeTab === "marketAssociates" ? <MarketAssociateList marketAssociates={market.marketAssociates || []} assignments={market.assignments || []} /> : null}
+            {activeTab === "marketAssociates" ? <MarketAssociatePanel marketId={market.publicId || market.id} marketName={market.name} marketStateId={String(market.state?.publicId || market.stateId || "")} marketActive={market.status === "active"} associates={market.associates || []} onChanged={() => void query.refetch()} /> : null}
             {activeTab === "collections" ? <CollectionList collections={market.collections || []} vendors={market.vendors || []} canReconcile={canReconcilePayments} onReconcile={setReconcilingCollection} /> : null}
           </div>
           <Card className="rounded-xl shadow-none">
@@ -229,29 +239,6 @@ function ProductList({ products, onPreview }: { products: Array<Record<string, u
                 <TableCell className="text-right"><Button asChild variant="outline" size="sm"><Link href={`/dashboard/products/${id}`}><Eye /> View</Link></Button></TableCell>
               </TableRow>
             );
-          })}
-        </TableBody>
-      </Table>
-    </div>
-    </>
-  );
-}
-
-function MarketAssociateList({ marketAssociates, assignments }: { marketAssociates: Array<Record<string, unknown>>; assignments: Array<Record<string, unknown>> }) {
-  return (
-    <>
-    <div className="divide-y md:hidden">
-      {!marketAssociates.length ? <p className="p-8 text-center text-sm text-muted-foreground">No active Market Associates are assigned to this Market.</p> : marketAssociates.map((marketAssociate, index) => { const id = String(marketAssociate.publicId || marketAssociate.id || `market-associate-${index}`); const name = `${String(marketAssociate.firstName || "")} ${String(marketAssociate.lastName || "")}`.trim() || String(marketAssociate.email || id); const assignmentCount = assignments.filter((item) => item.marketAssociateId === marketAssociate.id || item.marketAssociateId === marketAssociate._id || item.marketAssociateId === marketAssociate.publicId).length; return <article key={id} className="flex min-w-0 items-center justify-between gap-3 p-4"><div className="min-w-0"><p className="truncate font-semibold">{name}</p><p className="mt-1 text-xs text-muted-foreground">{assignmentCount} Market assignment{assignmentCount === 1 ? "" : "s"}</p></div><StatusBadge status={String(marketAssociate.status || marketAssociate.availability || "active")} /></article>; })}
-    </div>
-    <div className="hidden min-w-0 overflow-x-auto md:block">
-      <Table className="min-w-[700px]">
-        <TableHeader><TableRow><TableHead className="w-12">#</TableHead><TableHead>Market Associate</TableHead><TableHead>Status</TableHead><TableHead>Market assignments</TableHead><TableHead>Market Associate ID</TableHead></TableRow></TableHeader>
-        <TableBody>
-          {!marketAssociates.length ? <EmptyTable colSpan={5} message="No active Market Associates are assigned to this Market." /> : marketAssociates.map((marketAssociate, index) => {
-            const id = String(marketAssociate.publicId || marketAssociate.id || "market-associate");
-            const name = `${String(marketAssociate.firstName || "")} ${String(marketAssociate.lastName || "")}`.trim() || String(marketAssociate.email || id);
-            const assignmentCount = assignments.filter((item) => item.marketAssociateId === marketAssociate.id || item.marketAssociateId === marketAssociate._id || item.marketAssociateId === marketAssociate.publicId).length;
-            return <TableRow key={id}><TableCell className="tabular-nums text-muted-foreground">{index + 1}</TableCell><TableCell><p className="font-medium">{name}</p></TableCell><TableCell><StatusBadge status={String(marketAssociate.status || marketAssociate.availability || "active")} /></TableCell><TableCell className="text-sm text-muted-foreground">{assignmentCount}</TableCell><TableCell className="font-mono text-[11px] text-muted-foreground">{id}</TableCell></TableRow>;
           })}
         </TableBody>
       </Table>

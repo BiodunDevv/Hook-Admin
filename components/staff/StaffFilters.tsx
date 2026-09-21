@@ -40,7 +40,6 @@ export function StaffFilters({ value, onChange }: { value: StaffFiltersValue; on
             <SelectItem value="active">Active</SelectItem>
             <SelectItem value="invited">Invited</SelectItem>
             <SelectItem value="suspended">Suspended</SelectItem>
-            <SelectItem value="disabled">Archived</SelectItem>
           </SelectContent>
         </Select>
         <Select value={value.scope} onValueChange={(scope) => onChange({ ...value, scope })}>

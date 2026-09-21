@@ -4,7 +4,8 @@ export type StaffAction =
   | "restore"
   | "archive"
   | "revoke-sessions"
-  | "cancel-invitation";
+  | "cancel-invitation"
+  | "delete";
 
 export interface StaffRole {
   id: string;

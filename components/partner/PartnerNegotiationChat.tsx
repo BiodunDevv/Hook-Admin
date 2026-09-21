@@ -29,6 +29,9 @@ type Negotiation = {
   transcript?: Transcript[];
   expiresAt?: string;
   quoteId?: string;
+  /** The exact option and quantity the price was agreed for. The cart only accepts the quote on that same line. */
+  variantId?: string;
+  quantity?: number;
   agreedPriceMinor?: number;
   lastCounterPriceMinor?: number;
   product?: { id?: string; title?: string; imageUrl?: string; effectivePriceMinor?: number };
@@ -100,7 +103,8 @@ export function PartnerNegotiationChat({
     try {
       await apiPost(`/partner/customers/${customerId}/cart/items`, {
         productId,
-        quantity: 1,
+        quantity: query.data?.quantity || 1,
+        ...(query.data?.variantId ? { variantId: query.data.variantId } : {}),
         quoteId,
       });
       await queryClient.invalidateQueries({ queryKey: ["partner", "basket"] });

@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { Archive, Ban, KeyRound, Mail, MoreHorizontal, Pencil, Phone, RotateCcw, ShieldCheck } from "lucide-react";
+import { Archive, Ban, KeyRound, Mail, MoreHorizontal, Pencil, Phone, RotateCcw, ShieldCheck, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PermissionGuard } from "@/components/auth/PermissionGuard";
+import { useIsSuperAdmin } from "@/hooks/use-permission";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { cn } from "@/lib/utils";
 import type { StaffAction, StaffMember, StaffRole } from "./staff-types";
@@ -41,6 +42,7 @@ export function StaffCard({ member, currentUserId, onAction, onResend }: { membe
   const roles = member.roles || [];
   const isProtected = roles.some((role) => role.key === "SUPER_ADMIN");
   const canLifecycle = !isSelf && !isProtected;
+  const superAdmin = useIsSuperAdmin();
   const lifecycleAction: StaffAction = status === "active" ? "suspend" : status === "disabled" ? "restore" : "reactivate";
 
   return (
@@ -59,6 +61,7 @@ export function StaffCard({ member, currentUserId, onAction, onResend }: { membe
               {canLifecycle ? <PermissionGuard permission="staff.suspend"><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => onAction(member, lifecycleAction)}><PowerIcon active={status === "active"} /> {status === "active" ? "Suspend account" : status === "disabled" ? "Restore account" : "Reactivate account"}</DropdownMenuItem></PermissionGuard> : null}
               {!isSelf && status !== "invited" && status !== "disabled" ? <PermissionGuard permission="staff.revoke_sessions"><DropdownMenuItem onSelect={() => onAction(member, "revoke-sessions")}><KeyRound /> Revoke sessions</DropdownMenuItem></PermissionGuard> : null}
               {!isSelf && status !== "invited" && status !== "disabled" ? <PermissionGuard permission="staff.suspend"><DropdownMenuItem variant="destructive" onSelect={() => onAction(member, "archive")}><Archive /> Archive account</DropdownMenuItem></PermissionGuard> : null}
+              {status === "disabled" && canLifecycle && superAdmin ? <DropdownMenuItem variant="destructive" onSelect={() => onAction(member, "delete")}><Trash2 /> Delete permanently</DropdownMenuItem> : null}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

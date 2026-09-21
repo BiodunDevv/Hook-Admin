@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { Archive, Ban, Mail, MapPinned, MoreHorizontal, Pencil, Phone, RotateCcw } from "lucide-react";
+import { Archive, Ban, KeyRound, Mail, MapPinned, MoreHorizontal, Pencil, Phone, RotateCcw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PermissionGuard } from "@/components/auth/PermissionGuard";
+import { useIsSuperAdmin } from "@/hooks/use-permission";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { cn } from "@/lib/utils";
 import type { MarketAssociateAction, MarketAssociateMember } from "./market-associate-types";
@@ -33,6 +34,8 @@ export function MarketAssociateCard({ member, onAction, onResend }: { member: Ma
   const availability = String(member.availability || "unavailable").toLowerCase();
   const name = `${member.firstName || ""} ${member.lastName || ""}`.trim() || member.email || "Unnamed Market Associate";
   const lifecycleAction: MarketAssociateAction = status === "active" ? "suspend" : "reactivate";
+  const superAdmin = useIsSuperAdmin();
+  const archived = status === "disabled";
 
   return (
     <Card className="rounded-xl shadow-none transition-shadow hover:shadow-md">
@@ -47,7 +50,11 @@ export function MarketAssociateCard({ member, onAction, onResend }: { member: Ma
             <DropdownMenuContent align="end" className="w-52">
               <DropdownMenuItem asChild><Link href={`/dashboard/market-associates/${id}`}><Pencil /> View and edit</Link></DropdownMenuItem>
               {status === "invited" ? <><PermissionGuard permission="runners.manage"><DropdownMenuItem onSelect={() => onResend(member)}><Mail /> Resend invitation</DropdownMenuItem></PermissionGuard><PermissionGuard permission="runners.manage"><DropdownMenuItem variant="destructive" onSelect={() => onAction(member, "cancel-invitation")}><Archive /> Cancel invitation</DropdownMenuItem></PermissionGuard></> : null}
-              {status === "active" || status === "suspended" ? <PermissionGuard permission="runners.manage"><DropdownMenuSeparator /><DropdownMenuItem variant={status === "active" ? "destructive" : "default"} onSelect={() => onAction(member, lifecycleAction)}><PowerIcon active={status === "active"} /> {status === "active" ? "Suspend account" : "Reactivate account"}</DropdownMenuItem></PermissionGuard> : null}
+              {status === "active" || status === "suspended" ? <PermissionGuard permission="runners.manage"><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => onAction(member, lifecycleAction)}><PowerIcon active={status === "active"} /> {status === "active" ? "Suspend account" : "Reactivate account"}</DropdownMenuItem></PermissionGuard> : null}
+              {status === "active" || status === "suspended" ? <PermissionGuard permission="runners.manage"><DropdownMenuItem onSelect={() => onAction(member, "revoke-sessions")}><KeyRound /> Revoke sessions</DropdownMenuItem></PermissionGuard> : null}
+              {status === "active" || status === "suspended" ? <PermissionGuard permission="runners.manage"><DropdownMenuItem variant="destructive" onSelect={() => onAction(member, "archive")}><Archive /> Archive account</DropdownMenuItem></PermissionGuard> : null}
+              {archived ? <PermissionGuard permission="runners.manage"><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => onAction(member, "restore")}><RotateCcw /> Restore account</DropdownMenuItem></PermissionGuard> : null}
+              {archived && superAdmin ? <DropdownMenuItem variant="destructive" onSelect={() => onAction(member, "delete")}><Trash2 /> Delete permanently</DropdownMenuItem> : null}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

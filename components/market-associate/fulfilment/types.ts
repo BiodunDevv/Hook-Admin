@@ -4,8 +4,8 @@ export const VIEWS: ViewKey[] = ["front", "side", "back"];
 /** Optional extra detail photos, up to four (seven in total). */
 export const EXTRA_VIEWS: ViewKey[] = ["extra1", "extra2", "extra3", "extra4"];
 
-export type ItemChecks = { productMatches: boolean; sizeMatches: boolean; colorMatches: boolean; quantityMatches: boolean };
-export const EMPTY_CHECKS: ItemChecks = { productMatches: false, sizeMatches: false, colorMatches: false, quantityMatches: false };
+export type ItemChecks = { productMatches: boolean; sizeMatches: boolean; colorMatches: boolean; attributesMatch: boolean; quantityMatches: boolean };
+export const EMPTY_CHECKS: ItemChecks = { productMatches: false, sizeMatches: false, colorMatches: false, attributesMatch: false, quantityMatches: false };
 
 export type ItemVerification = {
   orderItemId: string;
@@ -13,6 +13,7 @@ export type ItemVerification = {
   photos?: Array<{ view: ViewKey; url: string; assetId?: string }>;
   actualColor?: string;
   actualSize?: string;
+  actualAttributes?: Record<string, string>;
   actualQuantity?: number;
   unitCostMinor?: number;
   supplierReference?: string;
@@ -28,8 +29,8 @@ export type TaskItem = {
   productTitle?: string;
   productImage?: string;
   quantity?: number;
-  selectedVariants?: { color?: string; size?: string };
-  variantSnapshot?: { color?: string; size?: string; name?: string };
+  selectedVariants?: Record<string, string | undefined>;
+  variantSnapshot?: Record<string, string | undefined>;
 };
 
 export type Task = {
@@ -53,6 +54,12 @@ export const itemLabel = (item: TaskItem) => item.productSnapshot?.title || item
 export const itemReferencePhoto = (item: TaskItem) => item.productImage || item.productSnapshot?.images?.[0];
 export const orderedColor = (item: TaskItem) => item.selectedVariants?.color || item.variantSnapshot?.color || "";
 export const orderedSize = (item: TaskItem) => item.selectedVariants?.size || item.variantSnapshot?.size || "";
+const humanise = (key: string) => key.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
+/** Every ordered detail other than colour and size (capacity, length, phone model...), in order. */
+export const orderedAttributes = (item: TaskItem): Array<{ key: string; label: string; value: string }> =>
+  Object.entries({ ...(item.selectedVariants || {}), ...(item.variantSnapshot || {}) })
+    .filter(([key, value]) => key !== "color" && key !== "size" && key !== "name" && value)
+    .map(([key, value]) => ({ key, label: humanise(key), value: String(value) }));
 
 export const sameText = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 

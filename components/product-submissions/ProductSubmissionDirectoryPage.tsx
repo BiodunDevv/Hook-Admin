@@ -8,7 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { QueryState } from "@/components/shared/QueryState";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { useApiQuery } from "@/lib/query";
+import { apiGet } from "@/lib/api";
 import { ProductSubmissionCard } from "./ProductSubmissionCard";
 import type { CursorPage, ProductSubmission } from "@/lib/catalog";
 
@@ -35,45 +37,42 @@ function Stat({ icon: Icon, label, value, tone }: { icon: typeof Clock3; label: 
 
 export function ProductSubmissionDirectoryPage() {
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("all");
+  const [status, setStatus] = useState("submitted");
   const [market, setMarket] = useState("all");
   const [marketAssociate, setMarketAssociate] = useState("all");
-  const deferredSearch = useDeferredValue(search.trim().toLowerCase());
+  const [sort, setSort] = useState("oldest");
+  const deferredSearch = useDeferredValue(search.trim());
   const dashboard = useApiQuery<Dashboard>(["admin", "product-submissions", "dashboard"], "/admin/catalog/review/dashboard");
-  const query = useApiQuery<CursorPage<ProductSubmission>>(["admin", "product-submissions", "queue"], "/admin/catalog/review?limit=50");
-  const submissions = useMemo(() => query.data?.data || [], [query.data?.data]);
+  const markets = useApiQuery<{ data: Array<{ id: string; name: string }> }>(["admin", "markets", "product-options"], "/admin/markets?limit=200");
 
-  const marketOptions = useMemo(() => {
-    const seen = new Map<string, string>();
-    for (const item of submissions) {
-      if (item.market?.publicId) seen.set(item.market.publicId, item.market.name);
-    }
-    return Array.from(seen, ([publicId, name]) => ({ publicId, name })).sort((a, b) => a.name.localeCompare(b.name));
-  }, [submissions]);
-
+  // Filters run on the server, so the queue is complete however long it is; "Load more" follows the cursor.
+  const params = { status: status === "all" ? "" : status, marketId: market === "all" ? "" : market, marketAssociateId: marketAssociate === "all" ? "" : marketAssociate, q: deferredSearch, sort };
+  const query = useInfiniteQuery({
+    queryKey: ["admin", "product-submissions", "queue", params],
+    initialPageParam: "",
+    queryFn: ({ pageParam }) => {
+      const qs = new URLSearchParams({ limit: "24" });
+      for (const [key, value] of Object.entries({ ...params, cursor: pageParam })) if (value) qs.set(key, String(value));
+      return apiGet<CursorPage<ProductSubmission>>(`/admin/catalog/review?${qs.toString()}`);
+    },
+    getNextPageParam: (last) => last.nextCursor || undefined,
+    refetchOnWindowFocus: true,
+  });
+  const filtered = useMemo(() => query.data?.pages.flatMap((page) => page.data) || [], [query.data]);
+  const marketOptions = (markets.data?.data || []).map((item) => ({ publicId: item.id, name: item.name }));
   const marketAssociateOptions = useMemo(() => {
     const seen = new Map<string, string>();
-    for (const item of submissions) {
-      if (item.marketAssociate?.publicId) {
-        seen.set(item.marketAssociate.publicId, item.marketAssociate.name || item.marketAssociate.publicId);
-      }
+    for (const item of filtered) {
+      if (item.marketAssociate?.publicId) seen.set(item.marketAssociate.publicId, item.marketAssociate.name || item.marketAssociate.publicId);
     }
     return Array.from(seen, ([publicId, name]) => ({ publicId, name })).sort((a, b) => a.name.localeCompare(b.name));
-  }, [submissions]);
+  }, [filtered]);
 
-  const filtered = useMemo(() => submissions.filter((item) => {
-    const text = [item.basicTitle, item.publicId, item.market?.name, item.marketVendor?.businessName].filter(Boolean).join(" ").toLowerCase();
-    return (!deferredSearch || text.includes(deferredSearch))
-      && (status === "all" || item.status === status)
-      && (market === "all" || item.market?.publicId === market)
-      && (marketAssociate === "all" || item.marketAssociate?.publicId === marketAssociate);
-  }), [deferredSearch, submissions, status, market, marketAssociate]);
-
-  const hasActiveFilters = Boolean(search) || status !== "all" || market !== "all" || marketAssociate !== "all";
+  const hasActiveFilters = Boolean(search) || status !== "submitted" || market !== "all" || marketAssociate !== "all";
 
   function clearFilters() {
     setSearch("");
-    setStatus("all");
+    setStatus("submitted");
     setMarket("all");
     setMarketAssociate("all");
   }
@@ -106,6 +105,13 @@ export function ProductSubmissionDirectoryPage() {
                 <SelectItem value="changes_requested">Changes requested</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>
                 <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={sort} onValueChange={setSort}>
+              <SelectTrigger className="h-9 w-full sm:w-40"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="oldest">Oldest first</SelectItem>
+                <SelectItem value="newest">Newest first</SelectItem>
               </SelectContent>
             </Select>
             <Select value={market} onValueChange={setMarket}>
@@ -146,12 +152,17 @@ export function ProductSubmissionDirectoryPage() {
         onRetry={() => query.refetch()}
       >
         <div className="mb-3 flex items-center justify-between gap-3">
-          <p className="text-sm font-medium text-foreground">Submission queue <span className="ml-1 text-xs font-normal text-muted-foreground">{filtered.length} shown</span></p>
+          <p className="text-sm font-medium text-foreground">Submission queue <span className="ml-1 text-xs font-normal text-muted-foreground">{filtered.length} shown{query.hasNextPage ? "+" : ""}</span></p>
           {query.isFetching ? <span className="text-xs text-muted-foreground">Refreshing...</span> : null}
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map((item) => <ProductSubmissionCard key={item.publicId} submission={item} />)}
         </div>
+        {query.hasNextPage ? (
+          <div className="mt-5 flex justify-center">
+            <Button variant="outline" onClick={() => void query.fetchNextPage()} disabled={query.isFetchingNextPage}>{query.isFetchingNextPage ? "Loading..." : "Load more"}</Button>
+          </div>
+        ) : null}
       </QueryState>
     </div>
   );

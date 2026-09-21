@@ -1,13 +1,14 @@
 "use client";
 
-import { Archive, Ban, KeyRound, Mail, RotateCcw } from "lucide-react";
+import { Archive, Ban, KeyRound, Mail, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { HookLoader } from "@/components/shared/HookLoader";
-import { apiPost } from "@/lib/api";
+import { Input } from "@/components/ui/input";
+import { apiPost, apiRequest } from "@/lib/api";
 import type { StaffAction, StaffMember } from "./staff-types";
 import { useState } from "react";
 
@@ -17,6 +18,7 @@ const ACTION_META: Record<StaffAction, { title: string; description: string; con
   restore: { title: "Restore archived staff account?", description: "The account will return to active status with its assigned roles and operational scope.", confirm: "Restore account", icon: RotateCcw },
   archive: { title: "Archive staff account?", description: "The account will be disabled and retained for audit history. This cannot be used to remove a Super Admin.", confirm: "Archive account", destructive: true, icon: Archive },
   "revoke-sessions": { title: "Revoke all sessions?", description: "Every active device for this staff member will need to authenticate again.", confirm: "Revoke sessions", icon: KeyRound },
+  delete: { title: "Delete this account permanently?", description: "The account and its sign-in are removed for good. This cannot be undone. Archived accounts only; the audit trail of what they did is kept.", confirm: "Delete permanently", destructive: true, icon: Trash2 },
   "cancel-invitation": { title: "Cancel staff invitation?", description: "The invitation will stop working and the account will remain in the audit history.", confirm: "Cancel invitation", destructive: true, icon: Mail },
 };
 
@@ -27,6 +29,8 @@ function cleanError(error: unknown) {
 export function StaffActionDialog({ member, action, open, onClose, onSuccess }: { member: StaffMember | null; action: StaffAction | null; open: boolean; onClose: () => void; onSuccess: () => void }) {
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
+  const [typed, setTyped] = useState("");
+  const expected = `DELETE ${member?.publicId || member?.id || ""}`;
   const meta = action ? ACTION_META[action] : null;
   const Icon = meta?.icon || Ban;
 
@@ -34,9 +38,11 @@ export function StaffActionDialog({ member, action, open, onClose, onSuccess }: 
     if (!member || !action || reason.trim().length < 3) return;
     setSaving(true);
     try {
-      await apiPost(`/admin/staff/${member.publicId || member.id}/${action}`, { reason: reason.trim() });
+      if (action === "delete") await apiRequest(`/admin/staff/${member.publicId || member.id}`, { method: "DELETE", body: JSON.stringify({ reason: reason.trim(), confirmation: typed.trim() }) });
+      else await apiPost(`/admin/staff/${member.publicId || member.id}/${action}`, { reason: reason.trim() });
       toast.success(meta?.confirm || "Staff action completed");
       setReason("");
+      setTyped("");
       onClose();
       await onSuccess();
     } catch (error) {
@@ -47,11 +53,12 @@ export function StaffActionDialog({ member, action, open, onClose, onSuccess }: 
   }
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { if (!next && !saving) { setReason(""); onClose(); } }}>
+    <Dialog open={open} onOpenChange={(next) => { if (!next && !saving) { setReason(""); setTyped(""); onClose(); } }}>
       <DialogContent>
         <DialogHeader><DialogTitle className="flex items-center gap-2"><Icon className={meta?.destructive ? "text-destructive" : "text-brand-gold"} /> {meta?.title}</DialogTitle><DialogDescription>{meta?.description} {member ? `Target: ${member.firstName || ""} ${member.lastName || member.email || "staff account"}`.trim() : ""}</DialogDescription></DialogHeader>
         <div className="space-y-1.5"><Label htmlFor="staff-action-reason">Audit reason</Label><Textarea id="staff-action-reason" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Add a clear operational reason" maxLength={500} /></div>
-        <DialogFooter><Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button><Button variant={meta?.destructive ? "destructive" : "brand"} onClick={() => void submit()} disabled={saving || reason.trim().length < 3}>{saving ? <HookLoader size="button" /> : meta?.confirm}</Button></DialogFooter>
+        {action === "delete" ? <div className="space-y-1.5"><Label htmlFor="staff-delete-confirm">Type <span className="font-mono font-semibold">{expected}</span> to confirm</Label><Input id="staff-delete-confirm" value={typed} onChange={(event) => setTyped(event.target.value)} autoComplete="off" /></div> : null}
+        <DialogFooter><Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button><Button variant={meta?.destructive ? "destructive" : "brand"} onClick={() => void submit()} disabled={saving || reason.trim().length < 3 || (action === "delete" && typed.trim() !== expected)}>{saving ? <HookLoader size="button" /> : meta?.confirm}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );

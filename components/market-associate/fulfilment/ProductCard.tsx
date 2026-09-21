@@ -5,7 +5,7 @@ import { swatchFor } from "@/components/mobile/ColorPicker";
 import { colorName } from "@/lib/color-name";
 import { WorkflowThumbnail } from "@/components/market-associate/WorkflowThumbnail";
 import { cn } from "@/lib/utils";
-import { itemLabel, itemReferencePhoto, orderedColor, orderedSize, type TaskItem } from "./types";
+import { itemLabel, itemReferencePhoto, orderedColor, orderedSize, type TaskItem, orderedAttributes } from "./types";
 
 export type ProductState = "verified" | "attention" | "issue" | "todo" | "locked";
 
@@ -54,6 +54,7 @@ export function ProductCard({
             </span>
           )}
           {size && <span className="rounded-full bg-[#F5F5F5] px-2 py-0.5 text-[12px] text-[#555]">Size {size}</span>}
+          {orderedAttributes(item).map((attribute) => <span key={attribute.key} className="rounded-full bg-[#F5F5F5] px-2 py-0.5 text-[12px] text-[#555]">{attribute.label}: {attribute.value}</span>)}
           <span className="rounded-full bg-[#F5F5F5] px-2 py-0.5 text-[12px] font-semibold text-black">Qty {item.quantity ?? 1}</span>
         </span>
         {state === "locked" ? (

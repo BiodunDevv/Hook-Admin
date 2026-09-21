@@ -44,6 +44,8 @@ type BasketItem = {
   unitPriceMinor?: number;
   totalPriceMinor?: number;
   stateId?: string;
+  /** What the customer picked: colour, size and any other option the category asks for. */
+  selectedVariants?: Record<string, string | undefined>;
   product?: CartProduct;
   negotiatedQuote?: { id?: string; agreedPriceMinor?: number; originalPriceMinor?: number };
 };
@@ -266,6 +268,8 @@ export function PartnerCommerceWorkspace({
     await prepareCheckout(checkoutGroup, code);
   }
 
+  const [paymentLink, setPaymentLink] = useState<{ orderId: string; url: string } | null>(null);
+
   async function confirmCheckout() {
     if (!selectedCustomer || !checkoutPreview || !checkoutStateId) return;
     setCheckoutBusy(true);
@@ -279,12 +283,26 @@ export function PartnerCommerceWorkspace({
         },
       );
       const orderId = String(order.publicId || order.id || "");
-      const payment = await apiPost<Row>(`/partner/orders/${orderId}/payment-instructions`);
-      const authorizationUrl = String(payment.authorizationUrl || "");
+      // The order exists from here on. If the payment link fails, say so honestly: retrying would only hit a consumed preview.
+      let authorizationUrl = "";
+      try {
+        const payment = await apiPost<Row>(`/partner/orders/${orderId}/payment-instructions`);
+        authorizationUrl = String(payment.authorizationUrl || "");
+      } catch {
+        closeCheckout();
+        await queryClient.invalidateQueries({ queryKey: ["partner", "basket"] });
+        await queryClient.invalidateQueries({ queryKey: ["partner", "orders"] });
+        toast.warning(`Order ${orderId} was created, but its payment link could not be made`, { description: "Open Orders and try the payment link again." });
+        return;
+      }
       closeCheckout();
       await queryClient.invalidateQueries({ queryKey: ["partner", "basket"] });
       await queryClient.invalidateQueries({ queryKey: ["partner", "orders"] });
-      if (authorizationUrl) window.open(authorizationUrl, "_blank", "noopener,noreferrer");
+      if (authorizationUrl) {
+        // Show the link so it can be copied or shared even when a pop-up blocker stops the new tab.
+        setPaymentLink({ orderId, url: authorizationUrl });
+        window.open(authorizationUrl, "_blank", "noopener,noreferrer");
+      }
       toast.success("Order created — share the payment link with the customer");
     } catch (error) {
       toast.error(
@@ -357,6 +375,16 @@ export function PartnerCommerceWorkspace({
   }
 
   /* ---------------------------------------------------------------- orders */
+  if (view === "orders" && orders.isError) {
+    return (
+      <MobileEmpty
+        icon={PackageIcon}
+        title="Orders could not load"
+        description="Check your connection and try again. Your orders are safe."
+        action={<button type="button" onClick={() => void orders.refetch()} className="rounded-full bg-[#FFC809] px-5 py-2.5 text-[14px] font-bold text-black">Try again</button>}
+      />
+    );
+  }
   if (view === "orders") {
     const rows = orders.data || [];
     return (
@@ -435,6 +463,13 @@ export function PartnerCommerceWorkspace({
           <div className="grid min-h-40 place-items-center">
             <HookLoader label="Loading basket" />
           </div>
+        ) : basket.isError && !basket.data ? (
+          <MobileEmpty
+            icon={ShoppingBag}
+            title="Basket could not load"
+            description="Check your connection and try again. Nothing was removed."
+            action={<button type="button" onClick={() => void basket.refetch()} className="rounded-full bg-[#FFC809] px-5 py-2.5 text-[14px] font-bold text-black">Try again</button>}
+          />
         ) : !lines.length ? (
           <MobileEmpty
             icon={ShoppingBag}
@@ -464,6 +499,7 @@ export function PartnerCommerceWorkspace({
                       totalPriceMinor={item.totalPriceMinor}
                       quantity={Number(item.quantity || 1)}
                       negotiated={item.negotiatedQuote}
+                      details={Object.entries(item.selectedVariants || {}).filter(([, value]) => Boolean(value)).map(([key, value]) => `${key === "color" ? "Colour" : key === "size" ? "Size" : key.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase())}: ${value}`).join(" · ")}
                       busy={busyItem === lineId(item)}
                       onIncrease={() => void changeQuantity(item, Number(item.quantity || 1) + 1)}
                       onDecrease={() => void changeQuantity(item, Number(item.quantity || 1) - 1)}
@@ -577,6 +613,20 @@ export function PartnerCommerceWorkspace({
               <MobileButton disabled={checkoutBusy} onClick={() => void confirmCheckout()}>
                 {checkoutBusy ? <HookLoader size="button" /> : "Create order"}
               </MobileButton>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={Boolean(paymentLink)} onOpenChange={(open) => { if (!open) setPaymentLink(null); }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Order {paymentLink?.orderId} created</DialogTitle>
+              <DialogDescription>Send this secure payment link to the customer. It opened in a new tab; if your browser blocked it, copy it here.</DialogDescription>
+            </DialogHeader>
+            <div className="break-all rounded-lg border bg-zinc-50 p-3 text-xs text-zinc-700">{paymentLink?.url}</div>
+            <DialogFooter>
+              <MobileButton variant="outline" onClick={() => { if (paymentLink) void navigator.clipboard?.writeText(paymentLink.url).then(() => toast.success("Payment link copied")); }}>Copy link</MobileButton>
+              <MobileButton onClick={() => setPaymentLink(null)}>Done</MobileButton>
             </DialogFooter>
           </DialogContent>
         </Dialog>
