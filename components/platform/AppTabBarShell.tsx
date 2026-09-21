@@ -131,13 +131,16 @@ export function AppTabBarShell({
   const router = useRouter();
   const logout = useLogout();
   const base = PORTAL_BASE_PATH[type];
+  // The activation page is opened by someone who is not signed in yet. It must not fire signed-in requests: their 401
+  // would send the visitor to the sign-in page before they can set a password.
+  const onActivation = pathname === `${base}/activate`;
 
   // Shared with the dashboard page's own fetch of the same endpoint — same
   // query key, so React Query dedupes the request instead of firing twice.
   const alerts = useApiQuery<DashboardAlertSummary>(
     ["marketassociate", "catalog-dashboard"],
     "/market-associate/dashboard",
-    type === "marketassociate",
+    type === "marketassociate" && !onActivation,
   );
   const changesRequested = type === "marketassociate" ? alerts.data?.changesRequested || 0 : 0;
   // The dashboard summary's own availabilityChecksDue count can drift from
@@ -152,14 +155,14 @@ export function AppTabBarShell({
   const availabilityChecks = useApiQuery<AvailabilityCheck[]>(
     ["marketassociate", "availability-checks"],
     "/market-associate/availability-checks",
-    type === "marketassociate",
+    type === "marketassociate" && !onActivation,
     { staleTime: 0, refetchOnMount: "always", refetchOnWindowFocus: true, refetchOnReconnect: true },
   );
   const availabilityChecksDue = type === "marketassociate" ? availabilityChecks.data?.length || 0 : 0;
   const activeFulfilments = useApiQuery<{ data: ActiveFulfilment[]; total: number }>(
     ["marketassociate", "fulfilments", { active: true, limit: 100 }],
     "/market-associate/fulfilments?active=true&limit=100",
-    type === "marketassociate",
+    type === "marketassociate" && !onActivation,
     { staleTime: 0, refetchOnMount: "always", refetchOnWindowFocus: true, refetchOnReconnect: true },
   );
   const fulfilments = type === "marketassociate" ? activeFulfilments.data?.data || [] : [];
@@ -194,7 +197,7 @@ export function AppTabBarShell({
     });
   }
 
-  if (pathname === `${base}/activate`) return <>{children}</>;
+  if (onActivation) return <>{children}</>;
 
   /**
    * A negotiation is a focused, full-screen conversation — like a chat detail
