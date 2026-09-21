@@ -118,7 +118,7 @@ const actionCopy: Record<StaffAction, { label: string; title: string; descriptio
   restore: { label: "Restore account", title: "Restore this archived staff account?", description: "The account will return to active status with its assigned roles and operational scope." },
   archive: { label: "Archive account", title: "Archive this staff account?", description: "The account will be disabled and retained for audit history.", destructive: true },
   "revoke-sessions": { label: "Revoke sessions", title: "Revoke all active sessions?", description: "Every active device will need to authenticate again." },
-  "cancel-invitation": { label: "Cancel invitation", title: "Cancel this staff invitation?", description: "The activation link will stop working and the invited account will be disabled.", destructive: true },
+  "cancel-invitation": { label: "Cancel invitation", title: "Cancel this staff invitation?", description: "The activation link stops working and the account is removed, so the email can be invited again.", destructive: true },
 };
 
 function cleanError(error: unknown, fallback: string) {
@@ -322,8 +322,11 @@ export function StaffDetailWorkspace() {
     try {
       await apiPost(`/admin/staff/${params.id}/${action}`, { reason: reason.trim() });
       toast.success(actionCopy[action].label);
+      const removed = action === "cancel-invitation";
       setAction(null);
       setReason("");
+      // A cancelled invitation deletes the account, so there is no profile left to show.
+      if (removed) { router.push("/dashboard/staff"); return; }
       await query.refetch();
     } catch (error) {
       toast.error(cleanError(error, "Unable to complete staff action"));

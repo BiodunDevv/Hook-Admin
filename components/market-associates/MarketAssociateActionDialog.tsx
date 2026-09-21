@@ -19,7 +19,7 @@ const ACTION_META: Partial<Record<MarketAssociateAction, { title: string; descri
   restore: { title: "Restore this Market Associate?", description: "They can sign in again. Their old Market assignments stay closed, so assign Markets again.", confirm: "Restore account", icon: RotateCcw },
   "revoke-sessions": { title: "Revoke all sessions?", description: "Every active device will need to sign in again.", confirm: "Revoke sessions", icon: KeyRound },
   delete: { title: "Delete this account permanently?", description: "The account is removed for good and cannot be recovered. Only archived accounts with no order or product history can be deleted.", confirm: "Delete permanently", destructive: true, icon: Trash2 },
-  "cancel-invitation": { title: "Cancel Market Associate invitation?", description: "The activation link will stop working and the invited account will be disabled.", confirm: "Cancel invitation", destructive: true, icon: Mail },
+  "cancel-invitation": { title: "Cancel Market Associate invitation?", description: "The activation link stops working and the account is removed, so the email can be invited again.", confirm: "Cancel invitation", destructive: true, icon: Mail },
 };
 
 function cleanError(error: unknown) {

@@ -497,7 +497,7 @@ export function MarketAssociateDetailWorkspace() {
         </form>
       </AdminWorkflowSheet>
 
-      <MarketAssociateActionDialog member={member || null} action={action} open={Boolean(action)} onClose={() => setAction(null)} onSuccess={() => { if (action === "delete") router.push("/dashboard/market-associates"); else void query.refetch(); }} />
+      <MarketAssociateActionDialog member={member || null} action={action} open={Boolean(action)} onClose={() => setAction(null)} onSuccess={() => { if (action === "delete" || action === "cancel-invitation") router.push("/dashboard/market-associates"); else void query.refetch(); }} />
 
       <Dialog open={Boolean(assignmentDialog)} onOpenChange={(open) => { if (!open) closeAssignmentDialog(); }}>
         <DialogContent>
