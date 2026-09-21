@@ -14,6 +14,7 @@ import { StaffActionDialog } from "@/components/staff/StaffActionDialog";
 import { StaffCreateDialog } from "@/components/staff/StaffCreateDialog";
 import { StaffDirectory } from "@/components/staff/StaffDirectory";
 import { StaffFilters, type StaffFiltersValue } from "@/components/staff/StaffFilters";
+import { ArchiveTabs, type DirectoryTab } from "@/components/shared/ArchiveTabs";
 import { StaffOverview } from "@/components/staff/StaffOverview";
 import type { StaffAction, StaffListResponse, StaffMember } from "@/components/staff/staff-types";
 
@@ -27,16 +28,18 @@ export default function StaffPage() {
   const { data: session } = useAdminSession();
   const [filters, setFilters] = useState<StaffFiltersValue>(initialFilters);
   const [createOpen, setCreateOpen] = useState(false);
+  const [tab, setTab] = useState<DirectoryTab>("active");
   const [action, setAction] = useState<{ member: StaffMember; action: StaffAction } | null>(null);
   const deferredSearch = useDeferredValue(filters.search.trim());
   const queryString = useMemo(() => {
     const params = new URLSearchParams({ limit: "100" });
     if (deferredSearch) params.set("q", deferredSearch);
     if (filters.role !== "all") params.set("role", filters.role);
-    if (filters.status !== "all") params.set("status", filters.status);
+    if (tab === "archived") params.set("status", "disabled");
+    else if (filters.status !== "all") params.set("status", filters.status);
     if (filters.scope !== "all") params.set("scopeType", filters.scope);
     return params.toString();
-  }, [deferredSearch, filters.role, filters.scope, filters.status]);
+  }, [deferredSearch, filters.role, filters.scope, filters.status, tab]);
   const allowed = hasPermission(session, "staff.view");
   const query = useApiQuery<StaffListResponse>(["admin", "staff", queryString], `/admin/staff?${queryString}`, Boolean(session && allowed));
   const staff = query.data?.data || [];
@@ -58,7 +61,8 @@ export default function StaffPage() {
   return (
     <div className="w-full space-y-5 px-4 py-5">
       <PageHeader title="Staff" description="Manage team identities, role-based access, and operational scope." actions={<PermissionGuard permission="staff.create"><Button variant="brand" onClick={() => setCreateOpen(true)}><Plus /> Add staff member</Button></PermissionGuard>} />
-      <StaffOverview staff={staff} />
+      <ArchiveTabs value={tab} onChange={setTab} />
+      {tab === "active" ? <StaffOverview staff={staff} /> : null}
       <StaffFilters value={filters} onChange={setFilters} />
       <QueryState loading={query.isLoading} error={query.error} loadingLabel="Loading staff directory" errorTitle="Staff directory unavailable" empty={!query.isLoading && !query.isError && !staff.length} emptyIcon={UserCog} emptyTitle="No staff members found" emptyDescription="Adjust the filters or create the first staff invitation." onRetry={() => query.refetch()}>
         <StaffDirectory staff={staff} currentUserId={session?.id} onAction={(member, nextAction) => setAction({ member, action: nextAction })} onResend={(member) => void resendInvitation(member)} />

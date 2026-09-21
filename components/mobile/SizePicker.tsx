@@ -18,6 +18,12 @@ const ALL_SIZE_GROUPS: Array<{ key: SizingPresetGroup; label: string; sizes: str
     label: "Shoes (EU)",
     sizes: ["36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46"],
   },
+  {
+    key: "kids-shoes",
+    label: "Kids shoes (EU)",
+    sizes: ["20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35"],
+  },
+  { key: "bra", label: "Bra sizes", sizes: ["32A", "32B", "32C", "34A", "34B", "34C", "34D", "36B", "36C", "36D", "38C", "38D", "40C", "40D"] },
   { key: "general", label: "General", sizes: ["One Size", "Small", "Medium", "Large"] },
 ];
 

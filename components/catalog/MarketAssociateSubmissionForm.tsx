@@ -20,13 +20,20 @@ import { MobileButton } from "@/components/mobile/MobileUI";
 import { ACTION_BAR_BUTTON, StickyActionBar } from "@/components/mobile/StickyActionBar";
 import { APP_ACTION_BAR_CONTENT_INSET } from "@/lib/tab-bar-layout";
 import { cn } from "@/lib/utils";
-import { ColorPicker } from "@/components/mobile/ColorPicker";
-import { SizePicker } from "@/components/mobile/SizePicker";
+import { VariantBuilder } from "./VariantBuilder";
 import type { SizingGuide } from "@/lib/sizing-guide";
+import { type CategoryAttribute } from "@/lib/category-attributes";
 
 interface MarketOption { publicId: string; name: string }
 interface MarketVendorOption { publicId: string; businessName: string; contactName: string; status: string }
-interface CategoryOption { publicId: string; name: string; sizingGuide?: SizingGuide | null }
+interface CategoryOption {
+  publicId: string;
+  name: string;
+  sizingGuide?: SizingGuide | null;
+  /** What a product here asks for (resolved through the parent). */
+  attributes?: CategoryAttribute[];
+  children?: CategoryOption[];
+}
 interface UploadIntent {
   uploadIntentId: string;
   uploadUrl: string;
@@ -70,7 +77,7 @@ const submissionFieldLabels: Record<string, string> = {
   basicTitle: "product title",
   categorySuggestionId: "category",
   basePriceMinor: "observed price",
-  variants: "size or colour",
+  variants: "variant details",
 };
 
 const requiredIds = (views: { front?: string; side?: string; back?: string }) =>
@@ -107,6 +114,30 @@ function initialValue(submission?: ProductSubmission): FormState {
   };
 }
 
+type VariantRow = { size: string; colour: string; attributes: Record<string, string>; active: boolean };
+/** Where a detail lives on a variant: size and colour are first-class, the rest go in `attributes`. */
+function valueOf(variant: VariantRow, attribute: CategoryAttribute) {
+  return attribute.type === "size" || attribute.key === "size" ? variant.size : attribute.type === "colour" ? variant.colour : variant.attributes[attribute.key] || "";
+}
+
+/**
+ * Fits captured variants to a category's template: keeps the values for details
+ * the new category also asks for, and drops the rest, so nothing invisible is
+ * left behind (a shoe size on a phone case would fail validation with no field to fix).
+ */
+function fitVariantsToCategory(variants: VariantRow[], attributes: CategoryAttribute[]): VariantRow[] {
+  const usesSize = attributes.some((attribute) => attribute.type === "size" || attribute.key === "size");
+  const usesColour = attributes.some((attribute) => attribute.type === "colour");
+  const keys = new Set(attributes.filter((attribute) => attribute.type !== "size" && attribute.type !== "colour").map((attribute) => attribute.key));
+  const fitted = variants.map((variant) => ({
+    ...variant,
+    size: usesSize ? variant.size : "",
+    colour: usesColour ? variant.colour : "",
+    attributes: Object.fromEntries(Object.entries(variant.attributes).filter(([key]) => keys.has(key))),
+  }));
+  return fitted.length ? fitted : [{ size: "", colour: "", attributes: {}, active: true }];
+}
+
 export function MarketAssociateSubmissionForm({
   submission,
   markets,
@@ -128,8 +159,21 @@ export function MarketAssociateSubmissionForm({
   const [dirty, setDirty] = useState(false);
   const [sizingGuideExpanded, setSizingGuideExpanded] = useState(false);
   const editable = !submission || ["draft", "changes_requested"].includes(submission.status);
-  const selectedCategory = categories.find((category) => category.publicId === form.categorySuggestionId);
-  const sizingGuide = selectedCategory?.sizingGuide;
+  // Products live in a leaf: a sub-category, or a top-level category with none.
+  const flatCategories = categories.flatMap((category) => [category, ...(category.children || [])]);
+  const selectedCategory = flatCategories.find((category) => category.publicId === form.categorySuggestionId);
+  const parentCategory = categories.find((category) => category.publicId === form.categorySuggestionId || category.children?.some((child) => child.publicId === form.categorySuggestionId));
+  // A saved category that is now a parent (legacy) or no longer exists counts as "not chosen yet".
+  const leafSelected = Boolean(selectedCategory) && !selectedCategory?.children?.length;
+  const [rootChoice, setRootChoice] = useState("");
+  const rootId = parentCategory?.publicId || rootChoice;
+  const subCategories = categories.find((category) => category.publicId === rootId)?.children || [];
+  // The server already resolves inheritance and the admin's on/off switch, so use the chosen category's guide only.
+  const sizingGuide = leafSelected ? selectedCategory?.sizingGuide : undefined;
+  // What each variant asks for. Unknown or older categories fall back to size and colour.
+  const variantAttributes: CategoryAttribute[] = leafSelected && selectedCategory?.attributes?.length
+    ? selectedCategory.attributes
+    : [{ key: "size", label: "Size", type: "size", required: false, variantAxis: true }, { key: "colour", label: "Colour", type: "colour", required: false, variantAxis: true }];
   const mediaReadiness = useQuery({
     queryKey: ["catalog-media-readiness"],
     queryFn: () => apiGet<MediaReadiness>("/catalog/media/readiness"),
@@ -159,7 +203,7 @@ export function MarketAssociateSubmissionForm({
   const payload = useMemo(() => ({
     marketId: form.marketId,
     marketVendorId: form.marketVendorId,
-    categorySuggestionId: form.categorySuggestionId,
+    categorySuggestionId: leafSelected ? form.categorySuggestionId : "",
     basicTitle: form.basicTitle.trim(),
     notes: form.notes.trim() || undefined,
     mediaIds: form.mediaIds,
@@ -167,12 +211,14 @@ export function MarketAssociateSubmissionForm({
     captureChecklistConfirmed: form.captureChecklistConfirmed,
     basePriceMinor: Math.round(Number(form.basePrice) * 100),
     currency: "NGN",
-    variants: form.variants.filter((variant) => variant.size || variant.colour),
+    variants: form.variants
+      .map((variant) => ({ ...variant, attributes: Object.fromEntries(Object.entries(variant.attributes).filter(([, value]) => value.trim())) }))
+      .filter((variant) => variant.size || variant.colour || Object.keys(variant.attributes).length),
     availabilityStatus: form.availabilityStatus,
     availabilityNote: form.availabilityNote.trim() || undefined,
     internalSellerReference: form.internalSellerReference.trim() || undefined,
     ...(submission ? { version: submission.version } : {}),
-  }), [form, submission]);
+  }), [form, submission, leafSelected]);
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -190,14 +236,35 @@ export function MarketAssociateSubmissionForm({
         toast.error("Confirm that the three product-photo guidelines were followed");
         return;
       }
-      // A variant needs size, colour, or an attribute — mirrors the backend's
-      // own submit-time check, so the Market Associate sees this before the round trip,
-      // not as a generic "could not be saved" toast after the fact.
-      const hasCompleteVariant = form.variants.some(
-        (variant) => variant.size.trim() || variant.colour.trim() || Object.keys(variant.attributes).length,
-      );
-      if (!hasCompleteVariant) {
-        toast.error("Add at least one size or colour before submitting for review");
+      // Mirrors the backend's submit-time check: at least one variant, with
+      // every detail this category requires, before the round trip.
+      if (!leafSelected) {
+        toast.error(subCategories.length ? "Choose a sub-category before submitting" : "Choose a category before submitting");
+        return;
+      }
+      const filled = form.variants.filter((variant) => variant.size.trim() || variant.colour.trim() || Object.values(variant.attributes).some((value) => value.trim()));
+      if (!filled.length) {
+        toast.error("Add at least one variant before submitting for review");
+        return;
+      }
+      for (const variant of filled) {
+        const missing = variantAttributes.find((attribute) => attribute.required && !valueOf(variant, attribute).trim());
+        if (missing) {
+          toast.error(`${missing.label} is required for ${selectedCategory?.name || "this category"}`);
+          return;
+        }
+      }
+    }
+    if (!submitAfter) {
+      // The server needs these even for a draft; say what is missing instead of a generic error.
+      const missing: string[] = [];
+      if (payload.basicTitle.length < 2) missing.push("a product title");
+      if (!form.marketId) missing.push("the market");
+      if (!form.marketVendorId) missing.push("the vendor");
+      if (!leafSelected) missing.push(subCategories.length ? "a sub-category" : "a category");
+      if (!(payload.basePriceMinor > 0)) missing.push("the observed price");
+      if (missing.length) {
+        toast.error(`Add ${missing.join(", ")} to save a draft`);
         return;
       }
     }
@@ -469,12 +536,17 @@ export function MarketAssociateSubmissionForm({
             className="h-12 rounded-[10px]"
           />
         </MobileField>
-        <MobileField label="Suggested category">
+        <MobileField label="Category">
           <Select
             disabled={!editable}
-            value={form.categorySuggestionId}
+            value={rootId}
             onValueChange={(value) => {
-              update("categorySuggestionId", value);
+              const children = categories.find((category) => category.publicId === value)?.children || [];
+              setRootChoice(value);
+              // A category with sub-categories waits for the second choice; one without is the answer.
+              update("categorySuggestionId", children.length ? "" : value);
+              const next = categories.find((category) => category.publicId === value);
+              if (!children.length && next?.attributes?.length) update("variants", fitVariantsToCategory(form.variants, next.attributes));
               setSizingGuideExpanded(false);
             }}
           >
@@ -486,19 +558,40 @@ export function MarketAssociateSubmissionForm({
             </SelectContent>
           </Select>
         </MobileField>
-        {sizingGuide?.summary ? (
+        {subCategories.length ? (
+          <MobileField label="Sub-category">
+            <Select
+              disabled={!editable}
+              value={leafSelected && selectedCategory && selectedCategory.publicId !== rootId ? selectedCategory.publicId : ""}
+              onValueChange={(value) => {
+                update("categorySuggestionId", value);
+                const nextAttributes = subCategories.find((category) => category.publicId === value)?.attributes;
+                if (nextAttributes?.length) update("variants", fitVariantsToCategory(form.variants, nextAttributes));
+                setSizingGuideExpanded(false);
+              }}
+            >
+              <SelectTrigger className="h-12 rounded-[10px]"><SelectValue placeholder="Select sub-category" /></SelectTrigger>
+              <SelectContent>
+                {subCategories.map((category) => (
+                  <SelectItem key={category.publicId} value={category.publicId}>{category.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </MobileField>
+        ) : null}
+        {sizingGuide && (sizingGuide.summary || sizingGuide.chart?.length) ? (
           <div className="rounded-[10px] bg-[#FFF9E6] p-3">
             <div className="flex items-start gap-2">
               <Ruler className="mt-0.5 size-4 shrink-0 text-[#9a7400]" />
               <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-semibold text-[#5a4300]">{sizingGuide.summary}</p>
-                {sizingGuide.howToMeasure ? (
+                <p className="text-[13px] font-semibold text-[#5a4300]">{sizingGuide.summary || "Size chart"}</p>
+                {sizingGuide.howToMeasure || sizingGuide.chart?.length ? (
                   <button
                     type="button"
                     onClick={() => setSizingGuideExpanded((current) => !current)}
                     className="mt-1.5 flex items-center gap-1 text-[12px] font-semibold text-[#9a7400]"
                   >
-                    How to measure
+                    {sizingGuide.howToMeasure ? "How to measure" : "See the size chart"}
                     {sizingGuideExpanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
                   </button>
                 ) : null}
@@ -606,49 +699,15 @@ export function MarketAssociateSubmissionForm({
 
       <FormBlock
         title="Variants"
-        hint="Required — add at least one size, colour, or both."
-        action={
-          editable ? (
-            <button
-              type="button"
-              onClick={() => update("variants", [...form.variants, { size: "", colour: "", attributes: {}, active: true }])}
-              className="flex items-center gap-1 text-[13px] font-semibold text-[#9a7400]"
-            >
-              <Plus className="size-3.5" /> Add
-            </button>
-          ) : undefined
-        }
+        hint={`Tick what the vendor has${variantAttributes.length ? `: ${variantAttributes.map((attribute) => attribute.label.toLowerCase()).join(", ")}` : ""}.`}
       >
-        <div className="space-y-2">
-          {form.variants.map((variant, index) => (
-            <div key={index} className="grid grid-cols-[1fr_1fr_auto] gap-2">
-              <SizePicker
-                disabled={!editable}
-                value={variant.size}
-                groups={sizingGuide?.presetGroups}
-                onChange={(next) =>
-                  update("variants", form.variants.map((item, itemIndex) => (itemIndex === index ? { ...item, size: next } : item)))
-                }
-              />
-              <ColorPicker
-                disabled={!editable}
-                value={variant.colour}
-                onChange={(next) =>
-                  update("variants", form.variants.map((item, itemIndex) => (itemIndex === index ? { ...item, colour: next } : item)))
-                }
-              />
-              <button
-                type="button"
-                disabled={!editable || form.variants.length === 1}
-                onClick={() => update("variants", form.variants.filter((_, itemIndex) => itemIndex !== index))}
-                className="grid size-12 place-items-center rounded-[10px] bg-[#EAEBE7] disabled:opacity-40"
-                aria-label="Remove variant"
-              >
-                <Trash2 className="size-4" />
-              </button>
-            </div>
-          ))}
-        </div>
+        <VariantBuilder
+          attributes={variantAttributes}
+          variants={form.variants}
+          disabled={!editable}
+          presetGroups={sizingGuide?.presetGroups as never}
+          onChange={(next) => update("variants", next)}
+        />
       </FormBlock>
 
       {editable ? (

@@ -5,7 +5,12 @@ export interface ProductRow {
   id: string;
   hookId?: string;
   title: string;
-  category?: { name?: string };
+  category?: { name?: string; parentName?: string | null };
+  marketName?: string | null;
+  discountedPrice?: number;
+  orderCount?: number;
+  viewCount?: number;
+  updatedAt?: string;
   vendor?: { businessName?: string };
   images?: string[];
   sellingPrice?: number;

@@ -52,8 +52,8 @@ export function PaymentProvidersSection() {
   if (query.isLoading) return <div className="grid min-h-60 place-items-center"><HookLoader label="Loading payment providers" /></div>;
   if (query.isError) return <QueryState error={query.error} errorTitle="Payment providers could not load" onRetry={() => void query.refetch()} />;
 
-  return <Card className="border-zinc-200 shadow-sm">
-    <CardHeader className="border-b">
+  return <Card className="gap-0 overflow-hidden border-zinc-200 py-0 shadow-sm">
+    <CardHeader className="border-b px-5 py-4 sm:px-6">
       <CardTitle className="flex items-center gap-2 text-lg"><CreditCard className="size-5 text-brand-gold" /> Payment providers</CardTitle>
       <p className="text-sm leading-6 text-muted-foreground">Control the secure hosted payment options customers and shared-link payers can choose.</p>
     </CardHeader>

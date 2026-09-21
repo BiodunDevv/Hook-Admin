@@ -39,7 +39,7 @@ interface ProductFiltersProps {
   status: string;
   categoryId: string;
   stock: string;
-  categories: Option[];
+  categories: Array<Option & { parentId?: string | null }>;
   onSearchChange: (value: string) => void;
   onStatusChange: (value: string) => void;
   onCategoryChange: (value: string) => void;
@@ -119,11 +119,17 @@ export function ProductFilters({
               <DropdownMenuSeparator />
               <DropdownMenuRadioGroup value={categoryId} onValueChange={onCategoryChange}>
                 <DropdownMenuRadioItem value="all">All categories</DropdownMenuRadioItem>
-                {categories.map((category) => (
-                  <DropdownMenuRadioItem key={category.id} value={category.id}>
-                    {category.name || "Unnamed category"}
-                  </DropdownMenuRadioItem>
-                ))}
+                {/* Parents first, each followed by its sub-categories. Choosing a parent covers all of them. */}
+                {categories.filter((category) => !category.parentId).flatMap((parent) => [
+                  <DropdownMenuRadioItem key={parent.id} value={parent.id} className="font-medium">
+                    {parent.name || "Unnamed category"}
+                  </DropdownMenuRadioItem>,
+                  ...categories.filter((category) => category.parentId === parent.id).map((child) => (
+                    <DropdownMenuRadioItem key={child.id} value={child.id} className="pl-8 text-zinc-600">
+                      {child.name}
+                    </DropdownMenuRadioItem>
+                  )),
+                ])}
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>

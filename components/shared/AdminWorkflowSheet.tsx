@@ -24,7 +24,7 @@ export function AdminWorkflowSheet({
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className={cn("min-h-0 w-full gap-0 overflow-hidden border-l bg-background p-0 shadow-2xl sm:w-[min(45vw,52rem)] sm:max-w-none", className)}>
+      <SheetContent side="right" className={cn("min-h-0 w-full gap-0 overflow-hidden border-l bg-background p-0 shadow-2xl sm:w-[min(55vw,60rem)] sm:max-w-none", className)}>
         <SheetHeader className="sticky top-0 z-10 border-b bg-background/95 px-4 py-4 shadow-sm backdrop-blur sm:px-6">
           <div className="min-w-0 pr-10">
             <SheetTitle className="text-lg font-semibold tracking-normal">{title}</SheetTitle>

@@ -86,9 +86,9 @@ export default function MarketAssociateSubmissionsPage() {
               href={`/market-associate/submissions/${row.publicId}`}
               className="flex min-h-17.5 items-center gap-3 border-b border-[#D9D9D9] last:border-b-0 transition active:bg-black/3"
             >
-              <span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-[7px] bg-[#EAEBE7]">
+              <span className="relative grid size-11 shrink-0 place-items-center overflow-hidden rounded-[7px] bg-[#EAEBE7]">
                 {row.imageUrl ? (
-                  <Image src={row.imageUrl} alt="" width={44} height={44} className="size-full object-cover" />
+                  <Image src={row.imageUrl} alt="" fill sizes="44px" className="object-cover" />
                 ) : (
                   <Camera size={18} className="text-black" />
                 )}

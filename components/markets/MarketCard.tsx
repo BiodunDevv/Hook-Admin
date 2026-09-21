@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Building2, MapPin, MoreHorizontal, Pencil, Power, Store } from "lucide-react";
+import { AlertTriangle, ArrowRight, Building2, MapPin, MoreHorizontal, Pencil, Power, Store, UserPlus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -45,14 +45,15 @@ export function MarketCard({
               <DropdownMenuContent align="end" className="w-48">
                 <PermissionGuard permission="markets.manage"><DropdownMenuItem asChild><Link href={`/dashboard/markets/${id}/edit`}><Pencil /> Edit market</Link></DropdownMenuItem></PermissionGuard>
                 <PermissionGuard permission="markets.manage"><DropdownMenuItem onSelect={() => onLifecycle(market)}><Power /> {market.status === "active" ? "Deactivate" : "Activate"}</DropdownMenuItem></PermissionGuard>
+                <PermissionGuard permission="runners.assign"><DropdownMenuItem asChild><Link href={`/dashboard/markets/${id}?tab=marketAssociates`}><UserPlus /> Assign Market Associate</Link></DropdownMenuItem></PermissionGuard>
                 <PermissionGuard permission="markets.assign_hub"><DropdownMenuItem onSelect={() => onAssignHub(market)}><Building2 /> Assign Dispatch Hub</DropdownMenuItem></PermissionGuard>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : null}
         </div>
         <div className="mt-4 grid grid-cols-2 gap-3 border-t border-dashed pt-3 text-xs">
-          <div className="min-w-0"><p className="text-muted-foreground">Dispatch Hub</p><p className="mt-1 truncate font-medium text-foreground">{market.hubName || "Not assigned"}</p></div>
-          <div className="min-w-0"><p className="text-muted-foreground">Address</p><p className="mt-1 truncate font-medium text-foreground">{market.address}</p></div>
+          <div className="min-w-0"><p className="text-muted-foreground">Dispatch Hub</p><p className={`mt-1 flex items-center gap-1 truncate font-medium ${market.hubName ? "text-foreground" : "text-amber-700"}`}>{market.hubName || <><AlertTriangle className="size-3" /> Needs a hub</>}</p></div>
+          <div className="min-w-0"><p className="text-muted-foreground">Market Associates</p><p className={`mt-1 flex items-center gap-1 font-medium ${market.associateCount ? "text-foreground" : "text-amber-700"}`}>{market.associateCount ? <><Users className="size-3" /> {market.associateCount} assigned</> : <><AlertTriangle className="size-3" /> Nobody yet</>}</p></div>
         </div>
         <Link href={`/dashboard/markets/${id}`} className="mt-4 flex items-center justify-between border-t pt-3 text-xs font-semibold text-foreground hover:text-[#8a6900]">
           <span className="flex items-center gap-1.5"><Store className="size-3.5 text-[#b18b00]" /> View market workspace</span><ArrowRight className="size-3.5" />

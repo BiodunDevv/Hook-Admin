@@ -66,8 +66,8 @@ function Field({ id, label, hint, prefix, suffix, value, onChange }: { id: strin
 
 function Group({ icon: Icon, title, description, children }: { icon: React.ElementType; title: string; description: string; children: React.ReactNode }) {
   return (
-    <Card className="border-zinc-200 shadow-sm">
-      <CardHeader className="border-b">
+    <Card className="gap-0 overflow-hidden border-zinc-200 py-0 shadow-sm">
+      <CardHeader className="border-b px-5 py-4 sm:px-6">
         <CardTitle className="flex items-center gap-2 text-base"><Icon className="size-5 text-brand-gold" /> {title}</CardTitle>
         <p className="text-sm leading-6 text-muted-foreground">{description}</p>
       </CardHeader>
@@ -172,7 +172,7 @@ export function HookCreditSection() {
         </div>
       </Group>
 
-      <Card className="border-zinc-200 shadow-sm">
+      <Card className="gap-0 overflow-hidden border-zinc-200 py-0 shadow-sm">
         <CardContent className="grid gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end sm:p-5">
           <div className="space-y-2">
             <Label htmlFor="credit-reason">Audit reason</Label>

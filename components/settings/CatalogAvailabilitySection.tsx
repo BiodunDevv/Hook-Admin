@@ -66,8 +66,8 @@ export function CatalogAvailabilitySection() {
 
   return (
     <div className="space-y-4">
-      <Card className="border-zinc-200 shadow-sm">
-        <CardHeader className="border-b">
+      <Card className="gap-0 overflow-hidden border-zinc-200 py-0 shadow-sm">
+        <CardHeader className="border-b px-5 py-4 sm:px-6">
           <CardTitle className="flex items-center gap-2 text-lg"><CalendarClock className="size-5 text-brand-gold" /> Catalog availability checks</CardTitle>
           <p className="text-sm leading-6 text-muted-foreground">Products that need supplier confirmation are hidden from customers until an assigned Market Associate confirms them.</p>
         </CardHeader>

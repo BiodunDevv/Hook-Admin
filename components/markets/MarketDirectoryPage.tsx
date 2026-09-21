@@ -42,7 +42,9 @@ export function MarketDirectoryPage() {
   const allowed = hasPermission(session, "markets.view");
   const query = useApiQuery<MarketListResponse>(["admin", "markets"], "/admin/markets?limit=100", Boolean(session && allowed));
   const states = useApiQuery<CollectionResponse<LookupRecord>>(["markets", "filters", "states"], "/admin/states?limit=100", Boolean(session && allowed));
-  const hubs = useApiQuery<CollectionResponse<LookupRecord>>(["markets", "filters", "hubs"], "/admin/hubs?limit=100", Boolean(session && allowed));
+  // Only the Hubs of the Market's own State can be chosen, so the list is fetched for that State once a Market is picked.
+  const assignmentStateId = assignmentMarket ? String(assignmentMarket.state?.publicId || assignmentMarket.stateId || "") : "";
+  const hubs = useApiQuery<CollectionResponse<LookupRecord>>(["markets", "assign-hub", assignmentStateId], `/admin/hubs?limit=100&stateId=${encodeURIComponent(assignmentStateId)}`, Boolean(session && allowed && assignmentStateId));
   const markets = useMemo(() => query.data?.data || [], [query.data?.data]);
   const stateOptions = states.data?.data || [];
   const hubOptions = hubs.data?.data || [];
@@ -122,7 +124,7 @@ export function MarketDirectoryPage() {
           }
         }}
         title="Assign Dispatch Hub"
-        description="Choose a Hub in the same State. The backend validates geographic compatibility before saving."
+        description="Only Hubs in this Market's State are listed."
         footer={(
           <>
             <Button variant="outline" disabled={acting} onClick={() => setAssignmentMarket(null)}>Cancel</Button>
@@ -134,11 +136,12 @@ export function MarketDirectoryPage() {
       >
         <div className="space-y-5">
           <div className="space-y-1.5">
-            <Label>Dispatch Hub</Label>
-            <Select value={assignmentHub} onValueChange={setAssignmentHub}>
-              <SelectTrigger className="w-full"><SelectValue placeholder="Select a Dispatch Hub" /></SelectTrigger>
+            <Label>Dispatch Hub in {assignmentMarket?.stateName || assignmentMarket?.state?.name || "this State"}</Label>
+            <Select value={assignmentHub} onValueChange={setAssignmentHub} disabled={hubs.isLoading}>
+              <SelectTrigger className="w-full"><SelectValue placeholder={hubs.isLoading ? "Loading Hubs..." : "Select a Dispatch Hub"} /></SelectTrigger>
               <SelectContent>{hubOptions.map((item) => <SelectItem key={item.publicId || item.id} value={String(item.publicId || item.id)}>{item.name}</SelectItem>)}</SelectContent>
             </Select>
+            {!hubs.isLoading && !hubOptions.length ? <p className="text-xs text-muted-foreground">There are no Dispatch Hubs in this State yet. Create one under Hubs first.</p> : null}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="market-assignment-reason">Audit reason</Label>

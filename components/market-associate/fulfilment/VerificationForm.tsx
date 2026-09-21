@@ -19,13 +19,13 @@ import { compressImage } from "@/lib/compress-image";
 import { cn } from "@/lib/utils";
 import { PhotoSlot } from "./PhotoSlot";
 import {
-  EMPTY_CHECKS, EXTRA_VIEWS, VIEWS, cleanError, itemLabel, itemReferencePhoto, naira, orderedColor, orderedSize, sameText,
+  EMPTY_CHECKS, EXTRA_VIEWS, VIEWS, cleanError, itemLabel, itemReferencePhoto, naira, orderedAttributes, orderedColor, orderedSize, sameText,
   type ItemChecks, type ItemVerification, type TaskItem, type ViewKey,
 } from "./types";
 
 type Draft = {
   photos: Partial<Record<ViewKey, string>>;
-  color: string; size: string; quantity: string; cost: string;
+  color: string; size: string; attributes: Record<string, string>; quantity: string; cost: string;
   supplierReference: string; note: string; condition: string; checks: ItemChecks;
 };
 
@@ -36,10 +36,11 @@ const CONDITIONS = [
   { key: "damaged", label: "Damaged", text: "Damaged: " },
 ] as const;
 
-const CHECKS: Array<[keyof ItemChecks, string, string]> = [
+const ALL_CHECKS: Array<[keyof ItemChecks, string, string]> = [
   ["productMatches", "Right product", "It is the item that was ordered"],
   ["colorMatches", "Right colour", "Colour is as ordered"],
   ["sizeMatches", "Right size", "Size is as ordered"],
+  ["attributesMatch", "Right details", "Every other detail is as ordered"],
   ["quantityMatches", "Right quantity", "You have every unit ordered"],
 ];
 
@@ -76,6 +77,7 @@ export function VerificationForm({
   const draftKey = `hook:ma-draft:${taskRouteId}:${id}`;
   const wantedColor = orderedColor(item);
   const wantedSize = orderedSize(item);
+  const wantedOther = orderedAttributes(item);
   const wantedQuantity = item.quantity || 1;
 
   const [draft, setDraft] = useState<Draft>(() => {
@@ -83,13 +85,14 @@ export function VerificationForm({
       photos: Object.fromEntries((existing?.photos || (existing?.photoUrl ? [{ view: "front" as ViewKey, url: existing.photoUrl }] : [])).map((photo) => [photo.view, photo.url])),
       color: existing?.actualColor || colorName(wantedColor) || "",
       size: existing?.actualSize || wantedSize,
+      attributes: existing?.actualAttributes || Object.fromEntries(wantedOther.map((attribute) => [attribute.key, existing ? "" : attribute.value])),
       quantity: String(existing?.actualQuantity || wantedQuantity),
       cost: existing?.unitCostMinor != null ? String(existing.unitCostMinor / 100) : "",
       supplierReference: existing?.supplierReference || "",
       note: existing?.conditionNote || "",
       condition: "",
       // The order itself tells us what should match, so start from it.
-      checks: existing?.checks || { ...EMPTY_CHECKS, colorMatches: Boolean(wantedColor) && !existing, sizeMatches: Boolean(wantedSize) && !existing, quantityMatches: !existing },
+      checks: existing?.checks || { ...EMPTY_CHECKS, colorMatches: Boolean(wantedColor) && !existing, sizeMatches: Boolean(wantedSize) && !existing, attributesMatch: wantedOther.length > 0 && !existing, quantityMatches: !existing },
     };
     if (existing) return fromServer;
     try {
@@ -109,19 +112,22 @@ export function VerificationForm({
 
   const quantity = Number(draft.quantity) || 0;
   const cost = Number(draft.cost) || 0;
-  const allChecked = Object.values(draft.checks).every(Boolean);
+  // Only the checks that apply to what was ordered: a phone case has no colour or size to confirm.
+  const CHECKS = ALL_CHECKS.filter(([key]) => key === "productMatches" || key === "quantityMatches" || (key === "colorMatches" && wantedColor) || (key === "sizeMatches" && wantedSize) || (key === "attributesMatch" && wantedOther.length));
+  const allChecked = CHECKS.every(([key]) => draft.checks[key]);
 
   const missing = useMemo(() => {
     const list: string[] = [];
     for (const view of VIEWS) if (!draft.photos[view]) list.push(`${capitalise(view)} photo`);
-    if (!draft.color) list.push("Colour");
-    if (!draft.size) list.push("Size");
+    if (wantedColor && !draft.color) list.push("Colour");
+    if (wantedSize && !draft.size) list.push("Size");
+    for (const attribute of wantedOther) if (!draft.attributes[attribute.key]?.trim()) list.push(attribute.label);
     if (quantity < 1) list.push("Quantity");
     if (cost <= 0) list.push("Unit cost");
     if (draft.note.trim().length < 3) list.push("Condition");
-    if (!allChecked) list.push("All four checks");
+    if (!allChecked) list.push(CHECKS.length === 2 ? "Both checks" : `All ${CHECKS.length} checks`);
     return list;
-  }, [draft, quantity, cost, allChecked]);
+  }, [draft, quantity, cost, allChecked, wantedColor, wantedSize, wantedOther, CHECKS.length]);
   const ready = missing.length === 0;
 
   async function upload(file: File, view: ViewKey) {
@@ -165,13 +171,14 @@ export function VerificationForm({
         method: "PUT",
         body: JSON.stringify({
           photos: [...VIEWS, ...EXTRA_VIEWS].filter((view) => draft.photos[view]).map((view) => ({ view, url: draft.photos[view] })),
-          actualColor: draft.color,
-          actualSize: draft.size,
+          ...(wantedColor ? { actualColor: draft.color } : {}),
+          ...(wantedSize ? { actualSize: draft.size } : {}),
+          ...(wantedOther.length ? { actualAttributes: Object.fromEntries(wantedOther.map((attribute) => [attribute.key, (draft.attributes[attribute.key] || "").trim()])) } : {}),
           actualQuantity: quantity,
           unitCostMinor: Math.round(cost * 100),
           supplierReference: draft.supplierReference.trim() || undefined,
           conditionNote: draft.note.trim(),
-          checks: draft.checks,
+          checks: Object.fromEntries(CHECKS.map(([key]) => [key, draft.checks[key]])),
         }),
       });
       try { sessionStorage.removeItem(draftKey); } catch { /* ignore */ }
@@ -206,7 +213,7 @@ export function VerificationForm({
         <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8F8F8F]">Ordered</p>
           <h1 className="truncate text-[17px] font-bold leading-tight text-black">{itemLabel(item)}</h1>
-          <p className="mt-1 text-[13px] text-[#6B6B6B]">{[colorName(wantedColor), wantedSize && `Size ${wantedSize}`, `Qty ${wantedQuantity}`].filter(Boolean).join(" · ")}</p>
+          <p className="mt-1 text-[13px] text-[#6B6B6B]">{[wantedColor && colorName(wantedColor), wantedSize && `Size ${wantedSize}`, ...wantedOther.map((attribute) => `${attribute.label}: ${attribute.value}`), `Qty ${wantedQuantity}`].filter(Boolean).join(" · ")}</p>
         </div>
       </section>
 
@@ -251,16 +258,37 @@ export function VerificationForm({
       <section className={card}>
         <h2 className={heading}>What you actually found</h2>
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
+          {wantedColor ? <div className="space-y-1.5">
             <Label>Colour</Label>
             <ColorPicker value={draft.color} onChange={(value) => setField("color", value, "colorMatches", wantedColor)} />
             {mismatch(draft.color, wantedColor) && <p className="text-[12px] font-medium text-amber-700">Ordered: {colorName(wantedColor)}</p>}
-          </div>
-          <div className="space-y-1.5">
+          </div> : null}
+          {wantedSize ? <div className="space-y-1.5">
             <Label>Size</Label>
             <SizePicker value={draft.size} onChange={(value) => setField("size", value, "sizeMatches", wantedSize)} />
             {mismatch(draft.size, wantedSize) && <p className="text-[12px] font-medium text-amber-700">Ordered: {wantedSize}</p>}
-          </div>
+          </div> : null}
+          {wantedOther.map((attribute) => (
+            <div key={attribute.key} className="space-y-1.5">
+              <Label htmlFor={`ma-attr-${attribute.key}`}>{attribute.label}</Label>
+              <Input
+                id={`ma-attr-${attribute.key}`}
+                className="h-12 rounded-[10px]"
+                value={draft.attributes[attribute.key] || ""}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setDraft((current) => {
+                    const attributes = { ...current.attributes, [attribute.key]: value };
+                    // Entering exactly what was ordered for every detail ticks the check; anything else clears it.
+                    const allSame = wantedOther.every((entry) => sameText(attributes[entry.key] || "", entry.value));
+                    return { ...current, attributes, checks: { ...current.checks, attributesMatch: allSame } };
+                  });
+                }}
+                placeholder={`Ordered: ${attribute.value}`}
+              />
+              {mismatch(draft.attributes[attribute.key] || "", attribute.value) && <p className="text-[12px] font-medium text-amber-700">Ordered: {attribute.value}</p>}
+            </div>
+          ))}
           <div className="space-y-1.5">
             <Label htmlFor="ma-qty">Quantity</Label>
             <div className="flex h-12 items-center overflow-hidden rounded-[10px] border border-input">
@@ -306,7 +334,7 @@ export function VerificationForm({
       <section className={card}>
         <div className="mb-2 flex items-center justify-between gap-2">
           <h2 className="text-[13px] font-bold uppercase tracking-[0.08em] text-[#6B6B6B]">Confirm it matches</h2>
-          <button type="button" onClick={() => patch({ checks: { productMatches: true, colorMatches: true, sizeMatches: true, quantityMatches: true } })} className="text-[12px] font-bold text-[#7A5D00] underline-offset-4 hover:underline">Mark all</button>
+          <button type="button" onClick={() => patch({ checks: { productMatches: true, colorMatches: true, sizeMatches: true, attributesMatch: true, quantityMatches: true } })} className="text-[12px] font-bold text-[#7A5D00] underline-offset-4 hover:underline">Mark all</button>
         </div>
         <ul className="divide-y divide-black/5">
           {CHECKS.map(([key, label, hint]) => (

@@ -1,5 +1,7 @@
 "use client";
 
+import { CategoryPicker } from "@/components/categories/CategoryPicker";
+import { attributeOptions, resolveAttributes, type CategoryOption } from "@/lib/category-attributes";
 import { ColorLabel } from "@/components/shared/ColorLabel";
 import { colorName } from "@/lib/color-name";
 import { Info, X } from "lucide-react";
@@ -10,11 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-export interface CategoryOption {
-  id: string;
-  name: string;
-  isActive?: boolean;
-}
+export type { CategoryOption };
 
 export interface MarketOption {
   id: string;
@@ -85,20 +83,19 @@ export function ProductFieldsForm({
    */
   lockedMarketName?: string;
 }) {
+  // What the chosen category asks for: no size for gadgets, colour optional for some.
+  const leaf = categories.find((category) => category.id === value.categoryId);
+  const attributes = resolveAttributes(leaf, categories);
+  const known = attributes.length > 0;
+  const sizeAttribute = attributes.find((attribute) => attribute.type === "size");
+  const showSizes = !known || Boolean(sizeAttribute);
+  const showColours = !known || attributes.some((attribute) => attribute.type === "colour");
+  const sizeSuggestions = sizeAttribute ? attributeOptions(sizeAttribute) : undefined;
+
   return (
     <TooltipProvider>
       <div className="grid gap-4 md:grid-cols-2">
-        <Field>
-          <FieldLabel>Category</FieldLabel>
-          <Select value={value.categoryId} onValueChange={(next) => onChange({ categoryId: next })} required>
-            <SelectTrigger className="w-full"><SelectValue placeholder="Select category" /></SelectTrigger>
-            <SelectContent>
-              {categories.filter((category) => category.isActive !== false).map((category) => (
-                <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
+        <CategoryPicker categories={categories} value={value.categoryId} onChange={(next) => onChange({ categoryId: next })} />
         <Field>
           <FieldLabel>Market</FieldLabel>
           {lockedMarketName !== undefined ? (
@@ -166,7 +163,7 @@ export function ProductFieldsForm({
             </SelectContent>
           </Select>
         </Field>
-        <Field className="md:col-span-2">
+        {showColours ? <Field className="md:col-span-2">
           <FieldLabel>Colors</FieldLabel>
           <div className="flex flex-wrap items-center gap-2">
             {value.colors.map((color) => (
@@ -197,12 +194,19 @@ export function ProductFieldsForm({
               Add color
             </Button>
           </div>
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="sizes">Sizes, comma separated</FieldLabel>
+        </Field> : null}
+        {showSizes ? <Field>
+          <FieldLabel htmlFor="sizes">{sizeAttribute?.label || "Sizes"}, comma separated</FieldLabel>
           <Input id="sizes" name="sizes" defaultValue={defaults?.sizes} />
-          <FieldDescription>Example: 40, 41, 42, 43</FieldDescription>
-        </Field>
+          <FieldDescription>
+            {sizeSuggestions ? `Options: ${sizeSuggestions.join(", ")}` : "Example: 40, 41, 42, 43"}
+          </FieldDescription>
+        </Field> : null}
+        {known && !showSizes ? (
+          <p className="rounded-md border border-dashed bg-zinc-50 px-3 py-2 text-xs text-zinc-500 md:col-span-2">
+            {leaf?.name} has no sizes. Other details ({attributes.filter((attribute) => attribute.type !== "size" && attribute.type !== "colour").map((attribute) => attribute.label).join(", ") || "none"}) come from the Market Associate&apos;s capture.
+          </p>
+        ) : null}
       </div>
     </TooltipProvider>
   );
