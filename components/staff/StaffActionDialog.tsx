@@ -19,7 +19,7 @@ const ACTION_META: Record<StaffAction, { title: string; description: string; con
   archive: { title: "Archive staff account?", description: "The account will be disabled and retained for audit history. This cannot be used to remove a Super Admin.", confirm: "Archive account", destructive: true, icon: Archive },
   "revoke-sessions": { title: "Revoke all sessions?", description: "Every active device for this staff member will need to authenticate again.", confirm: "Revoke sessions", icon: KeyRound },
   delete: { title: "Delete this account permanently?", description: "The account and its sign-in are removed for good. This cannot be undone. Archived accounts only; the audit trail of what they did is kept.", confirm: "Delete permanently", destructive: true, icon: Trash2 },
-  "cancel-invitation": { title: "Cancel staff invitation?", description: "The invitation will stop working and the account will remain in the audit history.", confirm: "Cancel invitation", destructive: true, icon: Mail },
+  "cancel-invitation": { title: "Cancel staff invitation?", description: "The invitation stops working and the account is removed, so the email can be invited again.", confirm: "Cancel invitation", destructive: true, icon: Mail },
 };
 
 function cleanError(error: unknown) {
