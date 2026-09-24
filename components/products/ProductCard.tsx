@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Ban, Check, Eye, MoreHorizontal, PackageSearch, Pencil, Trash2, XCircle } from "lucide-react";
+import { Ban, Check, Eye, MoreHorizontal, PackageSearch, Pencil, Trash2, XCircle, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -38,12 +38,14 @@ export function ProductCard({
   onReject,
   onDisable,
   onDelete,
+  onQuickEdit,
 }: {
   product: ProductRow;
   onApprove: (product: ProductRow) => void;
   onReject: (product: ProductRow) => void;
   onDisable: (product: ProductRow) => void;
   onDelete: (product: ProductRow) => void;
+  onQuickEdit: (product: ProductRow) => void;
 }) {
   const id = product.id;
   const image = absoluteImageUrl(product.images?.[0]);
@@ -75,6 +77,7 @@ export function ProductCard({
             <DropdownMenuContent align="end" className="w-52">
               <DropdownMenuItem asChild><Link href={`/dashboard/products/${id}`}><Eye size={15} /> View details</Link></DropdownMenuItem>
               <PermissionGuard permission="products.edit">
+                <DropdownMenuItem onSelect={() => onQuickEdit(product)}><Zap size={15} /> Quick edit</DropdownMenuItem>
                 <DropdownMenuItem asChild><Link href={`/dashboard/products/${id}`}><Pencil size={15} /> Edit product</Link></DropdownMenuItem>
                 {!isDisabled ? (
                   <DropdownMenuItem variant="destructive" onSelect={() => onDisable(product)}><Ban size={15} /> Disable product</DropdownMenuItem>

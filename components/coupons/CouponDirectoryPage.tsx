@@ -47,6 +47,7 @@ type FormState = {
   totalUsageLimit: string;
   perUserLimit: string;
   status: "active" | "paused";
+  reason: string;
 };
 
 const emptyForm: FormState = {
@@ -61,6 +62,7 @@ const emptyForm: FormState = {
   totalUsageLimit: "",
   perUserLimit: "1",
   status: "active",
+  reason: "",
 };
 
 /**
@@ -166,6 +168,7 @@ export function CouponDirectoryPage() {
       totalUsageLimit: coupon.totalUsageLimit ? String(coupon.totalUsageLimit) : "",
       perUserLimit: String(coupon.perUserLimit ?? 1),
       status: coupon.status,
+      reason: "",
     });
     setEditing(coupon);
   }
@@ -179,7 +182,7 @@ export function CouponDirectoryPage() {
   const needsValue = form.type !== "free_delivery";
   const valueValid = !needsValue || (form.value.trim() !== "" && Number(form.value) > 0
     && (form.type !== "percentage" || Number(form.value) <= 100));
-  const formValid = form.code.trim().length >= 3 && valueValid;
+  const formValid = form.code.trim().length >= 3 && valueValid && form.reason.trim().length >= 5;
 
   async function save() {
     if (!formValid) return;
@@ -201,6 +204,7 @@ export function CouponDirectoryPage() {
         totalUsageLimit: form.totalUsageLimit ? Number(form.totalUsageLimit) : undefined,
         perUserLimit: Number(form.perUserLimit) || 1,
         status: form.status,
+        reason: form.reason.trim(),
       };
       if (editing) {
         await apiPatch(`/admin/coupons/${editing.publicId || editing.id}`, payload);
@@ -520,6 +524,17 @@ export function CouponDirectoryPage() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <FieldLabel htmlFor="coupon-reason" hint="Recorded in the audit log against this change.">Audit reason</FieldLabel>
+              <Textarea
+                id="coupon-reason"
+                value={form.reason}
+                onChange={(event) => setForm((c) => ({ ...c, reason: event.target.value }))}
+                placeholder="Why is this coupon being created or changed?"
+                maxLength={500}
+              />
             </div>
           </div>
           <DialogFooter>

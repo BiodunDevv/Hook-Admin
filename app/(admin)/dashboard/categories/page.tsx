@@ -24,6 +24,7 @@ import {
   FolderTree,
   CornerDownRight,
   AlertTriangle,
+  GripVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -882,43 +883,123 @@ function CategoryCard({
 
 // ─── Tree view ───────────────────────────────────────────────────────────────
 
+/** Sends the new order to the backend, and rolls the local optimistic order back if it's refused. */
+async function commitReorder(ids: string[], onSettle: () => void, rollback: () => void) {
+  try {
+    await apiPatch("/admin/categories/reorder", { ids });
+    onSettle();
+    toast.success("Order updated");
+  } catch (err) {
+    rollback();
+    toast.error(err instanceof Error ? err.message.replace(/^\d+:\s*/, "") : "Could not save the new order");
+  }
+}
+
 function CategoryTree({
   roots,
   subsOf,
   onEdit,
   onAddSub,
   canManage,
+  reorderable,
+  onReordered,
 }: {
   roots: CategoryRow[];
   subsOf: (id: string) => CategoryRow[];
   onEdit: (category: CategoryRow) => void;
   onAddSub: (category: CategoryRow) => void;
   canManage: boolean;
+  /** Dragging reorders sortOrder directly; disabled while a search/status filter could hide siblings out of order. */
+  reorderable: boolean;
+  onReordered: () => void;
 }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  // A local working copy so a drag reorders instantly; reset whenever the server's own order changes underneath it.
+  // Adjusted during render (React's documented pattern for this), not in an effect, so it never lags a frame behind.
+  const [prevRoots, setPrevRoots] = useState(roots);
+  const [rootOrder, setRootOrder] = useState(roots);
+  if (roots !== prevRoots) {
+    setPrevRoots(roots);
+    setRootOrder(roots);
+  }
+  const [childOrder, setChildOrder] = useState<Record<string, CategoryRow[]>>({});
+  const [dragging, setDragging] = useState<{ scope: string; id: string } | null>(null);
   const toggle = (id: string) => setCollapsed((current) => {
     const next = new Set(current);
     if (next.has(id)) next.delete(id); else next.add(id);
     return next;
   });
   const rollup = (category: CategoryRow) => category.productCount + subsOf(category.id).reduce((sum, sub) => sum + sub.productCount, 0);
+  const childrenOf = (root: CategoryRow) => childOrder[root.id] || subsOf(root.id);
+
+  function reorderWithin<T extends { id: string }>(list: T[], draggedId: string, targetId: string): T[] {
+    const from = list.findIndex((item) => item.id === draggedId);
+    const to = list.findIndex((item) => item.id === targetId);
+    if (from === -1 || to === -1 || from === to) return list;
+    const next = [...list];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    return next;
+  }
+
+  function dropOnRoot(targetId: string) {
+    if (!dragging || dragging.scope !== "root") return;
+    const draggedId = dragging.id;
+    setDragging(null);
+    if (draggedId === targetId) return;
+    const previous = rootOrder;
+    const next = reorderWithin(rootOrder, draggedId, targetId);
+    setRootOrder(next);
+    void commitReorder(next.map((c) => c.id), onReordered, () => setRootOrder(previous));
+  }
+
+  function dropOnChild(parentId: string, list: CategoryRow[], targetId: string) {
+    if (!dragging || dragging.scope !== parentId) return;
+    const draggedId = dragging.id;
+    setDragging(null);
+    if (draggedId === targetId) return;
+    const previous = list;
+    const next = reorderWithin(list, draggedId, targetId);
+    setChildOrder((current) => ({ ...current, [parentId]: next }));
+    void commitReorder(next.map((c) => c.id), onReordered, () => setChildOrder((current) => ({ ...current, [parentId]: previous })));
+  }
 
   return (
     <div className="rounded-xl border border-border bg-white">
       <div className="flex items-center justify-between border-b px-4 py-2.5 text-xs text-zinc-500">
-        <span>{roots.length} categories · products attach to the last level</span>
+        <span>{roots.length} categories · products attach to the last level{reorderable && canManage ? " · drag ⠿ to reorder" : ""}</span>
         <div className="flex gap-1">
           <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setCollapsed(new Set())}>Expand all</Button>
           <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setCollapsed(new Set(roots.map((root) => root.id)))}>Collapse all</Button>
         </div>
       </div>
+      {!reorderable && canManage ? (
+        <p className="border-b bg-zinc-50 px-4 py-2 text-[11px] text-zinc-500">Clear the search and status filter to drag categories into a new order.</p>
+      ) : null}
       <ul className="divide-y">
-        {roots.map((root) => {
-          const children = subsOf(root.id);
+        {rootOrder.map((root) => {
+          const children = childrenOf(root);
           const isOpen = !collapsed.has(root.id);
+          const canDrag = reorderable && canManage;
           return (
-            <li key={root.id} className="px-2 py-1.5">
+            <li
+              key={root.id}
+              className={`px-2 py-1.5 ${dragging?.scope === "root" && dragging.id !== root.id ? "border-t-2 border-t-brand-gold" : ""}`}
+              onDragOver={canDrag ? (e) => e.preventDefault() : undefined}
+              onDrop={canDrag ? () => dropOnRoot(root.id) : undefined}
+            >
               <div className="group flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-zinc-50">
+                {canDrag ? (
+                  <span
+                    draggable
+                    onDragStart={() => setDragging({ scope: "root", id: root.id })}
+                    onDragEnd={() => setDragging(null)}
+                    className="flex size-6 shrink-0 cursor-grab items-center justify-center rounded text-zinc-300 hover:bg-zinc-100 hover:text-zinc-500 active:cursor-grabbing"
+                    aria-label={`Drag to reorder ${root.name}`}
+                  >
+                    <GripVertical size={14} />
+                  </span>
+                ) : null}
                 <button type="button" onClick={() => toggle(root.id)} disabled={!children.length} className="flex size-6 items-center justify-center rounded text-zinc-500 hover:bg-zinc-100 disabled:opacity-0" aria-label={isOpen ? "Collapse" : "Expand"}>
                   {isOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
                 </button>
@@ -936,15 +1017,33 @@ function CategoryTree({
               {isOpen && children.length ? (
                 <ul className="relative ml-[22px] border-l border-zinc-200 pl-0">
                   {children.map((child) => (
-                    <li key={child.id} className="relative">
+                    <li
+                      key={child.id}
+                      className={`relative ${dragging?.scope === root.id && dragging.id !== child.id ? "border-t-2 border-t-brand-gold" : ""}`}
+                      onDragOver={canDrag ? (e) => e.preventDefault() : undefined}
+                      onDrop={canDrag ? () => dropOnChild(root.id, children, child.id) : undefined}
+                    >
                       <span className="absolute left-0 top-1/2 h-px w-4 bg-zinc-200" />
-                      <button type="button" onClick={() => onEdit(child)} className="group/child ml-5 flex w-[calc(100%-1.25rem)] items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-zinc-50">
-                        <span className={`size-1.5 shrink-0 rounded-full ${child.isActive ? "bg-emerald-500" : "bg-zinc-300"}`} />
-                        <span className="min-w-0 flex-1 truncate text-sm text-zinc-800">{child.name}</span>
-                        <span className="hidden truncate text-xs text-zinc-400 md:block">{child.attributes?.length ? attributeSummary(child.attributes) : "Inherits parent"}</span>
-                        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-500">{child.productCount}</span>
-                        <Pencil size={12} className="text-zinc-300 group-hover/child:text-zinc-600" />
-                      </button>
+                      <div className="group/child ml-5 flex w-[calc(100%-1.25rem)] items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-zinc-50">
+                        {canDrag ? (
+                          <span
+                            draggable
+                            onDragStart={() => setDragging({ scope: root.id, id: child.id })}
+                            onDragEnd={() => setDragging(null)}
+                            className="flex size-5 shrink-0 cursor-grab items-center justify-center rounded text-zinc-300 hover:bg-zinc-100 hover:text-zinc-500 active:cursor-grabbing"
+                            aria-label={`Drag to reorder ${child.name}`}
+                          >
+                            <GripVertical size={12} />
+                          </span>
+                        ) : null}
+                        <button type="button" onClick={() => onEdit(child)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
+                          <span className={`size-1.5 shrink-0 rounded-full ${child.isActive ? "bg-emerald-500" : "bg-zinc-300"}`} />
+                          <span className="min-w-0 flex-1 truncate text-sm text-zinc-800">{child.name}</span>
+                          <span className="hidden truncate text-xs text-zinc-400 md:block">{child.attributes?.length ? attributeSummary(child.attributes) : "Inherits parent"}</span>
+                          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-500">{child.productCount}</span>
+                          <Pencil size={12} className="text-zinc-300 group-hover/child:text-zinc-600" />
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -1095,6 +1194,8 @@ export default function CategoriesPage() {
           onEdit={setEditing}
           onAddSub={setAddingUnder}
           canManage={canManage}
+          reorderable={!search && statusFilter === "all"}
+          onReordered={() => void refetch()}
         />
       )}
 

@@ -18,6 +18,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { KpiCard } from "@/components/shared/KpiCard";
 import { ProductFilters } from "@/components/products/ProductFilters";
 import { ProductGrid } from "@/components/products/ProductGrid";
+import { ProductSavedViews } from "@/components/products/ProductSavedViews";
 import type { ProductRow } from "@/components/products/product-types";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -239,6 +240,10 @@ export default function ProductsPage() {
             <SelectTrigger className="h-8 w-[110px] text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>{[25, 50, 100].map((size) => <SelectItem key={size} value={String(size)}>{size} per page</SelectItem>)}</SelectContent>
           </Select>
+          <ProductSavedViews
+            currentParams={{ search, status, categoryId, stock, marketId, source, view, sort, dir }}
+            onApply={(params) => filters.set(params)}
+          />
           {view === "table" ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild><Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs"><Columns3 size={13} /> Columns</Button></DropdownMenuTrigger>

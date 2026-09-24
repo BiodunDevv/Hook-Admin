@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowDown, ArrowUp, Ban, Check, ChevronRight, MoreHorizontal, Pencil, Trash2, XCircle } from "lucide-react";
+import { ArrowDown, ArrowUp, Ban, Check, ChevronRight, MoreHorizontal, Pencil, Trash2, XCircle, Zap } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
@@ -65,6 +65,7 @@ export function ProductTable({
   onReject,
   onDisable,
   onDelete,
+  onQuickEdit,
 }: {
   products: ProductRow[];
   columns: Record<ColumnKey, boolean>;
@@ -78,6 +79,7 @@ export function ProductTable({
   onReject: (product: ProductRow) => void;
   onDisable: (product: ProductRow) => void;
   onDelete: (product: ProductRow) => void;
+  onQuickEdit: (product: ProductRow) => void;
 }) {
   const allSelected = products.length > 0 && products.every((product) => selected.has(product.id));
   return (
@@ -136,6 +138,9 @@ export function ProductTable({
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon-sm" aria-label={`Actions for ${product.title}`}><MoreHorizontal size={16} /></Button></DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-44">
+                      <PermissionGuard permission="products.edit">
+                        <DropdownMenuItem onClick={() => onQuickEdit(product)}><Zap size={14} /> Quick edit</DropdownMenuItem>
+                      </PermissionGuard>
                       <DropdownMenuItem asChild><Link href={`/dashboard/products/${product.id}`}><Pencil size={14} /> View / edit</Link></DropdownMenuItem>
                       <PermissionGuard permission="products.review">
                         {canReview(product.status) ? <DropdownMenuItem onClick={() => onApprove(product)}><Check size={14} /> Approve</DropdownMenuItem> : null}

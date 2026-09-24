@@ -416,6 +416,7 @@ export default function ProductDetailPage() {
                   colors: editColors,
                   sizes: String(payload.sizes || "").split(",").map((item) => item.trim()).filter(Boolean),
                   status: editStatus,
+                  reason: String(payload.reason || "").trim() || undefined,
                 });
                 query.refetch();
                 setEditing(false);
@@ -445,6 +446,7 @@ export default function ProductDetailPage() {
               <Field><PriceLabel help="What Hook pays for this item. Negotiation can never go below this.">Cost Price</PriceLabel><Input name="costPrice" type="number" min="1" defaultValue={String(product.costPrice)} /></Field>
               <Field><PriceLabel help="The customer-facing price on Hook.">Hook Platform Price</PriceLabel><Input name="sellingPrice" type="number" min="1" defaultValue={String(product.sellingPrice)} /></Field>
               <Field><PriceLabel help="Lowest price AI negotiation can accept. It must not exceed the Hook platform price.">Negotiation Floor</PriceLabel><Input name="minAcceptablePrice" type="number" min="1" defaultValue={String(product.minAcceptablePrice)} /></Field>
+              <Field className="sm:col-span-2"><FieldLabel>Reason for change</FieldLabel><Input name="reason" placeholder="Required if you change any price above" maxLength={500} /><FieldDescription>Recorded in the audit log. Only required when a price is actually changed.</FieldDescription></Field>
               <Field><FieldLabel>Stock</FieldLabel><Input name="quantity" type="number" min="0" defaultValue={String(product.quantity)} /></Field>
               <Field><FieldLabel>Visibility</FieldLabel><Select value={editStatus} onValueChange={setEditStatus}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="published">Active on Hook</SelectItem><SelectItem value="draft">Draft</SelectItem><SelectItem value="paused">Paused</SelectItem><SelectItem value="unpublished">Unpublished</SelectItem><SelectItem value="disabled">Disabled</SelectItem></SelectContent></Select></Field>
               <Field className="sm:col-span-2"><FieldLabel>Colors</FieldLabel><div className="flex flex-wrap items-center gap-2">{editColors.map((color) => <button key={color} type="button" onClick={() => setEditColors((current) => current.filter((item) => item !== color))} className="flex h-9 items-center gap-2 rounded-md border border-zinc-200 bg-white px-2 text-xs font-medium text-zinc-600" title={`Remove ${color}`}><span className="size-4 rounded-full border border-zinc-300" style={{ backgroundColor: color }} /><span className="font-mono">{color}</span><X size={12} /></button>)}<input value={editColorValue} onChange={(event) => setEditColorValue(event.target.value.toUpperCase())} type="color" className="h-9 w-11 rounded-md border border-zinc-200 bg-white p-1" aria-label="Pick product color" /><Button type="button" variant="outline" size="sm" onClick={() => setEditColors((current) => current.includes(editColorValue) ? current : [...current, editColorValue])}>Add color</Button></div></Field>

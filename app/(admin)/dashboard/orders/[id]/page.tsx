@@ -327,7 +327,7 @@ export default function OrderDetailPage() {
               <div key={payment.publicId || payment.transactionRef || index} className="rounded-md border p-3">
                 <div className="flex items-center justify-between gap-3"><p className="font-medium">{payment.fulfilmentGroupId ? `Delivery payment` : "Order payment"}</p><StatusBadge status={payment.commerceStatus || "PENDING"} /></div>
                 <p className="mt-2 text-sm font-semibold">{money(payment.amountMinor)}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{payment.gateway || "Paystack"} · {payment.transactionRef || "Reference pending"}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{({ paystack: "Paystack", monnify: "Monnify" } as Record<string, string>)[payment.gateway || "paystack"] || payment.gateway} · {payment.transactionRef || "Reference pending"}</p>
               </div>
             ))}
           </DetailSection>

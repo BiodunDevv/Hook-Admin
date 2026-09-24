@@ -15,7 +15,7 @@ type PaymentDetail = {
   expiresAt: string;
   purpose: string;
   paidAt?: string;
-  providers: Array<{ provider: "paystack"; isDefault: boolean; mode: "test" | "live" }>;
+  providers: Array<{ provider: "paystack" | "monnify"; isDefault: boolean; mode: "test" | "live" }>;
   order: {
     id: string;
     reference: string;
@@ -32,7 +32,7 @@ type PaymentDetail = {
   };
 };
 
-type StatusAttempt = { provider: "paystack"; status: string } | undefined;
+type StatusAttempt = { provider: "paystack" | "monnify"; status: string } | undefined;
 
 function useCountdown(expiresAt: string | undefined) {
   const [label, setLabel] = useState("");
@@ -61,8 +61,10 @@ function money(value: number) {
   return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(value / 100);
 }
 
-function providerName(_provider: "paystack") {
-  return "Paystack";
+const PROVIDER_LABELS: Record<string, string> = { paystack: "Paystack", monnify: "Monnify" };
+
+function providerName(provider: "paystack" | "monnify") {
+  return PROVIDER_LABELS[provider] || provider;
 }
 
 function idempotencyKey() {
@@ -77,7 +79,7 @@ function idempotencyKey() {
 export function PublicPaymentCheckout({ token, processing = false }: { token: string; processing?: boolean }) {
   const [detail, setDetail] = useState<PaymentDetail>();
   const [error, setError] = useState("");
-  const [selected, setSelected] = useState<"paystack">();
+  const [selected, setSelected] = useState<"paystack" | "monnify">();
   const [submitting, setSubmitting] = useState(false);
   const [attempt, setAttempt] = useState<StatusAttempt>();
   const appReturn = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("appReturn") === "1";
@@ -172,7 +174,7 @@ export function PublicPaymentCheckout({ token, processing = false }: { token: st
               <div className="mt-3 space-y-2">
                 {detail.providers.map((provider) => (
                   <button key={provider.provider} type="button" onClick={() => setSelected(provider.provider)} className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left transition ${selected === provider.provider ? "border-black bg-zinc-950 text-white" : "border-zinc-200 hover:border-zinc-400"}`}>
-                    <PaymentProviderMark />
+                    <PaymentProviderMark provider={provider.provider} />
                     <span className="min-w-0 flex-1"><span className="block font-semibold">{providerName(provider.provider)}</span><span className={`block text-xs ${selected === provider.provider ? "text-zinc-300" : "text-zinc-500"}`}>Secure hosted checkout</span></span>
                     <ChevronRight size={18} />
                   </button>
