@@ -12,6 +12,7 @@ import { useApiQuery } from "@/lib/query";
 import { apiDelete, apiPatch, apiPost } from "@/lib/api";
 import type { Page } from "@/lib/admin-utils";
 import { ProductCard } from "./ProductCard";
+import { ProductQuickEditDrawer } from "./ProductQuickEditDrawer";
 import { ProductTable, type ColumnKey } from "./ProductTable";
 import type { ProductRow } from "./product-types";
 
@@ -46,6 +47,7 @@ export function ProductGrid({ queryKey, path, onPageChange, view = "cards", cate
     totalPages: query.data?.totalPages || 1,
   };
   const [deleteTarget, setDeleteTarget] = useState<ProductRow | null>(null);
+  const [quickEditTarget, setQuickEditTarget] = useState<ProductRow | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const toggle = (id: string) => setSelected((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; });
@@ -157,6 +159,7 @@ export function ProductGrid({ queryKey, path, onPageChange, view = "cards", cate
             onReject={(item) => void updateProduct(item, "reject")}
             onDisable={(item) => void updateProduct(item, "disable")}
             onDelete={setDeleteTarget}
+            onQuickEdit={setQuickEditTarget}
           />
         ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -168,6 +171,7 @@ export function ProductGrid({ queryKey, path, onPageChange, view = "cards", cate
               onReject={(item) => void updateProduct(item, "reject")}
               onDisable={(item) => void updateProduct(item, "disable")}
               onDelete={setDeleteTarget}
+              onQuickEdit={setQuickEditTarget}
             />
           ))}
         </div>
@@ -209,6 +213,12 @@ export function ProductGrid({ queryKey, path, onPageChange, view = "cards", cate
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ProductQuickEditDrawer
+        product={quickEditTarget}
+        onOpenChange={(open) => { if (!open) setQuickEditTarget(null); }}
+        onSaved={() => void query.refetch()}
+      />
     </>
   );
 }

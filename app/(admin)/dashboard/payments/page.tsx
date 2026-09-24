@@ -30,6 +30,7 @@ const STATUS_OPTIONS = [
 const PROVIDER_OPTIONS = [
   { label: "All providers", value: "all" },
   { label: "Paystack", value: "paystack" },
+  { label: "Monnify", value: "monnify" },
 ];
 
 export default function PaymentsPage() {
