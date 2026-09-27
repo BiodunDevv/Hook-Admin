@@ -51,8 +51,7 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
         `/admin/market-vendors/${id}/invite`,
         {},
       );
-      // The vendor may have no email on file, in which case the link is the
-      // only way to reach them — surface it rather than claiming it was sent.
+      // Surface the invite link directly when the vendor has no email on file, instead of claiming it was sent.
       toast.success(
         result?.email
           ? `Invitation sent to ${result.email}`

@@ -1,11 +1,7 @@
 import { colorName, colorSwatch, isColorCode } from "@/lib/color-name";
 import { cn } from "@/lib/utils";
 
-/**
- * A colour as a person reads it: a swatch and its name ("Navy"), never a code.
- * The original code stays available on hover and to screen readers, so
- * nothing is lost for someone who needs the exact value.
- */
+/** A colour as a swatch and name, never a code; the original code stays available on hover and to screen readers. */
 export function ColorLabel({ value, className, swatchClassName }: { value?: string | null; className?: string; swatchClassName?: string }) {
   const name = colorName(value);
   if (!name) return null;

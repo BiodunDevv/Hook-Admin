@@ -4,14 +4,7 @@ import namesPlugin from "colord/plugins/names";
 
 extend([labPlugin, namesPlugin]);
 
-/**
- * Everyday colour names, the way people describe clothes, shoes and bags.
- * Codes like "#111827" are matched to the nearest of these using perceptual
- * distance (CIE Lab, via colord), so a dark navy reads as "Navy" and not as a
- * number. A full colour-name dataset was tried and rejected: it answers with
- * names like "Black Stallion" and "Homoeopathic Lavender", which mean nothing
- * to a shopper. Add a name here if a real product shows a gap.
- */
+/** Everyday colour names matched to hex codes by perceptual distance (CIE Lab), rejecting overly poetic dataset names. */
 export const COLOR_NAMES: ReadonlyArray<{ name: string; hex: string }> = [
   { name: "Black", hex: "#111111" },
   { name: "Charcoal", hex: "#36454F" },
@@ -87,12 +80,7 @@ function nearestName(hex: string) {
 
 const titleCase = (value: string) => value.trim().replace(/\s+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 
-/**
- * A human colour name for anything a product might hold. A code such as
- * "#111827" becomes its nearest everyday name ("Navy"); a name someone typed
- * ("light blue") is kept and tidied ("Light Blue"). Returns undefined for
- * empty input.
- */
+/** A human colour name for any product value: a hex code maps to its nearest name, a typed name is just tidied. */
 export function colorName(value?: string | null): string | undefined {
   const raw = value?.trim();
   if (!raw) return undefined;
@@ -122,8 +110,7 @@ export function colorSwatch(value?: string | null): string | undefined {
   // Plain CSS names such as "tomato" or "rebeccapurple".
   const css = colord(raw.replace(/\s+/g, "").toLowerCase());
   if (css.isValid()) return css.toHex();
-  // A typed phrase that contains one of our names ("navy blue", "dark olive"):
-  // use the longest name it contains so "Royal Blue" beats "Blue".
+  // For a typed phrase, use the longest matching name it contains, so "Royal Blue" beats "Blue".
   const lower = raw.toLowerCase();
   const contained = COLOR_NAMES.filter((entry) => lower.includes(entry.name.toLowerCase())).sort((a, b) => b.name.length - a.name.length)[0];
   return contained?.hex;

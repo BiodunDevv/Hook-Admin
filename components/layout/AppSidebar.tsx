@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { LifeBuoy, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,6 +38,14 @@ interface DashboardSummary {
   orders?: { pending: number; active?: number };
 }
 
+type SupportResponse = { supportEmail?: string; supportUrl?: string };
+
+function openSupport(support?: SupportResponse) {
+  const url = support?.supportUrl || (support?.supportEmail ? `mailto:${support.supportEmail}` : undefined);
+  if (!url) return;
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
 function initials(firstName?: string, lastName?: string, email?: string) {
   const value = `${firstName?.[0] || ""}${lastName?.[0] || ""}`.trim();
   return (value || email?.slice(0, 2) || "AD").toUpperCase();
@@ -52,6 +60,7 @@ export default function AppSidebar() {
     ["admin", "sidebar-summary"],
     "/admin/dashboard",
   );
+  const { data: support } = useApiQuery<SupportResponse>(["support-contact"], "/public/support");
   const adminName =
     `${admin?.firstName || ""} ${admin?.lastName || ""}`.trim() ||
     admin?.email ||
@@ -128,6 +137,15 @@ export default function AppSidebar() {
               {adminSubtitle}
             </p>
           </div>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            title="Help & Support"
+            onClick={() => openSupport(support)}
+            className="shrink-0 text-muted-foreground hover:text-foreground group-data-[collapsible=icon]:hidden"
+          >
+            <LifeBuoy />
+          </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button

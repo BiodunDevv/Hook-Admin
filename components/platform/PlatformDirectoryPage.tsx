@@ -244,11 +244,13 @@ export function RelatedMultiSelect({
     }, {}),
   );
   const isPermissionPicker = field.key === "permissionKeys";
+  // Controlled so a "Done" button can close it explicitly, since a multi-select otherwise only closes on an outside click.
+  const [open, setOpen] = useState(false);
 
   return (
     <>
       <input type="hidden" name={field.key} value={value.join(",")} />
-      <Popover>
+      <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
             id={field.key}
@@ -337,6 +339,10 @@ export function RelatedMultiSelect({
                   </CommandGroup>}
             </CommandList>
           </Command>
+          <div className="flex items-center justify-between gap-2 border-t bg-background px-3 py-2">
+            <span className="text-xs text-muted-foreground">{value.length ? `${value.length} selected` : "None selected"}</span>
+            <Button type="button" size="sm" variant="secondary" onClick={() => setOpen(false)}>Done</Button>
+          </div>
         </PopoverContent>
       </Popover>
     </>

@@ -12,6 +12,7 @@ import {
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { MetricCard } from "@/components/shared/MetricCard";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { QueryState } from "@/components/shared/QueryState";
 import { Badge } from "@/components/ui/badge";
@@ -84,19 +85,6 @@ export function OperatingStatesPage() {
     }
   }
 
-  if (query.isLoading || query.error) {
-    return (
-      <div className={pageGutter}>
-        <QueryState
-          loading={query.isLoading}
-          error={query.error}
-          loadingLabel="Loading operating States"
-          onRetry={() => void query.refetch()}
-        />
-      </div>
-    );
-  }
-
   const operatingCount = states.filter((state) => state.operationsEnabled).length;
   const marketStateCount = states.filter((state) => (state.marketCount || 0) > 0).length;
   const comingSoonCount = states.filter((state) => !state.operationsEnabled && !(state.marketCount || 0)).length;
@@ -115,67 +103,17 @@ export function OperatingStatesPage() {
         }
       />
 
-      <Card className="overflow-hidden border-0 bg-[#FFC809] shadow-none ring-0">
-        <CardContent className="relative overflow-hidden p-6 sm:p-8">
-          <div className="pointer-events-none absolute -right-12 -top-16 size-56 rounded-full border-[24px] border-white/20" />
-          <div className="relative max-w-2xl">
-            <div className="mb-4 flex size-11 items-center justify-center rounded-2xl bg-black text-[#FFC809]">
-              <MapPinned className="size-5" />
-            </div>
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-black/60">Operations footprint</p>
-            <h2 className="mt-1 text-2xl font-semibold tracking-tight text-black sm:text-3xl">Where Hook operates</h2>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-black/70">
-              A State becomes operational when Hook can assign Markets, Market Associates, and dispatch work there. States without a Market remain available for future expansion.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card>
-          <CardContent className="flex items-center gap-4 p-5">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700"><CheckCircle2 className="size-5" /></div>
-            <div><p className="text-sm text-muted-foreground">Operating now</p><p className="mt-1 text-2xl font-semibold">{operatingCount}</p></div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-4 p-5">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-sky-50 text-sky-700"><Store className="size-5" /></div>
-            <div><p className="text-sm text-muted-foreground">States with Markets</p><p className="mt-1 text-2xl font-semibold">{marketStateCount}</p></div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-4 p-5">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-amber-50 text-amber-700"><Clock3 className="size-5" /></div>
-            <div><p className="text-sm text-muted-foreground">Coming soon</p><p className="mt-1 text-2xl font-semibold">{comingSoonCount}</p></div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-4 p-5">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-red-50 text-red-700"><AlertTriangle className="size-5" /></div>
-            <div><p className="text-sm text-muted-foreground">Needs attention</p><p className="mt-1 text-2xl font-semibold">{attentionCount}</p></div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <MetricCard label="Operating now" value={operatingCount} icon={CheckCircle2} intent="success" />
+        <MetricCard label="States with Markets" value={marketStateCount} icon={Store} />
+        <MetricCard label="Coming soon" value={comingSoonCount} icon={Clock3} intent={comingSoonCount ? "warning" : "neutral"} caption="No active Market yet" />
+        <MetricCard label="Needs attention" value={attentionCount} icon={AlertTriangle} intent={attentionCount ? "danger" : "neutral"} caption={attentionCount ? "Market exists, operations paused" : "Nothing to review"} />
       </div>
 
-      {comingSoonCount > 0 ? (
-        <div className="flex items-start gap-3 rounded-xl border border-[#F0D979] bg-[#FFF9DC] px-4 py-3 text-sm text-[#665100]">
-          <Clock3 className="mt-0.5 size-4 shrink-0" />
-          <p><span className="font-semibold">More States coming soon.</span> These States are in the national directory but do not have an active Hook Market yet.</p>
-        </div>
-      ) : null}
-
-      {attentionCount > 0 ? (
-        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-          <p><span className="font-semibold">Review paused operations.</span> A Market exists in at least one State whose operations are currently disabled.</p>
-        </div>
-      ) : null}
-
-      <Card>
-        <CardHeader className="gap-4 border-b sm:flex-row sm:items-center sm:justify-between">
+      <Card className="gap-0 overflow-hidden rounded-lg py-0 shadow-none">
+        <CardHeader className="flex-col items-start gap-4 border-b py-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle>State directory</CardTitle>
+            <CardTitle className="text-base">State directory</CardTitle>
             <p className="mt-1 text-sm text-muted-foreground">Enable or pause sourcing operations by State.</p>
           </div>
           <div className="relative w-full sm:w-72">
@@ -184,45 +122,58 @@ export function OperatingStatesPage() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12 text-center">#</TableHead>
-                <TableHead>State</TableHead>
-                <TableHead>Capital</TableHead>
-                <TableHead>Markets</TableHead>
-                <TableHead>Readiness</TableHead>
-                <TableHead className="text-right">Operations</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredStates.map((state, index) => {
-                const status = stateStatus(state);
-                const StatusIcon = status.icon;
-                return (
-                  <TableRow key={state.publicId}>
-                    <TableCell className="text-center text-xs text-muted-foreground">{index + 1}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="flex size-9 items-center justify-center rounded-xl bg-muted text-xs font-bold">{state.code}</div>
-                        <div><p className="font-medium">{state.name}</p><p className="text-xs text-muted-foreground">{state.publicId}</p></div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{state.capitalName || "Not recorded"}</TableCell>
-                    <TableCell><span className="font-medium">{state.marketCount || 0}</span><span className="ml-1 text-xs text-muted-foreground">active</span></TableCell>
-                    <TableCell><Badge variant={status.variant}><StatusIcon className="size-3" />{status.label}</Badge></TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-3">
-                        <span className="hidden text-xs text-muted-foreground sm:inline">{state.operationsEnabled ? "Enabled" : "Paused"}</span>
-                        <Switch aria-label={`${state.operationsEnabled ? "Pause" : "Enable"} operations in ${state.name}`} checked={Boolean(state.operationsEnabled)} disabled={!canManage} onCheckedChange={(enabled) => void toggle(state, enabled)} />
-                      </div>
-                    </TableCell>
+          <QueryState
+            loading={query.isLoading}
+            error={query.error}
+            empty={!query.isLoading && !query.isError && !filteredStates.length}
+            loadingLabel="Loading operating States"
+            errorTitle="Operating States could not be loaded"
+            emptyTitle="No States match"
+            emptyDescription="Try another search."
+            emptyIcon={MapPinned}
+            onRetry={() => query.refetch()}
+          >
+            <div className="overflow-x-auto">
+              <Table className="min-w-[820px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12 text-center">#</TableHead>
+                    <TableHead>State</TableHead>
+                    <TableHead>Capital</TableHead>
+                    <TableHead>Markets</TableHead>
+                    <TableHead>Readiness</TableHead>
+                    <TableHead className="text-right">Operations</TableHead>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-          {!filteredStates.length ? <div className="px-6 py-12 text-center text-sm text-muted-foreground">No States match your search.</div> : null}
+                </TableHeader>
+                <TableBody>
+                  {filteredStates.map((state, index) => {
+                    const status = stateStatus(state);
+                    const StatusIcon = status.icon;
+                    return (
+                      <TableRow key={state.publicId}>
+                        <TableCell className="text-center text-xs text-muted-foreground">{index + 1}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="flex size-9 items-center justify-center rounded-xl bg-muted text-xs font-bold">{state.code}</div>
+                            <div><p className="font-medium">{state.name}</p><p className="text-xs text-muted-foreground">{state.publicId}</p></div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{state.capitalName || "Not recorded"}</TableCell>
+                        <TableCell><span className="font-medium">{state.marketCount || 0}</span><span className="ml-1 text-xs text-muted-foreground">active</span></TableCell>
+                        <TableCell><Badge variant={status.variant}><StatusIcon className="size-3" />{status.label}</Badge></TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-3">
+                            <span className="hidden text-xs text-muted-foreground sm:inline">{state.operationsEnabled ? "Enabled" : "Paused"}</span>
+                            <Switch aria-label={`${state.operationsEnabled ? "Pause" : "Enable"} operations in ${state.name}`} checked={Boolean(state.operationsEnabled)} disabled={!canManage} onCheckedChange={(enabled) => void toggle(state, enabled)} />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </QueryState>
         </CardContent>
       </Card>
     </div>

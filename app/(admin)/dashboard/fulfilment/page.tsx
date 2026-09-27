@@ -84,11 +84,7 @@ type AssignmentForm = { marketAssociateId?: string; hubId?: string; reason?: str
 
 const identifier = (row?: Row) => row?.publicId || row?.id || "";
 
-/**
- * The dashboard shows a prioritised preview, not the whole queue — the
- * dedicated workspaces are for working through everything. Both lists tell you
- * when they are truncated so a task never silently disappears off the bottom.
- */
+/** A prioritised preview, not the whole queue; each list flags when it's been truncated. */
 const TASK_PREVIEW_LIMIT = 12;
 
 export default function FulfilmentControlTowerPage() {
@@ -185,13 +181,11 @@ export default function FulfilmentControlTowerPage() {
     }
   }
 
-  // Blocked tasks are the ones that need a human; surfaced on the task card
-  // header so they are visible without scanning the whole list.
+  // Blocked tasks need a human, so they're surfaced in the task card header.
   const rawTasks = data?.tasks || [];
   const blockedTaskCount = rawTasks.filter((task) => task.status === "BLOCKED").length;
 
-  // Blocked tasks need a human before anything else can move, so they lead.
-  // Within each group the backend already returns oldest-first.
+  // Blocked tasks lead each group; the backend already returns the rest oldest-first.
   const tasks = [...rawTasks].sort((left, right) => {
     const blocked = (task: Row) => (task.status === "BLOCKED" ? 0 : 1);
     return blocked(left) - blocked(right);

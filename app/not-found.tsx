@@ -9,11 +9,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-/**
- * Shown for any address that does not exist, in the same frame as the other
- * public pages. A server component on purpose: it needs no script to render,
- * so it still works when the rest of the app cannot load.
- */
+/** 404 page for public routes; a server component so it renders even if the rest of the app can't load. */
 export default function NotFound() {
   return (
     <PublicShell

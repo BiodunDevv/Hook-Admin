@@ -29,8 +29,7 @@ export default function HookReceiptPage({ params }: { params: Promise<{ id: stri
   const sealed = query.data?.status === "SEALED";
   const [printing, setPrinting] = useState(false);
 
-  // Log the print first so the label itself carries the reprint mark, then
-  // hand over to the browser. A failed log must not block a needed label.
+  // Log the print before handing off to the browser, so a failed log never blocks the label.
   async function print() {
     setPrinting(true);
     try {

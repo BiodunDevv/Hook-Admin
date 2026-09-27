@@ -42,12 +42,7 @@ function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message.replace(/^\d+:\s*/, "") : fallback;
 }
 
-/**
- * Courier logos are arbitrary third-party URLs (often SVG on a CDN we do not
- * control), so this stays a plain <img> rather than next/image — adding every
- * courier's host to remotePatterns is not workable. Falls back to the truck
- * glyph when there is no logo or the URL fails to load.
- */
+/** Plain <img> for arbitrary courier logo URLs (can't whitelist every CDN), falling back to a truck glyph. */
 function ProviderLogo({
   provider,
   className = "size-12",

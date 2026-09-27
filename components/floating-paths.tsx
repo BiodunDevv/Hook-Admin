@@ -4,13 +4,7 @@ import { motion, useReducedMotion } from "motion/react";
 
 const PATH_COUNT = 14;
 
-/**
- * Decorative curves for the auth brand panel (from the efferd auth-5 block).
- * The original drew 36 animated paths per layer, which is heavy enough to make
- * the sign-in screen tear and stutter while it repaints. This draws 14, moves
- * them slowly, and stands still for anyone who asked their system for reduced
- * motion.
- */
+/** Decorative auth-panel curves, trimmed to 14 slow paths (from 36) to stop the sign-in screen stuttering, and static under reduced motion. */
 export function FloatingPaths({ position }: { position: number }) {
   const reduceMotion = useReducedMotion();
   const step = 2.5; // spread the fewer paths over the same area

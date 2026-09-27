@@ -20,11 +20,7 @@ type SwitchProps = {
   onConfirm: (courierCode: string, reason: string) => void;
 };
 
-/**
- * Pick a substitute courier and give the customer a reason. Used both when the
- * chosen courier is unavailable at booking and when switching a booked
- * shipment before pickup.
- */
+/** Pick a substitute courier and reason, used both for an unavailable courier and a pre-pickup switch. */
 export function CourierSwitchDialog(props: SwitchProps) {
   // Mounted only while open so the form starts fresh each time.
   return props.open ? <SwitchForm {...props} /> : null;

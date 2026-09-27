@@ -1,19 +1,4 @@
-/**
- * The progress trail for a fulfilment task.
- *
- * This deliberately has no deadlines. The SLA system it used to model measured
- * four due-dates hardcoded at task creation (15min / 4h / 6h / 24h), never
- * recomputed — so a task assigned overnight, or reassigned to someone else, was
- * "breaching" before anyone could act on it. Breaching did nothing beyond
- * inserting a database row: no notification, no reassignment, no escalation.
- *
- * What replaces it is age. "Waiting 3h" is honest, needs no configuration, and
- * cannot be wrong.
- *
- * Note there is no "Completed" step: `FulfilmentTask.completedAt` and the
- * COMPLETED status are never written anywhere in the backend, so the lifecycle
- * really ends at hub handover.
- */
+/** Fulfilment task progress by age, not deadlines, replacing the old hardcoded SLA timers; there's no "Completed" step since it's never written. */
 
 export type CheckpointState = "done" | "current" | "upcoming" | "halted";
 
@@ -72,8 +57,7 @@ export function buildCheckpoints(task: TaskLike): TaskCheckpoint[] {
   let currentAssigned = false;
 
   return rows.map(([key, title, at, reachedAt]) => {
-    // A timestamp is proof; otherwise having moved past this stage counts as
-    // reached, since a later status implies the earlier steps happened.
+    // A timestamp proves a stage was reached; otherwise a later status implies the earlier ones happened.
     const reached = Boolean(at) || finished || (stageIndex >= 0 && stageIndex > reachedAt);
     if (reached) return { key, title, state: "done" as const, at };
 

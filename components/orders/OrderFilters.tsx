@@ -33,11 +33,7 @@ const PAYMENT_OPTIONS = [
   { label: "Refunded", value: "refunded" },
 ];
 
-/**
- * The coarse view switch from the design. "Completed" covers every terminal
- * state, not just delivered, so a cancelled or refunded order does not vanish
- * from both tabs.
- */
+/** The coarse view switch; "Completed" covers every terminal state so cancelled/refunded orders don't vanish. */
 const VIEW_TABS = [
   { label: "All", value: "all" },
   { label: "Active", value: "active" },

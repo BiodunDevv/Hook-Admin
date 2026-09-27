@@ -88,10 +88,7 @@ export function MarketAssociateMarketDetailWorkspace({ id }: { id: string }) {
   const query = useApiQuery<Detail>(["marketassociate", "market", id], `/market-associate/markets/${id}`);
   const queryClient = useQueryClient();
 
-  /**
-   * Supplier changes also feed the capture form's vendor picker, which reads a
-   * separate cache — refetching this view alone would leave that list stale.
-   */
+  /** Also refetch the vendor picker's cache, since supplier changes feed it too. */
   function syncMarket() {
     void queryClient.invalidateQueries({ queryKey: ["marketassociate", "market", id] });
     void queryClient.invalidateQueries({ queryKey: ["marketassociate", "market-vendors"] });

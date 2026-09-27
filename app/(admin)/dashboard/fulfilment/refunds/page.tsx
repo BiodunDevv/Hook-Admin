@@ -31,15 +31,7 @@ const money = (minor?: number) => `₦${(Number(minor || 0) / 100).toLocaleStrin
 /** Statuses that still have work left for finance to do. */
 const ACTIONABLE = ["REQUESTED", "APPROVED", "FAILED"];
 
-/**
- * Finance's refund worklist.
- *
- * Creating a refund lives on the order page now — this page used to ask staff
- * to type an order id into a free-text box, copied from elsewhere and easy to
- * mistype, with none of the order's context on screen. What stays here is the
- * part that is genuinely cross-order: a failed or pending refund must be
- * visible without knowing which order it came from.
- */
+/** Finance's cross-order refund worklist: refunds that failed or are pending, wherever they came from. */
 export default function FulfilmentRefundsPage() {
   const query = useApiQuery<Row[]>(
     ["admin", "fulfilment", "refunds"],
@@ -111,8 +103,7 @@ export default function FulfilmentRefundsPage() {
                   key={id}
                   index={index + 1}
                   initials={initialsOf(item.status || "refund")}
-                  // A failed refund is the row that needs a human — money did
-                  // not reach the customer — so it is tinted.
+                  // Tint rows where a refund failed, since money never reached the customer.
                   tint={failed ? "bg-danger-soft/40 hover:bg-danger-soft/50" : undefined}
                   title={<span className="truncate text-sm font-semibold text-zinc-950">{id}</span>}
                   subject={money(item.amountMinor)}

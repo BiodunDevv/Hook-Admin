@@ -7,13 +7,7 @@ export type DefinitionItem = {
   span?: 1 | 2 | 3;
 };
 
-/**
- * Whether an item falls in the grid's final row at the widest breakpoint.
- *
- * Items carrying a `span` can shift the wrap point, so this is a best-effort
- * approximation for the common case of uniform items; the last item is always
- * treated as bottom-row regardless.
- */
+/** Whether an item falls in the grid's final row; a best-effort approximation when items carry a `span`. */
 function isInLastRow(index: number, count: number, columns: 1 | 2 | 3) {
   if (columns === 1) return index === count - 1;
   const lastRowStart = Math.floor((count - 1) / columns) * columns;
@@ -42,15 +36,10 @@ export function DefinitionGrid({
         <div
           key={item.label}
           className={cn(
-            // The separator is dropped for the whole bottom ROW, not just the
-            // last cell. `:last-child` alone left a stray rule under the
-            // second-to-last item of a multi-column grid, and the previous
-            // `border-b-1` was not a real Tailwind class so it never removed
-            // anything at all.
+            // The separator is dropped for the whole bottom row, not just the last cell, since `:last-child` alone missed a row in multi-column grids.
             "min-w-0 border-b border-border/70 pb-4",
             isInLastRow(index, items.length, columns) && "sm:border-b-0",
-            // Single column collapses to one item per row, so the last item is
-            // always the bottom row at every breakpoint.
+            // A single column always has one item per row, so the last item is the bottom row at every breakpoint.
             index === items.length - 1 && "border-b-0",
             item.span === 2 && "sm:col-span-2",
             item.span === 3 && "sm:col-span-2 xl:col-span-3",

@@ -76,13 +76,7 @@ function Field({
   );
 }
 
-/**
- * Admin-side vendor onboarding.
- *
- * Creating a vendor also issues their first invitation, so the email field is
- * called out as the thing that decides whether we can reach them
- * automatically — without it, staff have to pass the link on themselves.
- */
+/** Admin-side vendor onboarding; the email field decides whether the first invitation can be sent automatically. */
 export function VendorOnboardingSheet({
   open,
   onOpenChange,
@@ -94,8 +88,7 @@ export function VendorOnboardingSheet({
   const [form, setForm] = useState({ ...EMPTY });
   const [saving, setSaving] = useState(false);
 
-  // Only loaded while the sheet is open — the markets list is irrelevant until
-  // staff actually start onboarding someone.
+  // The markets list only loads while the sheet is open, since it's irrelevant until onboarding starts.
   const markets = useApiQuery<{ data?: MarketOption[] } | MarketOption[]>(
     ["admin", "markets", "vendor-onboarding"],
     "/admin/markets?limit=200",
@@ -129,8 +122,7 @@ export function VendorOnboardingSheet({
     if (!canSubmit || saving) return;
     setSaving(true);
     try {
-      // paymentProfile is required by the API even for cash vendors, and the
-      // bank fields are only sent when they were actually asked for.
+      // paymentProfile is required even for cash vendors; bank fields are sent only when actually filled in.
       const paymentProfile: Record<string, string> = { method: form.paymentMethod };
       if (bankRequired) {
         paymentProfile.bankName = form.bankName.trim();
@@ -152,8 +144,7 @@ export function VendorOnboardingSheet({
         },
       );
 
-      // Say what actually happened: with no email on file the invitation
-      // exists but was never sent anywhere.
+      // Say plainly that the invitation exists but was never sent, when there's no email on file.
       toast.success(
         result?.invitation?.delivery?.delivered
           ? `${result?.vendor?.businessName || "Vendor"} onboarded. Invitation emailed.`

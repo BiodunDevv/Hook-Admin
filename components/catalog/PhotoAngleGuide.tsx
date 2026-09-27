@@ -2,12 +2,7 @@ import { cn } from "@/lib/utils";
 
 export type Angle = "front" | "side" | "back";
 
-/**
- * Small illustrated example of one required photo angle: a product inside a
- * camera frame, with a gold arrow showing where the camera sits. A neutral
- * sneaker is used because its three angles are easy to tell apart, and it reads
- * the same for clothing, bags and shoes.
- */
+/** Illustrated example of one required photo angle, using a sneaker since its angles are easy to tell apart. */
 export function PhotoAngleGuide({ angle, className }: { angle: Angle; className?: string }) {
   return (
     <svg viewBox="0 0 120 84" role="img" aria-label={`Example ${angle} photo`} className={cn("h-full w-full", className)} fill="none">

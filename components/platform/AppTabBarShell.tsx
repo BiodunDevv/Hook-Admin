@@ -43,11 +43,7 @@ import { APP_TAB_BAR_CONTENT_INSET, APP_TAB_BAR_HEIGHT, APP_TAB_BAR_BOTTOM_GAP }
 
 type PortalType = "marketassociate" | "partner";
 
-// The account-type discriminator ("marketassociate") no longer matches the
-// URL prefix ("/market-associate") after the portal rename — keep them
-// mapped separately rather than assuming `/${type}`. Exported so other
-// portal-page components (e.g. ProfileWorkspace) build the same, correct
-// page links.
+// Portal-page components keep a name-to-URL-prefix map instead of assuming `/${type}`, since they no longer match after the rename.
 export const PORTAL_BASE_PATH: Record<PortalType, string> = {
   marketassociate: "/market-associate",
   partner: "/partner",
@@ -131,27 +127,17 @@ export function AppTabBarShell({
   const router = useRouter();
   const logout = useLogout();
   const base = PORTAL_BASE_PATH[type];
-  // The activation page is opened by someone who is not signed in yet. It must not fire signed-in requests: their 401
-  // would send the visitor to the sign-in page before they can set a password.
+  // The activation page runs before sign-in, so it must never fire signed-in requests that would redirect the visitor away.
   const onActivation = pathname === `${base}/activate`;
 
-  // Shared with the dashboard page's own fetch of the same endpoint — same
-  // query key, so React Query dedupes the request instead of firing twice.
+  // Shares the dashboard page's query key so React Query dedupes the request instead of firing twice.
   const alerts = useApiQuery<DashboardAlertSummary>(
     ["marketassociate", "catalog-dashboard"],
     "/market-associate/dashboard",
     type === "marketassociate" && !onActivation,
   );
   const changesRequested = type === "marketassociate" ? alerts.data?.changesRequested || 0 : 0;
-  // The dashboard summary's own availabilityChecksDue count can drift from
-  // reality (assignment/ownership scoping computed separately) — the
-  // Availability page's own list endpoint is the source of truth for "is
-  // there anything to check right now", so the banner counts its rows
-  // directly instead of trusting a second, independently-derived number.
-  // This is the one thing on the whole portal that should never sit on a
-  // stale 30s cache: it drives whether the alert banner shows at all, so it
-  // always refetches on mount/focus/reconnect rather than trusting a cached
-  // "0" from before a check existed.
+  // Refetches the Availability list directly (rather than trusting the dashboard's derived count) since this banner must never show a stale result.
   const availabilityChecks = useApiQuery<AvailabilityCheck[]>(
     ["marketassociate", "availability-checks"],
     "/market-associate/availability-checks",
@@ -199,11 +185,7 @@ export function AppTabBarShell({
 
   if (onActivation) return <>{children}</>;
 
-  /**
-   * A negotiation is a focused, full-screen conversation — like a chat detail
-   * screen on mobile, it shouldn't compete with a bottom tab bar for space.
-   * Header stays (for logout/back-navigation context) but the tabs don't.
-   */
+  /** A negotiation is a full-screen conversation, so it hides the tab bar but keeps the header. */
   const isNegotiationDetail = type === "partner" && /^\/partner\/messages\/[^/]+$/.test(pathname);
 
   function handleLogout() {

@@ -6,25 +6,11 @@ import { MaintenanceScreen } from "@/components/shared/MaintenanceScreen";
 import { checkHookHealth, ensureAccountSession } from "@/lib/api";
 import { dashboardPath } from "@/lib/auth-routing";
 
-/** Held on screen for a beat so the splash always registers as a deliberate
- * moment rather than a flash — even when the health check and session
- * resolve instantly. */
+/** Held on screen briefly so the splash always reads as deliberate, even when checks resolve instantly. */
 const MIN_VISIBLE_DURATION = 4_000;
 const RETRY_INTERVAL = 5_000;
 
-/**
- * The entry point for the whole site (see app/page.tsx, which redirects
- * here) and the PWA's start_url (see app/manifest.ts — the manifest can only
- * point at one static path, but Market Associates and Partners need to land
- * on two different dashboards). Pings the backend first, so a down API shows
- * a real "under maintenance" screen instead of a spinner that never
- * resolves, then reads the logged-in session and forwards to whichever
- * dashboard belongs to that account — the same resolution
- * safeDashboardDestination uses after login. No session → login screen.
- *
- * Adapted from the Hook-App (Expo) splash screen's health-check + background
- * recovery pattern, ported to this stack's session/routing helpers.
- */
+/** Entry point and PWA start_url: pings the backend, then routes to the right dashboard by session (adapted from Hook-App's splash screen). */
 export default function LaunchPage() {
   const router = useRouter();
   const routed = useRef(false);
@@ -66,8 +52,7 @@ export default function LaunchPage() {
     };
   }, [routeToDestination]);
 
-  // While the backend is down, keep checking in the background so a launch
-  // during a brief outage or network blip recovers on its own.
+  // Keep checking in the background during an outage so launch recovers on its own.
   useEffect(() => {
     if (backendAvailable !== false) return;
     let active = true;

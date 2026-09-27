@@ -25,8 +25,7 @@ export function useSelectedCustomer() {
     };
     // Deferred so the initial render matches the server (no localStorage there).
     const timer = window.setTimeout(read, 0);
-    // Other tabs/components changing the selection (e.g. "Change" in the banner)
-    // dispatch this so every mounted reader — including the header — stays in sync.
+    // Other tabs/components dispatch this on selection change so every mounted reader, including the header, stays in sync.
     window.addEventListener("hook-partner-customer-changed", read);
     window.addEventListener("storage", read);
     return () => {

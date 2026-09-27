@@ -120,11 +120,7 @@ function valueOf(variant: VariantRow, attribute: CategoryAttribute) {
   return attribute.type === "size" || attribute.key === "size" ? variant.size : attribute.type === "colour" ? variant.colour : variant.attributes[attribute.key] || "";
 }
 
-/**
- * Fits captured variants to a category's template: keeps the values for details
- * the new category also asks for, and drops the rest, so nothing invisible is
- * left behind (a shoe size on a phone case would fail validation with no field to fix).
- */
+/** Fits captured variants to a category's template, dropping values the new category doesn't ask for. */
 function fitVariantsToCategory(variants: VariantRow[], attributes: CategoryAttribute[]): VariantRow[] {
   const usesSize = attributes.some((attribute) => attribute.type === "size" || attribute.key === "size");
   const usesColour = attributes.some((attribute) => attribute.type === "colour");
@@ -236,8 +232,7 @@ export function MarketAssociateSubmissionForm({
         toast.error("Confirm that the three product-photo guidelines were followed");
         return;
       }
-      // Mirrors the backend's submit-time check: at least one variant, with
-      // every detail this category requires, before the round trip.
+      // Mirrors the backend's submit-time check: every variant needs each detail this category requires.
       if (!leafSelected) {
         toast.error(subCategories.length ? "Choose a sub-category before submitting" : "Choose a category before submitting");
         return;
@@ -273,8 +268,7 @@ export function MarketAssociateSubmissionForm({
       const saved = submission
         ? await apiPatch<ProductSubmission>(`/market-associate/product-submissions/${submission.publicId}`, payload)
         : await apiPost<ProductSubmission>("/market-associate/product-submissions", payload);
-      // The submit call returns the promoted record, so prefer it over the draft
-      // we just saved — that is what carries the new status.
+      // Prefer the submit response over the just-saved draft, since it carries the new status.
       let latest = saved;
       if (submitAfter) {
         latest =
@@ -287,9 +281,7 @@ export function MarketAssociateSubmissionForm({
         toast.success("Draft saved");
       }
       setDirty(false);
-      // Seed the detail cache so the status badge is correct on arrival, then let
-      // the list and dashboard refetch. Without this the pages read a stale cache
-      // and keep showing "draft" until they happen to go stale on their own.
+      // Seed the detail cache so the status badge is correct immediately, then let list/dashboard refetch.
       queryClient.setQueryData(["marketassociate", "submission", latest.publicId], latest);
       void queryClient.invalidateQueries({ queryKey: ["marketassociate", "submissions"] });
       void queryClient.invalidateQueries({ queryKey: ["marketassociate", "submission", latest.publicId] });

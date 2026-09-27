@@ -46,11 +46,7 @@ function PriceLabel({ children, help }: { children: React.ReactNode; help: strin
   );
 }
 
-/**
- * The product-content field grid shared by the New Product form and Product
- * Submission approval — same fields, same labels/tooltips, same validation,
- * so a product created either way ends up with an identical shape.
- */
+/** Product-content field grid shared by the New Product form and Submission approval, for an identical shape either way. */
 export function ProductFieldsForm({
   categories,
   markets,
@@ -76,11 +72,7 @@ export function ProductFieldsForm({
     quantity?: number | string;
     sizes?: string;
   };
-  /**
-   * When set, the Market field renders as a read-only display of this name
-   * instead of a picker — the product stays tied to the Market Associate's
-   * assigned market rather than letting the admin reassign it.
-   */
+  /** When set, the Market field shows this name read-only instead of a picker, keeping the product tied to its Market Associate. */
   lockedMarketName?: string;
 }) {
   // What the chosen category asks for: no size for gadgets, colour optional for some.

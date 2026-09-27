@@ -4,10 +4,7 @@ import Image from "next/image";
 import { ImageOff, Minus, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-/**
- * Commerce primitives styled after the Hook-App marketplace screens so the
- * Partner portal reads as the same product as the customer app.
- */
+/** Commerce primitives styled after the Hook-App marketplace so the Partner portal matches it. */
 
 export type CatalogMedia = { type?: string; url?: string; alt?: string };
 

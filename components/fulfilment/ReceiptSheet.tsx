@@ -16,20 +16,14 @@ import { apiPost } from "@/lib/api";
 import { useApiQuery } from "@/lib/query";
 
 type Size = "a6" | "a4" | "thermal";
-// Paper sizes in millimetres; the same numbers drive the preview, the print
-// stylesheet and the PDF page.
+// Paper sizes in millimetres, shared by the preview, print stylesheet and PDF.
 const SIZES: Record<Size, { label: string; hint: string; w: number; h: number; page: string }> = {
   a6: { label: "Label A6", hint: "105 × 148 mm", w: 105, h: 148, page: "A6" },
   thermal: { label: "Thermal 4×6", hint: "102 × 152 mm", w: 101.6, h: 152.4, page: "101.6mm 152.4mm" },
   a4: { label: "Receipt A4", hint: "210 × 297 mm", w: 210, h: 297, page: "A4" },
 };
 
-/**
- * Preview, print and download a parcel's Hook receipt from a side sheet, so
- * the Hub never leaves the page it is working on. The printable copy is
- * portalled to <body>; the PDF is rendered from an off-screen copy at the exact
- * paper size.
- */
+/** Preview, print and download a parcel's Hook receipt from a side sheet without leaving the page. */
 export function ReceiptSheet({
   orderRef,
   open,
@@ -44,8 +38,7 @@ export function ReceiptSheet({
   const [busy, setBusy] = useState<"print" | "pdf">();
   const captureRef = useRef<HTMLDivElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
-  // The preview is scaled to fit the sheet, so the whole label is visible
-  // without scrolling. Width comes from the box, height from the window.
+  // The preview scales to fit the sheet so the whole label is visible without scrolling.
   const [viewport, setViewport] = useState({ width: 480, height: 800 });
   useEffect(() => {
     if (!open) return;

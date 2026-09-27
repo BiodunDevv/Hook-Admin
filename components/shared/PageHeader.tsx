@@ -10,11 +10,7 @@ interface PageHeaderProps {
   description?: string;
   actions?: React.ReactNode;
   className?: string;
-  /**
-   * Overrides the URL-depth heuristic below. Sidebar destinations that happen
-   * to sit at a nested path (e.g. /dashboard/fulfilment/hub) are not
-   * drill-downs, so router.back() would send staff somewhere unrelated.
-   */
+  /** Overrides the URL-depth heuristic for sidebar destinations at a nested path that aren't really drill-downs. */
   showBack?: boolean;
 }
 

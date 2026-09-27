@@ -4,10 +4,7 @@ import Link from "next/link";
 import { UserRound } from "lucide-react";
 import { useSelectedCustomer } from "@/lib/use-selected-customer";
 
-/**
- * Compact, always-visible header pill so a Partner never loses track of who
- * they're shopping for — shown on every page, not just Browse/Basket.
- */
+/** Compact header pill shown on every page so a Partner never loses track of who they're shopping for. */
 export function ShoppingForIndicator() {
   const { customer } = useSelectedCustomer();
 

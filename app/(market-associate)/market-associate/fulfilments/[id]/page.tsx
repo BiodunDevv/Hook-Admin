@@ -40,10 +40,7 @@ export default function MarketAssociateFulfilmentDetailPage() {
   const [issueFor, setIssueFor] = useState<{ open: boolean; itemId?: string }>({ open: false });
   const [handover, setHandover] = useState<{ open: boolean; justSubmitted: boolean }>({ open: false, justSubmitted: false });
 
-  /**
-   * A task change also moves the fulfilments list and the dashboard counters,
-   * so refetching this detail alone would leave those showing the old state.
-   */
+  /** Refetch the fulfilments list and dashboard counters too, since a task change moves both. */
   function syncTask() {
     for (const key of [["fulfilment", params.id], ["fulfilments"], ["catalog-dashboard"], ["notifications"]]) {
       void queryClient.invalidateQueries({ queryKey: ["marketassociate", ...key] });
@@ -124,8 +121,8 @@ export default function MarketAssociateFulfilmentDetailPage() {
 
   const issueSheet = (
     <IssueSheet
-      // A fresh sheet per target keeps its idempotency key and text from leaking between products.
-      key={issueFor.itemId || "task"}
+      // Prefixed so this never collides with a sibling VerificationForm keyed by the same item id.
+      key={`issue-${issueFor.itemId || "task"}`}
       open={issueFor.open}
       onOpenChange={(open) => setIssueFor((current) => ({ ...current, open }))}
       taskRouteId={params.id}
@@ -170,9 +167,22 @@ export default function MarketAssociateFulfilmentDetailPage() {
       {hubReceived && <HubReceivedCard task={task} />}
 
       {openIssues.length > 0 && (
-        <div role="status" className="mb-5 flex items-start gap-2.5 rounded-2xl border border-red-200 bg-red-50 p-3.5 text-[13px] leading-5 text-red-800">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-          <p><span className="font-semibold">{openIssues.length} open issue{openIssues.length === 1 ? "" : "s"}.</span> Operations is reviewing. You can submit once {openIssues.length === 1 ? "it is" : "they are"} resolved.</p>
+        <div role="status" className="mb-5 space-y-2 rounded-2xl border border-red-200 bg-red-50 p-3.5 text-[13px] leading-5 text-red-800">
+          <p className="flex items-start gap-2.5">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+            <span><span className="font-semibold">{openIssues.length} open issue{openIssues.length === 1 ? "" : "s"}.</span> Operations is reviewing. You can submit once {openIssues.length === 1 ? "it is" : "they are"} resolved.</span>
+          </p>
+          <ul className="space-y-1 pl-6.5">
+            {openIssues.map((entry, index) => {
+              const item = items.find((candidate) => itemId(candidate) === entry.orderItemId);
+              return (
+                <li key={index} className="text-[12px]">
+                  {item && <span className="font-semibold">{itemLabel(item)}: </span>}
+                  {entry.summary || "No reason given"}
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
 
@@ -187,7 +197,14 @@ export default function MarketAssociateFulfilmentDetailPage() {
               const id = itemId(item);
               return (
                 <li key={id || index}>
-                  <ProductCard item={item} index={index} state={stateOf(id)} lockedNote={lockedNote} onOpen={canVerify ? () => setSelectedItemId(id) : undefined} />
+                  <ProductCard
+                    item={item}
+                    index={index}
+                    state={stateOf(id)}
+                    lockedNote={lockedNote}
+                    issueSummary={openIssues.find((entry) => entry.orderItemId === id)?.summary}
+                    onOpen={canVerify ? () => setSelectedItemId(id) : undefined}
+                  />
                 </li>
               );
             })}

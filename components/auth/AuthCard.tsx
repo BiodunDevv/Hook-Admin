@@ -13,12 +13,7 @@ interface AuthCardProps {
   className?: string;
 }
 
-/**
- * The form column of every auth screen: logo, heading and form, centred.
- * Deliberately plain. An earlier version drew hairline frames and corner marks
- * with negative insets, which overflowed the container and caused horizontal
- * scroll and repaint glitches. Structure comes from spacing and type instead.
- */
+/** The centred form column shared by every auth screen, kept plain after decorative frames caused overflow and scroll glitches. */
 export function AuthCard({ title, description, children, backHref, footer, className }: AuthCardProps) {
   return (
     <div className={cn("mx-auto flex w-full max-w-sm flex-col gap-8 animate-in fade-in-50 duration-300", className)}>

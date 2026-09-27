@@ -46,12 +46,7 @@ const ALL_CHECKS: Array<[keyof ItemChecks, string, string]> = [
 
 const capitalise = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 
-/**
- * Evidence and details for one product. Built to be quick on a phone in a
- * market: prefilled from the order, checks that follow what you enter, a
- * running list of what is still missing, and a draft that survives leaving
- * the screen (photos are already uploaded, so nothing is lost).
- */
+/** Evidence form for one product, prefilled from the order with a draft that survives leaving the screen. */
 export function VerificationForm({
   taskRouteId,
   item,

@@ -38,13 +38,7 @@ export function useApiQuery<T>(queryKey: readonly unknown[], path: string, enabl
   });
 }
 
-/**
- * Shared across every guard that shows a maintenance screen (AuthShell,
- * AdminGuard, PortalGuard) — one polling query rather than each guard
- * pinging /health independently. Stays quiet (no retries, short staleTime)
- * so a real outage is reflected quickly without hammering a server that's
- * already down.
- */
+/** Shared maintenance-screen health poll for every guard, kept quiet so it doesn't hammer an already-down server. */
 export function useBackendHealth() {
   return useQuery({
     queryKey: ["backend-health"],
@@ -73,19 +67,7 @@ export function useApiPost<TData, TVariables = unknown>(
   });
 }
 
-/**
- * POST to a path derived from the mutation variables, for per-row actions whose
- * URL is only known at call time. Toasts stay owned by the global MutationCache
- * via `meta`, matching `useApiPost`.
- *
- * `optimistic` lets a caller rewrite the cached list before the request lands
- * and restores the snapshot automatically if it fails.
- *
- * `buildBody` separates the request payload from the variables. Without it the
- * whole variables object is sent, which fails against endpoints whose schema is
- * strict about unknown keys — pass it whenever the variables carry routing data
- * (an id for the path) that the API does not accept in the body.
- */
+/** POST to a per-row URL built from mutation variables; `optimistic` rewrites and restores the cache, `buildBody` strips routing data the API rejects. */
 export function useApiPostTo<TData, TVariables>(
   buildPath: (variables: TVariables) => string,
   options: ToastOptions & {

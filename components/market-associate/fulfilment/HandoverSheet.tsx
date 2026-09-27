@@ -15,11 +15,7 @@ export async function copyHandoverCode(code: string) {
   }
 }
 
-/**
- * Shown the moment a fulfilment is submitted, and again on request. The code is
- * the only thing the associate needs from this screen, so it takes the whole
- * sheet: large, copyable, with the three things to do with it.
- */
+/** Shown on submit and on request; the code is the only thing needed, so it takes the whole sheet. */
 export function HandoverSheet({
   open,
   onOpenChange,

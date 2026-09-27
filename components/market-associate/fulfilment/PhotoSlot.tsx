@@ -7,11 +7,7 @@ import type { ViewKey } from "./types";
 
 const LABEL: Record<ViewKey, string> = { front: "Front", side: "Side", back: "Back", extra1: "Extra 1", extra2: "Extra 2", extra3: "Extra 3", extra4: "Extra 4" };
 
-/**
- * One required angle. Tap to take a photo or choose one from the gallery or
- * files; uploads as soon as one is chosen. There is deliberately no `capture`
- * attribute: it forces the camera and blocks picking an existing photo.
- */
+/** One required angle: tap to shoot or pick from the gallery; no `capture` attribute since that blocks picking existing photos. */
 export function PhotoSlot({
   view,
   url,

@@ -152,9 +152,7 @@ export default function OrderDetailPage() {
     return sum + (hookPriceMinor - marketPriceMinor) * item.quantity;
   }, 0);
   const hasMarginData = (order.items || []).some((item) => item.product?.basePriceMinor != null);
-  // Only CONFIRMED payments are refundable. A Pay-at-Handover order has one
-  // payment per delivery, so the captured total is their sum, not the order
-  // total — which may include deliveries that were never paid for.
+  // Only CONFIRMED payments are refundable; sum them since Pay-at-Handover may include unpaid deliveries.
   const capturedMinor = (order.payments?.length ? order.payments : order.payment ? [order.payment] : [])
     .filter((payment) => String(payment.commerceStatus || "").toUpperCase() === "CONFIRMED")
     .reduce((sum, payment) => sum + Number(payment.amountMinor || 0), 0);

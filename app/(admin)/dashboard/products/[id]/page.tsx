@@ -82,9 +82,7 @@ interface ProductDetail {
 interface ProductOption { id: string; publicId?: string; name: string; isActive?: boolean; status?: string; stateName?: string; state?: { name?: string }; }
 interface VendorOption { id: string; publicId?: string; businessName: string; status?: string; }
 
-/** Radix Select reserves an empty string for "no selection" — this sentinel
- * stands in for "no vendor" in the control, and is translated back to an
- * empty string (which the backend treats as "clear the vendor") on submit. */
+/** Empty-string sentinel for "no vendor" in the Select, translated to/from an empty string on submit. */
 const NO_VENDOR = "none";
 
 interface CategoryManager {
@@ -154,9 +152,7 @@ export default function ProductDetailPage() {
   const [editCategoryId, setEditCategoryId] = useState("");
   const [editMarketId, setEditMarketId] = useState("");
   const [editVendorId, setEditVendorId] = useState(NO_VENDOR);
-  // Vendors are market-scoped — a vendor invited into one Market can't supply
-  // a product in another, so the picker only ever offers vendors belonging
-  // to whichever Market is currently selected in the edit form.
+  // Vendors are market-scoped, so the picker only offers vendors belonging to the selected Market.
   const vendors = useApiQuery<VendorOption[]>(["admin", "market", editMarketId, "vendors"], `/admin/markets/${editMarketId}/vendors`, editing && Boolean(editMarketId));
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<number | null>(null);

@@ -73,11 +73,7 @@ function StatTile({ label, children }: { label: string; children: React.ReactNod
   );
 }
 
-/**
- * Publish, negotiate and availability controls for one live product. Each tab
- * shows the current state first, then the action with an audited reason; every
- * change is version-checked so two admins cannot overwrite each other.
- */
+/** Publish, negotiate and availability controls for one product, each version-checked to prevent overwriting concurrent edits. */
 export function ProductLifecycleWorkspace({ product, onSaved }: { product: ProductLifecycleData; onSaved: () => void }) {
   const [reason, setReason] = useState("");
   const [rulesEnabled, setRulesEnabled] = useState(product.negotiationRules?.enabled || false);

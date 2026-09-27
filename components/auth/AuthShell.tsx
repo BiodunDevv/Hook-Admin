@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { Suspense, useEffect } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Building2, Store, UsersRound } from "lucide-react";
 import { FlickeringGrid } from "@/components/ui/flickering-grid";
 import { HookLoader } from "@/components/shared/HookLoader";
 import { MaintenanceScreen } from "@/components/shared/MaintenanceScreen";
 import { useAccountSession, useBackendHealth } from "@/lib/query";
-import { dashboardPath } from "@/lib/auth-routing";
+import { safeDashboardDestination } from "@/lib/auth-routing";
 
 const copy = {
   "/auth/login": {
@@ -34,30 +34,36 @@ const copy = {
 };
 
 export function AuthShell({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<div className="grid min-h-dvh place-items-center bg-background"><HookLoader size="page" label="Loading..." /></div>}>
+      <AuthShellContent>{children}</AuthShellContent>
+    </Suspense>
+  );
+}
+
+function AuthShellContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const health = useBackendHealth();
   const session = useAccountSession(health.data !== false);
   const content = copy[pathname as keyof typeof copy] || copy["/auth/login"];
+  const next = searchParams.get("next");
 
   useEffect(() => {
     if (session.data) {
-      router.replace(dashboardPath(session.data));
+      router.replace(safeDashboardDestination(session.data, next));
     }
-  }, [router, session.data]);
+  }, [router, session.data, next]);
 
   if (health.data === false) return <MaintenanceScreen />;
 
-  // The session check used to swap the whole screen for a full-page loader and
-  // then swap it back, which read as a flash on every visit. The frame now
-  // stays put and only the form column shows the wait.
+  // The frame stays put and only the form column shows the wait, instead of swapping the whole screen for a loader.
   const checking = health.isLoading || session.isLoading || session.isPending || Boolean(session.data);
 
   return (
     <main className="min-h-dvh bg-background lg:grid lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-      {/* Form column. Nothing animates and nothing blurs here: this screen is
-          the first thing every user sees, and full-height animated or blurred
-          layers were what made it tear while painting. */}
+      {/* No animation/blur here — full-height animated layers tore while painting. */}
       <section className="relative flex min-h-dvh items-center justify-center px-6 py-12 sm:px-10">
         <div className="w-full">
           {checking ? (
@@ -70,8 +76,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
         </div>
       </section>
 
-      {/* Brand panel: desktop only. One canvas of flickering squares, drawn
-          at 30fps and paused when off screen; still under reduced motion. */}
+      {/* Brand panel: desktop only. */}
       <aside className="relative hidden min-h-dvh flex-col justify-between overflow-hidden border-l border-white/10 bg-zinc-950 p-10 text-white lg:flex">
         <FlickeringGrid
           className="absolute inset-0 z-0"
@@ -81,8 +86,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
           maxOpacity={0.35}
           flickerChance={0.12}
         />
-        {/* Soft gold light at the top, and a fade at the bottom so the text
-            and tiles stay crisp over the grid. */}
+        {/* Soft gold light at top, fade at bottom, so text stays crisp over the grid. */}
         <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 z-0 h-56 bg-linear-to-b from-brand-gold/10 to-transparent" />
         <div aria-hidden className="pointer-events-none absolute inset-0 z-0 bg-linear-to-b from-zinc-950/0 via-zinc-950/40 to-zinc-950/95" />
 

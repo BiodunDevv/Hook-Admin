@@ -23,6 +23,7 @@ export function ProductCard({
   index,
   state,
   lockedNote,
+  issueSummary,
   onOpen,
 }: {
   item: TaskItem;
@@ -30,6 +31,8 @@ export function ProductCard({
   state: ProductState;
   /** Shown instead of a status when the task is not at the verification stage. */
   lockedNote?: string;
+  /** The reason given when this item's state is "issue". */
+  issueSummary?: string;
   onOpen?: () => void;
 }) {
   const color = orderedColor(item);
@@ -65,6 +68,7 @@ export function ProductCard({
             {meta.label}
           </span>
         )}
+        {state === "issue" && issueSummary && <span className="mt-1.5 block text-[12px] leading-4 text-[#8F8F8F]">{issueSummary}</span>}
       </span>
       {onOpen && <ChevronRight className="size-5 shrink-0 text-[#A3A3A6]" />}
     </>

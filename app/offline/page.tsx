@@ -1,15 +1,7 @@
 import { WifiOff } from "lucide-react";
 import { PublicShell } from "@/components/public/PublicShell";
 
-/**
- * Served straight from the service worker's cache on a failed navigation —
- * see public/sw.js. Deliberately a server component with no client-side
- * interactivity: this page needs to work with zero network access, and
- * hydration JS is content-hashed per build, so precaching a specific script
- * bundle here would break on the next deploy anyway. A plain anchor retry
- * (browser-native reload, no onClick) means it renders and works from the
- * cached HTML alone, no script required.
- */
+/** Offline fallback served from the service worker's cache; a server component with a plain reload link so it needs no script. */
 export default function OfflinePage() {
   return (
     <PublicShell

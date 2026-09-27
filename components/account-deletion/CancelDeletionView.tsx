@@ -8,12 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PublicShell } from "@/components/public/PublicShell";
 import { accountDeletionApi, type DeletionError } from "@/lib/public-account-deletion-api";
 
-/**
- * Landing page for the "Keep my account" button in the deletion emails.
- * Cancelling needs a click here rather than happening on page load: email
- * scanners and link previewers fetch links automatically, and that must never
- * cancel someone's deletion (or trigger anything else) on its own.
- */
+/** "Keep my account" landing page; cancellation requires a click so email scanners can't trigger it by prefetching the link. */
 export function CancelDeletionView() {
   const token = useSearchParams().get("token") || "";
   const [state, setState] = useState<"ready" | "busy" | "done" | "error">("ready");

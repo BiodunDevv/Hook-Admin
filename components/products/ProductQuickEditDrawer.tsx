@@ -29,12 +29,7 @@ const STATUS_OPTIONS = [
   { value: "disabled", label: "Disabled" },
 ];
 
-/**
- * A fast path for the single most common admin edit — price, stock, or
- * visibility — without leaving the products list. Submits to the same
- * PATCH /admin/products/:id the full edit page uses, so it picks up that
- * endpoint's "reason required when a price actually changes" rule for free.
- */
+/** Fast path for editing price, stock or visibility from the products list, via the same PATCH the full edit page uses. */
 export function ProductQuickEditDrawer({
   product,
   onOpenChange,

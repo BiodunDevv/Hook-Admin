@@ -17,11 +17,7 @@ interface SavedView {
   params: Record<string, string>;
 }
 
-/**
- * Lets an admin save the products list's current search/status/category/etc
- * filter combination under a name, and reapply it in one click later. Views
- * are private to the admin who saved them.
- */
+/** Save the products list's current filters under a name and reapply them later; views are private to their creator. */
 export function ProductSavedViews({ currentParams, onApply }: { currentParams: Record<string, string>; onApply: (params: Record<string, string>) => void }) {
   const query = useApiQuery<{ data: SavedView[] }>(["admin", "saved-views", "products"], "/admin/saved-views?page=products");
   const views = query.data?.data || [];

@@ -118,12 +118,7 @@ export type ApiRequestError = Error & {
   details?: unknown;
 };
 
-/**
- * True when a failed mutation may still have succeeded on the server
- * (timeout, dropped connection, 5xx, or a duplicate still being processed).
- * Check the resulting state or retry with the SAME idempotency key; never
- * submit it again as if it were a new action.
- */
+/** True when a failed mutation may have still succeeded server-side; retry only with the same idempotency key, never as a new action. */
 export function isAmbiguousFailure(error: unknown) {
   const err = error as ApiRequestError | undefined;
   if (!err) return false;
@@ -246,9 +241,7 @@ export async function apiRequest<T>(
   if (auth && token) headers.set("Authorization", `Bearer ${token}`);
   const method = (options.method || "GET").toUpperCase();
   if (method !== "GET" && method !== "HEAD" && !headers.has("Idempotency-Key")) {
-    // Minted once per call and reused by the 401 refresh replay below, so a
-    // request that reaches the server twice is executed once. A key the caller
-    // put in the body wins, so header and body always agree.
+    // Minted once per call and reused on the 401 refresh replay, so a request lands once; a body-supplied key wins.
     headers.set(
       "Idempotency-Key",
       config.idempotencyKey || bodyIdempotencyKey(options.body) || newIdempotencyKey(),
@@ -272,11 +265,7 @@ export async function apiRequest<T>(
       const retry = await fetchWithTimeout(`${API_BASE}${path}`, { ...options, headers: retryHeaders }, timeoutMs);
       return parseResponse<T>(retry);
     }
-    // Refresh failed or there was no refresh token — redirectToLogin() only
-    // schedules a navigation, it doesn't stop this call. Without returning
-    // here, every in-flight request fell through to parseResponse(res) and
-    // threw its own "401" error against the stale original response instead
-    // of just letting the redirect happen.
+    // Return here after a failed refresh so in-flight requests don't fall through and throw against the stale response.
     redirectToLogin();
     throw new Error("401: Session expired — redirecting to sign in");
   }
@@ -373,12 +362,7 @@ export async function resetPassword(email: string, code: string, password: strin
   );
 }
 
-/**
- * Pings the backend's own /health endpoint (outside /api/v1, so it can't go
- * through apiRequest). Used by the PWA launch screen to tell "you're not
- * logged in yet" apart from "the API is unreachable" — those need different
- * UI, and a plain fetch failure alone doesn't distinguish them.
- */
+/** Pings the backend's /health endpoint directly, so the launch screen can tell "not logged in" from "API unreachable". */
 export async function checkHookHealth(): Promise<boolean> {
   const base = (API_BASE || "http://localhost:4000/api/v1").replace(/\/api\/v1\/?$/, "");
   try {

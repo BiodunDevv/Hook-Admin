@@ -248,8 +248,7 @@ export default function Topbar() {
     router.push(href);
   }
 
-  // Defensive client-side scoping — backend already filters, this guarantees a
-  // role never renders a bucket it can't access (e.g. stale cache, role change)
+  // Defensive client-side scoping in case a stale cache or role change slips past the backend filter.
   const scoped = results
     ? {
         orders: canSearchOrders ? results.orders : [],

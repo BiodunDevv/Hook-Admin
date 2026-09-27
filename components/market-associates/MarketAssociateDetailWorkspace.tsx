@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import {
   Archive,
   Ban,
+  Check,
   CheckCircle2,
   KeyRound,
   Trash2,
@@ -31,7 +32,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { DetailSection } from "@/components/shared/DetailSection";
 import { DefinitionGrid, type DefinitionItem } from "@/components/shared/DefinitionGrid";
@@ -46,12 +46,14 @@ import { hasPermission } from "@/lib/permissions";
 import { useAdminSession, useApiQuery } from "@/lib/query";
 import { MarketAssociateActionDialog } from "./MarketAssociateActionDialog";
 import { useIsSuperAdmin } from "@/hooks/use-permission";
+import { cn } from "@/lib/utils";
 import type { MarketAssociateAction, MarketAssociateAssignment, MarketAssociateMember } from "./market-associate-types";
 
 type MarketOption = {
   id: string;
   publicId: string;
   name: string;
+  status?: string;
   stateId?: { publicId?: string; _id?: string } | string;
   hub?: { publicId?: string; name?: string } | null;
 };
@@ -142,11 +144,11 @@ export function MarketAssociateDetailWorkspace() {
   const [saving, setSaving] = useState(false);
   const [values, setValues] = useState<Values>({});
   const [editStateIds, setEditStateIds] = useState<string[]>([]);
+  const [editMarketIds, setEditMarketIds] = useState<string[]>([]);
+  const [alreadyAssignedMarketIds, setAlreadyAssignedMarketIds] = useState<string[]>([]);
   const [assignmentDialog, setAssignmentDialog] = useState<{ mode: "create" | "reassign"; assignment?: MarketAssociateAssignment } | null>(null);
   const [assignmentStateId, setAssignmentStateId] = useState("");
   const [assignmentMarketId, setAssignmentMarketId] = useState("");
-  const [assignmentPriority, setAssignmentPriority] = useState("100");
-  const [assignmentIsPrimary, setAssignmentIsPrimary] = useState(false);
   const [assignmentReason, setAssignmentReason] = useState("");
   const [assignmentSaving, setAssignmentSaving] = useState(false);
   const [assignmentChange, setAssignmentChange] = useState<{ assignment: MarketAssociateAssignment; action: "pause" | "activate" | "end" } | null>(null);
@@ -172,7 +174,7 @@ export function MarketAssociateDetailWorkspace() {
   const marketsQuery = useApiQuery<{ data: MarketOption[] } | MarketOption[]>(
     ["admin", "markets", "for-assignment"],
     "/admin/markets?limit=200",
-    Boolean(assignmentDialog),
+    Boolean(assignmentDialog) || editOpen,
   );
   const eligibleStates = useMemo(
     () => (member?.states || []).filter((state) => !state.status || state.status === "active"),
@@ -186,6 +188,16 @@ export function MarketAssociateDetailWorkspace() {
       return stateId ? stateIds.has(stateId) : false;
     });
   }, [marketsQuery.data, member?.stateIds]);
+  // Like eligibleMarkets, but scoped to the draft edit-session states.
+  const editEligibleMarkets = useMemo(() => {
+    const rows = Array.isArray(marketsQuery.data) ? marketsQuery.data : marketsQuery.data?.data || [];
+    const stateIds = new Set(editStateIds);
+    return rows.filter((market) => {
+      if (market.status && market.status !== "active") return false;
+      const stateId = typeof market.stateId === "string" ? market.stateId : market.stateId?.publicId || market.stateId?._id;
+      return stateId ? stateIds.has(stateId) : false;
+    });
+  }, [marketsQuery.data, editStateIds]);
   const marketsForSelectedState = useMemo(
     () =>
       eligibleMarkets.filter((market) => {
@@ -208,7 +220,15 @@ export function MarketAssociateDetailWorkspace() {
       reason: "",
     });
     setEditStateIds(member?.stateIds?.map(String) || []);
+    const activeMarketIds = activeAssignments.map((assignment) => assignment.market?.publicId || assignment.market?.id).filter((id): id is string => Boolean(id));
+    setEditMarketIds(activeMarketIds);
+    setAlreadyAssignedMarketIds(activeMarketIds);
     setEditOpen(true);
+  }
+
+  function toggleEditMarket(id: string) {
+    if (alreadyAssignedMarketIds.includes(id)) return;
+    setEditMarketIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
   }
 
   function setValue(key: string, value: string | string[]) {
@@ -221,6 +241,10 @@ export function MarketAssociateDetailWorkspace() {
     if (!editStateIds.length) return toast.error("Select at least one operation state");
     if (auditReason.length < 3) return toast.error("Add a reason for this profile change");
     setSaving(true);
+    // A market picked earlier is dropped if its state was since deselected — same rule the create flow applies.
+    const newMarketIds = editMarketIds.filter(
+      (id) => !alreadyAssignedMarketIds.includes(id) && editEligibleMarkets.some((market) => (market.publicId || market.id) === id),
+    );
     try {
       await apiPatch(`/admin/market-associates/${params.id}`, {
         firstName: values.firstName,
@@ -229,7 +253,26 @@ export function MarketAssociateDetailWorkspace() {
         stateIds: editStateIds,
         reason: auditReason,
       });
-      toast.success("Market Associate profile updated");
+      let assigned = 0;
+      let failed = 0;
+      for (const marketId of newMarketIds) {
+        const market = editEligibleMarkets.find((row) => (row.publicId || row.id) === marketId);
+        try {
+          await apiPost("/admin/market-associate-assignments", {
+            marketAssociateId: member?.publicId || member?.id,
+            marketId,
+            ...(market?.hub?.publicId ? { preferredHubId: market.hub.publicId } : {}),
+            activeFrom: new Date().toISOString(),
+            assignmentReason: `Assigned from the ${name} profile`,
+          });
+          assigned += 1;
+        } catch {
+          failed += 1;
+        }
+      }
+      if (assigned) toast.success(`Profile updated and assigned to ${assigned} Market${assigned === 1 ? "" : "s"}`);
+      else toast.success("Market Associate profile updated");
+      if (failed) toast.error(`${failed} Market assignment${failed === 1 ? "" : "s"} could not be saved. Try again from the Markets section.`);
       setEditOpen(false);
       await query.refetch();
     } catch (error) {
@@ -243,18 +286,10 @@ export function MarketAssociateDetailWorkspace() {
     setAssignmentDialog({ mode, assignment });
     setAssignmentMarketId(assignment?.market?.publicId || assignment?.market?.id || "");
     setAssignmentStateId(eligibleStates.length === 1 ? eligibleStates[0].publicId || "" : "");
-    setAssignmentPriority(String(assignment?.priority ?? 100));
-    setAssignmentIsPrimary(Boolean(assignment?.isPrimary));
     setAssignmentReason("");
   }
 
-  /**
-   * The market list only starts loading once the dialog opens, so the
-   * reassign target's state can't be derived synchronously in the opener —
-   * once markets arrive, backfill the state picker from whichever market is
-   * already selected (reassign) so the cascade starts pre-filled instead of
-   * forcing a redundant re-pick of a state the admin already committed to.
-   */
+  /** Backfill the reassign target once markets load, since it can't be derived synchronously in the opener. */
   useEffect(() => {
     if (!assignmentDialog || assignmentStateId || !assignmentMarketId) return;
     const rows = Array.isArray(marketsQuery.data) ? marketsQuery.data : marketsQuery.data?.data || [];
@@ -288,8 +323,6 @@ export function MarketAssociateDetailWorkspace() {
       if (assignmentDialog.mode === "reassign" && assignmentDialog.assignment) {
         await apiPatch(`/admin/market-associate-assignments/${assignmentDialog.assignment.id}`, {
           marketId: assignmentMarketId,
-          priority: Number(assignmentPriority) || 100,
-          isPrimary: assignmentIsPrimary,
           ...(preferredHubId ? { preferredHubId } : {}),
           assignmentReason: assignmentReason.trim() || `Moved from the ${name} profile`,
         });
@@ -298,8 +331,6 @@ export function MarketAssociateDetailWorkspace() {
         await apiPost("/admin/market-associate-assignments", {
           marketAssociateId: member?.publicId || member?.id,
           marketId: assignmentMarketId,
-          priority: Number(assignmentPriority) || 100,
-          isPrimary: assignmentIsPrimary,
           ...(preferredHubId ? { preferredHubId } : {}),
           activeFrom: new Date().toISOString(),
           assignmentReason: assignmentReason.trim() || `Assigned from the ${name} profile`,
@@ -421,8 +452,8 @@ export function MarketAssociateDetailWorkspace() {
 
                 <DetailSection
                   title="Market assignments"
-                  description="Markets this Market Associate sources products from, ranked by priority."
-                  action={canAssign ? <Button variant="ghost" size="sm" onClick={() => openAssignmentDialog("create")}><Plus /> Add Market assignment</Button> : null}
+                  description="Markets this Market Associate sources products from."
+                  action={canAssign ? <Button variant="ghost" size="sm" onClick={() => openAssignmentDialog("create")}><Plus /> Add Market</Button> : null}
                 >
                   {assignments.length ? (
                     <div className="space-y-2">
@@ -431,8 +462,8 @@ export function MarketAssociateDetailWorkspace() {
                           <div className="flex min-w-0 items-center gap-3">
                             <span className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground"><Store className="size-4" /></span>
                             <div className="min-w-0">
-                              <p className="truncate text-sm font-medium text-foreground">{assignment.market?.name || "Unknown Market"}{assignment.isPrimary ? <span className="ml-2 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">Primary</span> : null}</p>
-                              <p className="text-xs text-muted-foreground">Priority {assignment.priority ?? "—"}{assignment.market?.hubName ? ` · ${assignment.market.hubName}` : ""}</p>
+                              <p className="truncate text-sm font-medium text-foreground">{assignment.market?.name || "Unknown Market"}</p>
+                              {assignment.market?.hubName ? <p className="text-xs text-muted-foreground">{assignment.market.hubName}</p> : null}
                             </div>
                           </div>
                           <div className="flex shrink-0 items-center gap-2">
@@ -493,6 +524,37 @@ export function MarketAssociateDetailWorkspace() {
             <Label htmlFor="ma-edit-states">Operation states</Label>
             <RelatedMultiSelect field={stateField} value={editStateIds} values={{}} onChange={setEditStateIds} />
           </div>
+          <div className="space-y-1.5">
+            <Label>Markets</Label>
+            <p className="text-xs text-muted-foreground">Already-assigned Markets are locked here — end an assignment from the Markets section instead. Pick more to assign them straight away.</p>
+            {!editStateIds.length ? (
+              <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">Choose a state above to see its Markets.</p>
+            ) : marketsQuery.isLoading ? (
+              <div className="grid min-h-24 place-items-center"><HookLoader label="Loading Markets" /></div>
+            ) : !editEligibleMarkets.length ? (
+              <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">No active Markets in the chosen state{editStateIds.length === 1 ? "" : "s"} yet.</p>
+            ) : (
+              <ul className="max-h-64 divide-y overflow-y-auto rounded-xl border bg-white">
+                {editEligibleMarkets.map((market) => {
+                  const id = market.publicId || market.id;
+                  const locked = alreadyAssignedMarketIds.includes(id);
+                  const on = editMarketIds.includes(id);
+                  return (
+                    <li key={id}>
+                      <button type="button" onClick={() => toggleEditMarket(id)} disabled={locked} aria-pressed={on} className={cn("flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-zinc-50", locked && "cursor-not-allowed opacity-60 hover:bg-transparent")}>
+                        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-zinc-100 text-zinc-600"><Store className="size-4" /></span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium">{market.name}</span>
+                          <span className="block truncate text-xs text-muted-foreground">{locked ? "Already assigned" : "Not yet assigned"}</span>
+                        </span>
+                        <span className={cn("grid size-5 shrink-0 place-items-center rounded-md border", on ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-300")}>{on ? <Check size={13} /> : null}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
           <div className="space-y-1.5"><Label htmlFor="ma-edit-reason">Audit reason</Label><Textarea id="ma-edit-reason" value={String(values.reason || "")} onChange={(event) => setValue("reason", event.target.value)} placeholder="Why is this profile change needed?" maxLength={500} required /></div>
         </form>
       </AdminWorkflowSheet>
@@ -548,19 +610,6 @@ export function MarketAssociateDetailWorkspace() {
                 {selectedMarket
                   ? selectedMarket.hub?.name || "No Hub attached to this Market"
                   : "Auto-filled once a Market is selected"}
-              </div>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="assignment-priority">Priority</Label>
-                <Input id="assignment-priority" type="number" min={1} value={assignmentPriority} onChange={(event) => setAssignmentPriority(event.target.value)} />
-              </div>
-              <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
-                <div>
-                  <Label htmlFor="assignment-primary">Primary assignment</Label>
-                  <p className="text-xs text-muted-foreground">Preferred Market for this state</p>
-                </div>
-                <Switch id="assignment-primary" checked={assignmentIsPrimary} onCheckedChange={setAssignmentIsPrimary} />
               </div>
             </div>
             <div className="space-y-1.5">

@@ -4,11 +4,7 @@ import Link from "next/link";
 import { ChevronRight, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-/**
- * Mobile-app UI primitives for the Market Associate and Partner portals.
- * Tokens mirror the Hook-App native profile screen so both platforms
- * read as the same product.
- */
+/** Mobile UI primitives for Market Associate/Partner, mirroring the Hook-App native profile screen. */
 
 export const MOBILE_TOKENS = {
   pageBg: "#F5F5F5",
@@ -73,10 +69,7 @@ const tileTone: Record<RowTone, string> = {
   danger: "bg-red-50 text-red-600",
 };
 
-/**
- * The core list row: 30px squircle icon tile, label, optional value, chevron.
- * Renders as a link, a button, or a static div depending on props.
- */
+/** The core list row: icon tile, label, optional value, chevron; renders as a link, button, or div. */
 export function MobileRow({
   icon: Icon,
   leading,
