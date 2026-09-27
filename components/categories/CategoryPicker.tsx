@@ -7,11 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import type { CategoryOption } from "@/lib/category-attributes";
 
-/**
- * Tree category choice. Parents expand to show their sub-categories; products
- * live in a leaf, so only a leaf (a sub-category, or a category with no
- * children such as Wigs) can be selected. Search opens every matching branch.
- */
+/** Tree category picker; only a leaf can be selected, and search expands every matching branch. */
 export function CategoryPicker({
   categories,
   value,

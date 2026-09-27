@@ -43,11 +43,7 @@ interface Page<T> {
   totalPages?: number;
 }
 
-/**
- * The stages an order passes through inside fulfilment. These mirror the
- * STAGE_STATUSES map on the backend, so a tab always matches what the API
- * filters by.
- */
+/** The fulfilment stages, mirroring the backend's STAGE_STATUSES map. */
 const STAGES = [
   { label: "All", value: "all" },
   { label: "Sourcing", value: "sourcing" },

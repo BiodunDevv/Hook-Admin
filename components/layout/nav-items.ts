@@ -6,10 +6,12 @@ import {
   Building2,
   ClipboardCheck,
   CreditCard,
+  Gift,
   Handshake,
   LayoutGrid,
   LifeBuoy,
   MapPinned,
+  Megaphone,
   RotateCcw,
   Settings,
   ScrollText,
@@ -46,11 +48,7 @@ export interface NavItem {
 export interface NavGroup {
   label: string;
   items: NavItem[];
-  /**
-   * Collapsed by default. Set on sections that are reference or configuration
-   * rather than day-to-day work, so the sidebar opens short and the sections
-   * people actually live in stay visible without scrolling.
-   */
+  /** Collapsed by default for reference/config sections, so day-to-day sections stay visible on open. */
   defaultCollapsed?: boolean;
 }
 
@@ -86,6 +84,18 @@ export const navGroups: NavGroup[] = [
         icon: Ticket,
         permission: "coupons.view",
       },
+      {
+        label: "Waitlist",
+        href: "/dashboard/waitlist",
+        icon: Gift,
+        permission: "waitlist.view",
+      },
+      {
+        label: "Communications",
+        href: "/dashboard/communications",
+        icon: Megaphone,
+        permission: "communications.send",
+      },
     ],
   },
   {
@@ -118,8 +128,7 @@ export const navGroups: NavGroup[] = [
     ],
   },
   {
-    // Day-to-day fulfilment work, separated from the network of places and
-    // people it runs on — those are reference data, not a daily queue.
+    // Day-to-day fulfilment work, separated from the reference data of places and people it runs on.
     label: "Operations",
     items: [
       {
@@ -129,9 +138,7 @@ export const navGroups: NavGroup[] = [
         permission: "fulfilment.view",
       },
       {
-        // The hub's daily operational queue — receiving, QC, consolidation.
-        // Distinct from Network > Dispatch Hubs, which is hub configuration.
-        // Auto-scoped: staff attached to a hub see their own hub's work.
+        // The hub's daily operational queue, auto-scoped to each staff member's own hub.
         label: "Hub Workspace",
         href: "/dashboard/fulfilment/hub",
         icon: ClipboardCheck,
@@ -286,11 +293,7 @@ export const navGroups: NavGroup[] = [
 
 export const navItems = navGroups.flatMap((group) => group.items);
 
-/**
- * Sections closed on a first visit. The sidebar seeds its stored state with
- * these the first time anything is toggled, so collapsing one group does not
- * silently spring the others open.
- */
+/** Sections closed on first visit, seeded once so collapsing one doesn't spring the others open. */
 export const defaultCollapsedGroups = navGroups
   .filter((group) => group.defaultCollapsed)
   .map((group) => group.label);

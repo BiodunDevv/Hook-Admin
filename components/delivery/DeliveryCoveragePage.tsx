@@ -51,11 +51,7 @@ const naira = (minor?: number) =>
 const cleanError = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message.replace(/^\d+:\s*/, "") : fallback;
 
-/**
- * Delivery States: coverage and the customer's delivery price, per State. The
- * price the customer pays at checkout is the price of the State in their
- * address, so it lives here and nowhere else.
- */
+/** Delivery States: coverage and price per State, the single source for what a customer pays at checkout. */
 export function DeliveryCoveragePage() {
   const session = useAdminSession();
   const queryClient = useQueryClient();

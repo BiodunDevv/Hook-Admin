@@ -19,10 +19,7 @@ const stateField: DirectoryField = { key: "stateIds", label: "Operation states",
 type MarketOption = { id: string; publicId?: string; name: string; status?: string; stateId?: { publicId?: string; _id?: string } | string; stateName?: string | null; hubName?: string | null };
 const stateOf = (market: MarketOption) => (typeof market.stateId === "string" ? market.stateId : market.stateId?.publicId || market.stateId?._id || "");
 
-/**
- * Invites a Market Associate. Choosing states says where they may work; choosing Markets here assigns them straight
- * away, so there is nothing left to do on their profile. The first Market picked becomes their primary one.
- */
+/** Invites a Market Associate; picking Markets assigns them immediately, with the first as their primary. */
 export function MarketAssociateCreateDialog({ open, onClose, onSuccess }: { open: boolean; onClose: () => void; onSuccess: () => Promise<unknown> | unknown }) {
   const [stateIds, setStateIds] = useState<string[]>([]);
   const [marketIds, setMarketIds] = useState<string[]>([]);

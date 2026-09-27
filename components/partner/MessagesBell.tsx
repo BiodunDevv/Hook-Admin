@@ -5,11 +5,7 @@ import { MessagesSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useApiQuery } from "@/lib/query";
 
-/**
- * Header entry point for negotiation threads. Unlike NotificationBell this
- * has no dropdown — a conversation deserves the full messages page, not a
- * cramped preview — so it's just a badge count that links straight there.
- */
+/** Negotiation entry point: just a badge linking to the full messages page, with no dropdown preview. */
 export function MessagesBell() {
   const query = useApiQuery<{ count: number }>(
     ["partner", "negotiations", "active-count"],

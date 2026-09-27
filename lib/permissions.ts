@@ -1,10 +1,6 @@
 import type { AdminUser } from "./api";
 
-/**
- * All granular permission keys used across the admin dashboard.
- * Permissions are resolved from active backend Role records.
- * Only the explicit SUPER_ADMIN role key bypasses individual checks.
- */
+/** All granular permission keys, resolved from active backend Role records; only SUPER_ADMIN bypasses individual checks. */
 export const ALL_PERMISSIONS = [
   "staff.view", "staff.create", "staff.edit", "staff.suspend", "staff.revoke_sessions",
   "roles.view", "roles.manage",
@@ -73,6 +69,9 @@ export const ALL_PERMISSIONS = [
   "catalog.availability.view", "catalog.availability.manage", "catalog.availability.confirm",
   "coupons.view", "coupons.manage",
   "credits.view", "credits.adjust",
+  "waitlist.view", "waitlist.manage",
+  "communications.send",
+  "faq.view", "faq.manage",
 ] as const;
 
 export type Permission = (typeof ALL_PERMISSIONS)[number];
@@ -175,6 +174,11 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   "coupons.manage": "Manage Coupons",
   "credits.view": "View Customer Credits",
   "credits.adjust": "Adjust Customer Credits",
+  "waitlist.view": "View Waitlist",
+  "waitlist.manage": "Manage Waitlist",
+  "communications.send": "Send Communications",
+  "faq.view": "View FAQs",
+  "faq.manage": "Manage FAQs",
 };
 
 export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] = [
@@ -218,12 +222,15 @@ export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] =
       "reports.view", "ai_negotiation.view",
       "coupons.view", "coupons.manage",
       "credits.view", "credits.adjust",
+      "waitlist.view", "waitlist.manage",
+      "communications.send",
     ],
   },
   {
     label: "Platform",
     permissions: [
       "refunds.view", "refunds.manage", "deletions.view", "deletions.manage",
+      "faq.view", "faq.manage",
       "commerce.pod.review", "commerce.pod.override", "commerce.pod.eligibility",
       "commerce.outbox.view", "commerce.settings.view", "commerce.settings.manage",
       "settings.view", "settings.manage",

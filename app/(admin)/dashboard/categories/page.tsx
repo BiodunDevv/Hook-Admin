@@ -914,8 +914,7 @@ function CategoryTree({
   onReordered: () => void;
 }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  // A local working copy so a drag reorders instantly; reset whenever the server's own order changes underneath it.
-  // Adjusted during render (React's documented pattern for this), not in an effect, so it never lags a frame behind.
+  // A local working copy so a drag reorders instantly; reset during render when the server's order changes.
   const [prevRoots, setPrevRoots] = useState(roots);
   const [rootOrder, setRootOrder] = useState(roots);
   if (roots !== prevRoots) {
@@ -1087,8 +1086,7 @@ export default function CategoriesPage() {
   const matches = (category: CategoryRow) =>
     (statusFilter === "all" || (statusFilter === "active") === category.isActive) &&
     (!search || [category.name, category.slug, category.description].some((v) => v?.toLowerCase().includes(search.toLowerCase())));
-  // A parent shows when it matches, or when any of its sub-categories does.
-  // Retired categories (hidden from the app, kept for their history) sort last so the live tree reads first.
+  // A parent category shows if it or any sub-category matches; retired categories sort last.
   const filtered = topLevel
     .filter((category) => matches(category) || subsOf(category.id).some(matches))
     .sort((a, b) => Number(b.isActive) - Number(a.isActive));

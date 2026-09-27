@@ -6,17 +6,7 @@ import {
   APP_ACTION_BAR_HEIGHT,
 } from "@/lib/tab-bar-layout";
 
-/**
- * Page-level primary actions, docked directly above the tab bar.
- *
- * Deliberately mirrors the tab bar's own language — same `max-w-lg` width, same
- * `px-3` gutters, same pill radius and shadow — so the two read as one floating
- * control cluster rather than two competing bars. Sits at `z-40`, below the
- * tab bar's `z-50`, so navigation always wins if they ever meet.
- *
- * Pages rendering this owe `APP_ACTION_BAR_CONTENT_INSET` of extra bottom
- * padding; the shell's `<main>` only clears the tab bar.
- */
+/** Docked primary action bar mirroring the tab bar's styling; pages must add its extra bottom padding. */
 export function StickyActionBar({
   children,
   className,
@@ -42,8 +32,5 @@ export function StickyActionBar({
   );
 }
 
-/**
- * Compact height for buttons inside the bar, keeping the stack tight against
- * the 60px tab bar. `MobileButton` defaults to a 52px pill, which is too tall here.
- */
+/** Compact button height so the stack stays tight against the 60px tab bar. */
 export const ACTION_BAR_BUTTON = "min-h-[44px] text-[14px]";

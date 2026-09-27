@@ -1,9 +1,4 @@
-/**
- * Shrinks a phone photo before upload. Market Associates work on mobile data,
- * and a raw camera image is often 4-8 MB; a 1600px JPEG at 82% quality is a
- * few hundred KB and still plenty for reviewing a product. Falls back to the
- * original file if anything about the browser's image handling fails.
- */
+/** Shrinks a phone photo before upload to a few hundred KB, falling back to the original file on any failure. */
 export async function compressImage(file: File, maxEdge = 1600, quality = 0.82): Promise<File> {
   try {
     if (!file.type.startsWith("image/") || file.type === "image/gif" || file.size < 250_000) return file;

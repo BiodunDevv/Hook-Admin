@@ -65,10 +65,7 @@ const emptyForm: FormState = {
   reason: "",
 };
 
-/**
- * Several coupon limits mean "no limit" when left blank, which is not
- * guessable from an empty box — the hint says so explicitly.
- */
+/** Several coupon limits mean "no limit" when left blank, which the hint states explicitly. */
 function FieldLabel({ htmlFor, children, hint }: { htmlFor: string; children: React.ReactNode; hint?: string }) {
   return (
     <div className="flex items-center gap-1.5">

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { MoreHorizontal, Pause, Play, Search, Star, UserPlus, UserRoundX } from "lucide-react";
+import { MoreHorizontal, Pause, Play, Search, UserPlus, UserRoundX } from "lucide-react";
 import { toast } from "sonner";
 import { PermissionGuard } from "@/components/auth/PermissionGuard";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { HookLoader } from "@/components/shared/HookLoader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { apiPost } from "@/lib/api";
@@ -42,10 +41,7 @@ const CHANGE_COPY = {
   end: { title: "End this assignment?", body: "They are taken off this Market. You can assign them again later.", button: "End assignment", destructive: true },
 } as const;
 
-/**
- * Who works a Market, and the place to add or remove them. Only Market Associates who work in the Market's state can be
- * chosen, so the state rule is never something the admin has to remember.
- */
+/** Who works a Market and where to add/remove them; only Associates in the Market's state can be chosen. */
 export function MarketAssociatePanel({ marketId, marketName, marketStateId, marketActive, associates, onChanged }: {
   marketId: string;
   marketName: string;
@@ -60,7 +56,6 @@ export function MarketAssociatePanel({ marketId, marketName, marketStateId, mark
   const [busy, setBusy] = useState(false);
   const [search, setSearch] = useState("");
   const [picked, setPicked] = useState("");
-  const [primary, setPrimary] = useState(false);
   const [note, setNote] = useState("");
 
   const candidatesQuery = useApiQuery<{ data: Candidate[] }>(
@@ -82,7 +77,6 @@ export function MarketAssociatePanel({ marketId, marketName, marketStateId, mark
     setAdding(false);
     setSearch("");
     setPicked("");
-    setPrimary(false);
     setNote("");
   }
 
@@ -93,8 +87,6 @@ export function MarketAssociatePanel({ marketId, marketName, marketStateId, mark
       await apiPost("/admin/market-associate-assignments", {
         marketAssociateId: picked,
         marketId,
-        priority: 100,
-        isPrimary: primary,
         activeFrom: new Date().toISOString(),
         assignmentReason: note.trim() || `Assigned from the ${marketName} page`,
       });
@@ -147,7 +139,6 @@ export function MarketAssociatePanel({ marketId, marketName, marketStateId, mark
               <div className="min-w-0 flex-1">
                 <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
                   <Link href={`/dashboard/market-associates/${row.marketAssociateId}`} className="truncate hover:underline">{row.name}</Link>
-                  {row.isPrimary ? <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800"><Star className="size-3" /> Primary</span> : null}
                 </p>
                 <p className="truncate text-xs text-muted-foreground">{[row.email, row.phone].filter(Boolean).join(" · ")}</p>
               </div>
@@ -203,10 +194,6 @@ export function MarketAssociatePanel({ marketId, marketName, marketStateId, mark
                 })}
               </ul>
             )}
-            <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
-              <div><Label htmlFor="assign-primary" className="cursor-pointer text-sm">Make this their primary Market</Label><p className="text-xs text-muted-foreground">Their preferred Market in this state.</p></div>
-              <Switch id="assign-primary" checked={primary} onCheckedChange={setPrimary} />
-            </div>
             <div className="space-y-1.5"><Label htmlFor="assign-note">Note <span className="font-normal text-muted-foreground">(optional)</span></Label><Input id="assign-note" value={note} onChange={(event) => setNote(event.target.value)} placeholder="Why are you assigning them?" maxLength={500} /></div>
           </div>
           <DialogFooter>

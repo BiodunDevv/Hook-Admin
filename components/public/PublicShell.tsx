@@ -12,13 +12,7 @@ export const PUBLIC_LINKS = [
   { href: "/delete-account", label: "Delete account" },
 ];
 
-/**
- * The frame for every customer-facing page outside the admin dashboard, in the
- * same design as the sign-in screens: the content on the left, and a dark
- * brand panel on the right with the flickering grid. The panel carries the
- * page's title, description and any extra guidance (steps, contents list). On
- * phones the panel is hidden and the title moves above the content.
- */
+/** Frame for public pages: content on the left, a dark brand panel with the flickering grid on the right (hidden on phones). */
 export function PublicShell({
   eyebrow,
   title,

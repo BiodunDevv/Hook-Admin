@@ -46,7 +46,7 @@ export type Task = {
   package?: { scanCredential?: string; credentialUnavailable?: boolean; publicId?: string; labelReference?: string; status?: string; handedOverAt?: string; credentialVerifiedAt?: string };
   hub?: { name?: string; publicId?: string };
   market?: { name?: string };
-  issues?: Array<{ orderItemId?: string; status?: string; type?: string }>;
+  issues?: Array<{ orderItemId?: string; status?: string; type?: string; summary?: string }>;
 };
 
 export const itemId = (item: TaskItem) => item.id || item._id || "";

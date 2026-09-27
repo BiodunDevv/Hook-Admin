@@ -1,16 +1,7 @@
 import type { ReactNode } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
-/**
- * One row of a directory list, matching the Orders page.
- *
- * The fulfilment pages each grew their own row markup — different paddings,
- * different separators, some with avatars and some without — so the same kind
- * of record looked different depending which page you opened. This is that
- * design extracted once so every list reads the same.
- *
- * Layout: index · avatar · (title line / meta line) · trailing actions.
- */
+/** One directory-list row (index, avatar, title/meta, actions), extracted so every fulfilment page reads the same. */
 export function ListRow({
   index,
   initials,

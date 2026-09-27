@@ -7,6 +7,7 @@ import {
   Building2,
   Camera,
   KeyRound,
+  LifeBuoy,
   LogOut,
   Mail,
   MapPin,
@@ -69,6 +70,13 @@ type PartnerProfile = { publicId?: string; name?: string; address?: string; stat
 type MarketAssociateApiResponse = { account: Account; profile: PortalMarketAssociateProfile };
 type PartnerResponse = { account: Account; partner: PartnerProfile };
 type MarketsResponse = { markets: Array<{ publicId: string; name: string }> };
+type SupportResponse = { supportEmail?: string; supportUrl?: string };
+
+function openSupport(support?: SupportResponse) {
+  const url = support?.supportUrl || (support?.supportEmail ? `mailto:${support.supportEmail}` : undefined);
+  if (!url) return;
+  window.open(url, "_blank", "noopener,noreferrer");
+}
 
 function fullName(account?: Account) {
   const value = `${account?.firstName || ""} ${account?.lastName || ""}`.trim();
@@ -93,6 +101,7 @@ export function ProfileWorkspace({
     "/market-associate/markets",
     type === "marketassociate" && section === "profile",
   );
+  const support = useApiQuery<SupportResponse>(["support-contact"], "/public/support", section === "profile");
 
   if (query.isLoading)
     return (
@@ -124,6 +133,7 @@ export function ProfileWorkspace({
           tone="neutral"
           value={<span className="capitalize">{(statusValue || "-").replaceAll("_", " ")}</span>}
         />
+        <MobileRow icon={LifeBuoy} label="Help & Support" description="Reach the Hook support team" onClick={() => openSupport(support.data)} disabled={support.isLoading} />
       </MobileSection>
 
       <MobileSection title="Contact">

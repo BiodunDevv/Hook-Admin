@@ -29,10 +29,7 @@ type ProductRow = {
   sellingPrice?: number;
 };
 
-/**
- * Products filed under the old flat categories keep selling, but they need a
- * home in the new tree. Pick some, choose a sub-category, move them together.
- */
+/** Move products from an old flat category into the new tree, one sub-category at a time. */
 export default function RecategorisePage() {
   const queryClient = useQueryClient();
   const products = useApiQuery<{ data?: ProductRow[]; items?: ProductRow[] }>(

@@ -33,11 +33,7 @@ function combine(axes: Array<{ attribute: CategoryAttribute; values: string[] }>
   });
 }
 
-/**
- * Category-driven variant builder. The category decides which choices exist
- * (size and colour for shoes, capacity and colour for a powerbank); the associate
- * ticks what the vendor has, and the combinations are made for them.
- */
+/** Category-driven variant builder: the category decides the choices, the associate ticks what's available. */
 export function VariantBuilder({
   attributes,
   variants,

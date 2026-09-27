@@ -20,17 +20,7 @@ import { apiPost } from "@/lib/api";
 
 const money = (minor?: number) => `₦${(Number(minor || 0) / 100).toLocaleString()}`;
 
-/**
- * Raises a refund against an order from the order itself.
- *
- * This used to live only on the Finance refunds page, where staff had to type
- * an order id into a free-text box — copied from somewhere else, and easy to
- * get wrong. Here the order and the captured amount are already known, so the
- * only real decisions left are how much and why.
- *
- * Creating the request does not move money: the Finance refund queue still
- * processes it against the provider.
- */
+/** Raises a refund from the order itself, replacing the old free-text order-id flow; Finance still processes it against the provider. */
 export function OrderRefundDialog({
   open,
   onOpenChange,
@@ -46,8 +36,7 @@ export function OrderRefundDialog({
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
-  // One key per refund attempt. Clicking again after a timeout reuses it, so the
-  // server returns the refund it already created instead of raising a second one.
+  // One key per refund attempt, reused on retry so a timeout can't raise a duplicate refund.
   const attempt = useRef<{ fingerprint: string; key: string } | null>(null);
 
   const amountMinor = useMemo(() => Math.round(Number(amount || 0) * 100), [amount]);

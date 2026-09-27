@@ -1,9 +1,4 @@
-/**
- * Variant selection for a product page, driven by what the product's
- * category asks for (size and colour for shoes, capacity and colour for a
- * powerbank, length and texture for a wig). Pure functions, so the same logic
- * runs in the Partner portal and, as a copy, in the customer app.
- */
+/** Variant selection driven by the product's category; pure functions shared with the Partner portal and the customer app. */
 export type AxisType = "size" | "colour" | "select" | "text";
 
 export interface VariantLike {
@@ -41,11 +36,7 @@ export function valueOf(variant: VariantLike, key: string): string {
 
 const humanise = (key: string) => key.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
 
-/**
- * The choices to show, in the category's order. Only axes that actually have
- * a value on some variant appear, so a product with no size shows no size row.
- * Without category attributes (older products), size and colour are used.
- */
+/** Only axes with a value on some variant are shown, in the category's order, falling back to size/colour for older products. */
 export function buildAxes(variants: VariantLike[], attributes?: AttributeLike[]): Axis[] {
   const declared = (attributes || []).filter((attribute) => attribute.variantAxis !== false);
   const keys = declared.length
@@ -129,11 +120,7 @@ export function nextMissingAxis(axes: Axis[], selection: Selection): Axis | unde
 /** What a cart line's chosen details look like: colour, size and anything else the category asks for. */
 export type SelectedVariants = Record<string, string | undefined>;
 
-/**
- * Stable text for a set of chosen details, used to tell cart lines apart.
- * Colour and size keep the historical `colour::size` shape so existing lines
- * still match; other details are appended in a fixed order.
- */
+/** Stable text for chosen details, keeping the historical `colour::size` shape for cart-line matching. */
 export function variantSignature(selected?: SelectedVariants): string {
   const entries = Object.entries(selected || {})
     .map(([key, value]) => [key === "colour" ? "color" : key, String(value ?? "").trim().toLowerCase()] as const)

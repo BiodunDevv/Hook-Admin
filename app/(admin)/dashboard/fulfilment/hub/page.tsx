@@ -77,9 +77,7 @@ const label = (value?: string) => String(value || "-").replaceAll("_", " ");
 type HubOption = { publicId?: string; id?: string; name?: string };
 
 export default function FulfilmentHubPage() {
-  // Staff attached to one hub see theirs automatically; this filter only
-  // matters for someone who can see several, who otherwise got every hub's
-  // work merged into one list with no way to narrow.
+  // This filter only matters for staff who can see multiple hubs, to narrow the work list to one.
   const [hubId, setHubId] = useState<string>("all");
   const [stage, setStage] = useState<"inbound" | "qc" | "failed" | "consolidate">("inbound");
   const hubsQuery = useApiQuery<{ data?: HubOption[] } | HubOption[]>(
@@ -121,8 +119,7 @@ export default function FulfilmentHubPage() {
       setCredential((current) => ({ ...current, [id]: "" }));
       await query.refetch();
     } catch (error) {
-      // A wrong code, a lockout, or a network problem must all be visible: the
-      // Hub cannot act on a button that silently does nothing.
+      // Surface every failure so the Hub is never left with a button that silently does nothing.
       const failure = error as Error & { status?: number; details?: { attemptsRemaining?: number } };
       const locked = failure.status === 423 || /locked/i.test(failure.message);
       const remaining = failure.details?.attemptsRemaining;
@@ -258,8 +255,7 @@ export default function FulfilmentHubPage() {
     });
   }, [query.data?.packages]);
 
-  // Packages awaiting or holding a quality decision. Computed once instead of
-  // filtering the same array twice inline.
+  // Packages awaiting or holding a quality decision, computed once instead of filtering twice.
   const qcPackages = useMemo(
     () => (query.data?.packages || []).filter((item) =>
       ["RECEIVED", "QC_PENDING", "QC_PASSED"].includes(String(item.status)),

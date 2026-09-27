@@ -3,11 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PublicShell } from "@/components/public/PublicShell";
 
-/**
- * A published legal document (terms, privacy, returns) in the public frame.
- * The brand panel carries a contents list built from the document's own
- * headings, so long policies stay navigable.
- */
+/** A published legal document in the public frame, with a contents list built from its own headings. */
 export function PublicLegalPage({
   title,
   bodyHtml,
@@ -29,9 +25,7 @@ export function PublicLegalPage({
 
   const [active, setActive] = useState<string | null>(headings[0]?.id ?? null);
   const linkRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
-  // A section chosen by clicking stays highlighted until the reader scrolls
-  // themselves. Without this, a short final section that can never reach the top
-  // of the screen would immediately hand the highlight back to the one before it.
+  // A section stays highlighted after a click until the reader scrolls, so a short final section can't hand it right back.
   const pinned = useRef<string | null>(null);
 
   useEffect(() => {
@@ -41,8 +35,7 @@ export function PublicLegalPage({
     const update = () => {
       frame = 0;
       if (pinned.current) return;
-      // The active section is the first heading still on screen. It stays
-      // active until that heading scrolls off the top, then the next takes over.
+      // The active section is the first heading still on screen, until it scrolls off and the next takes over.
       const first = sections.find((section) => section.getBoundingClientRect().bottom > 8);
       setActive((first ?? sections[sections.length - 1]).id);
     };

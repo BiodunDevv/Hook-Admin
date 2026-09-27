@@ -17,10 +17,7 @@ const NOTIFICATION_KEYS = [
   ["partner", "notifications"],
 ] as const;
 
-/**
- * Catalog movement reaches every portal: Admin reviews it, Market Associates
- * capture and confirm against it, Partners browse and price from it.
- */
+/** Catalog movement reaches every portal: Admin reviews it, Associates capture against it, Partners browse and price from it. */
 const CATALOG_KEYS = [
   ["admin", "products"],
   ["admin", "categories"],
@@ -75,8 +72,7 @@ function invalidateAll(
 
 function invalidateForEvent(queryClient: QueryClient, event: string) {
   if (event === "realtime.connected") {
-    // Anything could have changed while the socket was down, so resync every
-    // surface rather than guessing which ones drifted.
+    // Resync every surface after a socket reconnect, rather than guessing which ones drifted.
     invalidateAll(queryClient, [
       ...NOTIFICATION_KEYS,
       ...CATALOG_KEYS,

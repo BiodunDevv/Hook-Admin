@@ -52,8 +52,7 @@ export function BannersSection() {
   const [saving, setSaving] = useState(false);
   // Switch flips at once; the server confirms in the background and we roll back only on failure.
   const [optimistic, setOptimistic] = useState<Record<string, boolean>>({});
-  // A local working order so a drag reorders instantly; reset (during render, not an effect) whenever the
-  // server's own order changes underneath it.
+  // A local working order so a drag reorders instantly; reset during render when the server's order changes.
   const [prevData, setPrevData] = useState(query.data);
   const [order, setOrder] = useState(query.data || []);
   if (query.data !== prevData) {

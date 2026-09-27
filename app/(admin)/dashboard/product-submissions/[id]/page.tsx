@@ -218,12 +218,7 @@ function SubmissionPhotoReview({ item }: { item: ProductSubmission }) {
   );
 }
 
-/**
- * The full "complete and approve" form. Mounted fresh per submission (parent
- * keys it by `item.publicId`), so its field state can simply initialize from
- * the submission — including the Market Associate's own category and market
- * suggestions — with no effect needed to prime it after the fact.
- */
+/** The full complete-and-approve form, remounted per submission so its state seeds fresh each time. */
 function SubmissionApprovalForm({
   item,
   id,
@@ -242,16 +237,13 @@ function SubmissionApprovalForm({
   onApproved: (productId?: string) => void;
 }) {
   const categories = useApiQuery<{ data: CategoryOption[] }>(["admin", "categories", "options"], "/admin/categories");
-  // Market options aren't fetched here — the Market field is locked to the
-  // submission's own market, so there's nothing to pick from.
+  // Market options aren't fetched; the Market field is locked to the submission's own market.
   const [images, setImages] = useState<string[]>(
     orderedSubmissionMedia(item).map(({ asset }) => asset?.deliveryUrl || asset?.secureUrl || "").filter(Boolean),
   );
   const [colorValue, setColorValue] = useState("#fbbf24");
 
-  // Colors and sizes the Market Associate captured live on each variant, not
-  // as top-level fields — derive the deduplicated set so nothing they entered
-  // in the field gets lost.
+  // Derive the deduplicated colour/size set from each variant, since they aren't top-level fields.
   const capturedColors = Array.from(
     new Set((item.variants || []).map((variant) => variant.colour?.trim()).filter((value): value is string => Boolean(value))),
   );

@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
+  Gift,
   Mail,
   MapPin,
   Phone,
@@ -79,6 +80,7 @@ interface CustomerDetail {
   totalSpentMinor?: number;
   orderCount?: number;
   recentOrders?: RecentOrder[];
+  creditBalanceMinor?: number;
 }
 
 function dateTime(value?: string) {
@@ -126,6 +128,10 @@ export default function CustomerDetailPage() {
   const [hardDeleteReason, setHardDeleteReason] = useState("");
   const [hardDeleteConfirmation, setHardDeleteConfirmation] = useState("");
   const [actionPending, setActionPending] = useState(false);
+  const [giftOpen, setGiftOpen] = useState(false);
+  const [giftAmount, setGiftAmount] = useState("");
+  const [giftReason, setGiftReason] = useState("");
+  const canGiftCredit = hasPermission(admin, "credits.adjust");
 
   const deletionIdentifier = customer?.publicId || customer?.id || "";
   const expectedConfirmation = `DELETE ${deletionIdentifier}`;
@@ -142,6 +148,29 @@ export default function CustomerDetailPage() {
       await query.refetch();
     } catch (error) {
       toast.error(cleanError(error, "Unable to delete customer account"));
+    } finally {
+      setActionPending(false);
+    }
+  }
+
+  async function giftCredit() {
+    const amountMinor = Math.round(Number(giftAmount) * 100);
+    if (!amountMinor || amountMinor <= 0) return toast.error("Enter an amount greater than zero");
+    if (giftReason.trim().length < 5) return toast.error("Add a short reason");
+    setActionPending(true);
+    try {
+      await apiPost(`/admin/users/${id}/gift-credit`, {
+        amountMinor,
+        reason: giftReason.trim(),
+        idempotencyKey: crypto.randomUUID(),
+      });
+      toast.success("Hook credit added");
+      setGiftOpen(false);
+      setGiftAmount("");
+      setGiftReason("");
+      await query.refetch();
+    } catch (error) {
+      toast.error(cleanError(error, "Unable to gift Hook credit"));
     } finally {
       setActionPending(false);
     }
@@ -192,6 +221,9 @@ export default function CustomerDetailPage() {
         actions={
           <>
             <Button variant="outline" size="sm" onClick={() => router.back()}><ArrowLeft /> Back to customers</Button>
+            {customer && canGiftCredit ? (
+              <Button variant="outline" size="sm" onClick={() => setGiftOpen(true)}><Gift /> Gift Hook credit</Button>
+            ) : null}
             {customer && canEdit ? (
               <Button variant={customer.isActive ? "outline" : "brand"} size="sm" onClick={() => toggle.mutate(undefined)} disabled={toggle.isPending}>
                 <Power /> {customer.isActive ? "Suspend account" : "Activate account"}
@@ -207,7 +239,7 @@ export default function CustomerDetailPage() {
               <div className="flex min-w-0 items-center gap-4"><Avatar className="size-16 rounded-2xl ring-2 ring-zinc-950/10"><AvatarImage src={(customer as CustomerDetail & { avatarUrl?: string }).avatarUrl} alt={name} /><AvatarFallback className="rounded-2xl bg-zinc-950 text-lg font-bold text-brand-gold">{initials(name)}</AvatarFallback></Avatar><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h2 className="truncate text-xl font-semibold sm:text-2xl">{name}</h2><StatusBadge status={isDeleted ? customer.accountStatus || "deleted" : customer.isActive ? "active" : "suspended"} className="border-zinc-950/15 bg-white/55 text-zinc-950" /></div><p className="mt-1 truncate text-sm text-zinc-800">{customer.email}</p><p className="mt-2 font-mono text-xs text-zinc-950">{customer.publicId || customer.id}</p></div></div>
               <div className="grid grid-cols-2 gap-5 text-sm sm:min-w-64"><div><p className="text-xs text-zinc-700">Account type</p><p className="mt-1 font-medium">{customer.accountType || "Customer"}</p></div><div><p className="text-xs text-zinc-700">Joined</p><p className="mt-1 font-medium">{customer.createdAt ? new Date(customer.createdAt).toLocaleDateString("en-NG") : "Not available"}</p></div></div>
             </div>
-            <div className="grid divide-y sm:grid-cols-4 sm:divide-x sm:divide-y-0">{[["Email", customer.isEmailVerified ? "Verified" : "Unverified"], ["Phone", customer.phone || address?.phone || "Not set"], ["Total spent", money(customer.totalSpentMinor)], ["Orders placed", String(customer.orderCount || 0)]].map(([label, value]) => <div key={label} className="min-w-0 px-5 py-4 sm:px-6"><p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p><p className="mt-1 truncate text-sm font-semibold text-foreground">{value}</p></div>)}</div>
+            <div className="grid divide-y sm:grid-cols-5 sm:divide-x sm:divide-y-0">{[["Email", customer.isEmailVerified ? "Verified" : "Unverified"], ["Phone", customer.phone || address?.phone || "Not set"], ["Total spent", money(customer.totalSpentMinor)], ["Orders placed", String(customer.orderCount || 0)], ["Hook credit", money(customer.creditBalanceMinor)]].map(([label, value]) => <div key={label} className="min-w-0 px-5 py-4 sm:px-6"><p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p><p className="mt-1 truncate text-sm font-semibold text-foreground">{value}</p></div>)}</div>
           </section>
 
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)]">
@@ -298,6 +330,23 @@ export default function CustomerDetailPage() {
           </div>
         </> : null}
       </QueryState>
+
+      <Dialog open={giftOpen} onOpenChange={(open) => { if (!open && !actionPending) { setGiftOpen(false); setGiftAmount(""); setGiftReason(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Gift Hook credit to {name}</DialogTitle>
+            <DialogDescription>Added to their balance immediately, separate from any order or the waitlist campaign.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2"><Label htmlFor="gift-amount">Amount (₦)</Label><Input id="gift-amount" type="number" min="1" value={giftAmount} onChange={(event) => setGiftAmount(event.target.value)} placeholder="1000" /></div>
+            <div className="space-y-2 sm:col-span-2"><Label htmlFor="gift-reason">Reason</Label><Input id="gift-reason" value={giftReason} onChange={(event) => setGiftReason(event.target.value)} placeholder="Goodwill credit for a delivery issue" /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" disabled={actionPending} onClick={() => setGiftOpen(false)}>Cancel</Button>
+            <Button variant="brand" disabled={actionPending} onClick={() => void giftCredit()}>{actionPending ? "Gifting..." : "Gift credit"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={softDeleteOpen} onOpenChange={(open) => { if (!open && !actionPending) { setSoftDeleteOpen(false); setSoftDeleteReason(""); } }}>
         <DialogContent>

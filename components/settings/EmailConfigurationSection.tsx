@@ -19,11 +19,14 @@ type EmailSettings = {
   brevoFromName: string;
   appName: string;
   appUrl: string;
+  supportUrl: string;
   updatedAt?: string;
 };
 
+type EditableField = "supportEmail" | "hookOpsEmail" | "appName" | "appUrl" | "supportUrl";
+
 const FIELDS: Array<{
-  key: keyof Omit<EmailSettings, "updatedAt">;
+  key: EditableField;
   label: string;
   placeholder: string;
   hint: string;
@@ -44,19 +47,6 @@ const FIELDS: Array<{
     type: "email",
   },
   {
-    key: "brevoFromEmail",
-    label: "Sender email",
-    placeholder: "noreply@hook.africa",
-    hint: "The address customers see emails come from. Must be verified in Brevo first.",
-    type: "email",
-  },
-  {
-    key: "brevoFromName",
-    label: "Sender name",
-    placeholder: "Hook",
-    hint: "The display name shown next to the sender address.",
-  },
-  {
     key: "appName",
     label: "App name",
     placeholder: "Hook",
@@ -69,15 +59,21 @@ const FIELDS: Array<{
     hint: "Where email buttons and links point back to.",
     type: "url",
   },
+  {
+    key: "supportUrl",
+    label: "Support URL",
+    placeholder: "https://help.hook.africa",
+    hint: "Where \"Help & Support\" opens for customers, Market Associates, Partners, and staff. Leave blank to open a mailto: link to the support email above instead.",
+    type: "url",
+  },
 ];
 
-const EMPTY: Omit<EmailSettings, "updatedAt"> = {
+const EMPTY: Record<EditableField, string> = {
   supportEmail: "",
   hookOpsEmail: "",
-  brevoFromEmail: "",
-  brevoFromName: "",
   appName: "",
   appUrl: "",
+  supportUrl: "",
 };
 
 export function EmailConfigurationSection() {
@@ -93,10 +89,9 @@ export function EmailConfigurationSection() {
       setForm({
         supportEmail: query.data.supportEmail || "",
         hookOpsEmail: query.data.hookOpsEmail || "",
-        brevoFromEmail: query.data.brevoFromEmail || "",
-        brevoFromName: query.data.brevoFromName || "",
         appName: query.data.appName || "",
         appUrl: query.data.appUrl || "",
+        supportUrl: query.data.supportUrl || "",
       });
     }
   }, [query.data]);
@@ -105,8 +100,7 @@ export function EmailConfigurationSection() {
     if (reason.trim().length < 5) return toast.error("Add a short audit reason");
     setSaving(true);
     try {
-      // Only send fields the admin actually filled in — blank fields stay unset
-      // so the server keeps falling back to its environment configuration.
+      // Only send fields the admin filled in, so blanks keep falling back to the server's environment configuration.
       const payload: Record<string, string> = { reason: reason.trim() };
       for (const field of FIELDS) {
         const value = form[field.key].trim();
@@ -152,6 +146,17 @@ export function EmailConfigurationSection() {
         </p>
       </CardHeader>
       <CardContent className="space-y-5 p-5 sm:p-6">
+        <div className="grid gap-4 rounded-lg border bg-zinc-50 p-4 sm:grid-cols-2">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Sender email</p>
+            <p className="mt-1 font-medium text-zinc-900">{query.data?.brevoFromEmail || "Not set"}</p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Sender name</p>
+            <p className="mt-1 font-medium text-zinc-900">{query.data?.brevoFromName || "Not set"}</p>
+          </div>
+        </div>
+
         <div className="grid gap-4 sm:grid-cols-2">
           {FIELDS.map((field) => (
             <div key={field.key} className="space-y-2">
@@ -170,10 +175,7 @@ export function EmailConfigurationSection() {
 
         <div className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
           <ShieldAlert className="mt-0.5 size-4 shrink-0" />
-          <span>
-            Leave a field blank to keep using the server&apos;s environment configuration. The Brevo
-            API key is a secret and is never editable here.
-          </span>
+          <span>Leave a field blank to keep using the server&apos;s environment configuration.</span>
         </div>
 
         <div className="grid gap-4 rounded-lg border bg-zinc-50 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">

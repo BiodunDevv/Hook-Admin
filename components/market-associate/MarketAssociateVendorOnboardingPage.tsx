@@ -55,12 +55,7 @@ function validate(form: typeof initialForm) {
   return errors;
 }
 
-/**
- * A full page rather than a bottom sheet — onboarding a supplier is a
- * deliberate, multi-field task, not a quick action, so it earns its own
- * screen with a real back-navigation trail and a success state you land on
- * rather than a card that scrolls past.
- */
+/** A full page, not a sheet, since onboarding a supplier is a deliberate multi-field task. */
 export function MarketAssociateVendorOnboardingPage({ marketId }: { marketId: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();

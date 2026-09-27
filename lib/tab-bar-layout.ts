@@ -13,9 +13,6 @@ export const APP_ACTION_BAR_GAP = 6;
 export const APP_ACTION_BAR_BOTTOM =
   APP_TAB_BAR_BOTTOM_GAP + APP_TAB_BAR_HEIGHT + APP_ACTION_BAR_GAP;
 
-/**
- * Extra bottom padding a page owes when it renders a StickyActionBar. The shell's
- * `<main>` already clears the tab bar, so this covers only the action bar itself.
- */
+/** Extra bottom padding a page owes for a StickyActionBar, beyond what the shell already clears for the tab bar. */
 export const APP_ACTION_BAR_CONTENT_INSET =
   APP_ACTION_BAR_HEIGHT + APP_ACTION_BAR_GAP;

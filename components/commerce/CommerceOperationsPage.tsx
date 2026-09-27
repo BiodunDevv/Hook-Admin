@@ -62,11 +62,7 @@ type DeadLetterRow = {
   replayCount?: number;
 };
 
-/**
- * Events that ran out of automatic retries. Replay puts one back in the queue;
- * the server ignores a second replay of an event that is no longer dead, so a
- * double click cannot re-drive it twice.
- */
+/** Events that exhausted automatic retries; replaying one is a no-op if it's no longer dead, so double clicks are safe. */
 function DeadLetterPanel({ enabled }: { enabled: boolean }) {
   const queryClient = useQueryClient();
   const [busyId, setBusyId] = useState<string | null>(null);

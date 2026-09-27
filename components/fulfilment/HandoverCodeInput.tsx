@@ -4,11 +4,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 
 export const HANDOVER_CODE_LENGTH = 4;
 
-/**
- * Four boxes for the handover code written on a package. Digits only, a numeric
- * keypad on phones and tablets, paste works, and it calls onComplete when the
- * fourth digit lands so Hub staff do not need to find a button.
- */
+/** Four-digit handover code input with a numeric keypad and paste support, completing automatically on the fourth digit. */
 export function HandoverCodeInput({
   value,
   onChange,

@@ -31,15 +31,7 @@ function toRgbaPrefix(color: string) {
 
 const FRAME_INTERVAL_MS = 1000 / 30; // 30fps is smooth enough for a flicker and half the work
 
-/**
- * A canvas of small squares whose opacity flickers at random (MagicUI's
- * FlickeringGrid). A single canvas element, so it is far lighter than
- * animating many DOM/SVG nodes. It additionally:
- *  - stops drawing while scrolled out of view (IntersectionObserver);
- *  - runs at 30fps;
- *  - draws one still frame instead of animating for people who asked their
- *    system for reduced motion.
- */
+/** A single-canvas flickering-square grid, paused off-screen, at 30fps, and static under reduced motion. */
 export const FlickeringGrid: React.FC<FlickeringGridProps> = ({
   squareSize = 4,
   gridGap = 6,

@@ -9,11 +9,7 @@ import { cn } from "@/lib/utils";
 const PULL_THRESHOLD = 72;
 const MAX_PULL = 120;
 
-/**
- * Wraps a portal's scrollable content. Only active in standalone/installed
- * mode — a normal browser tab already has its own native pull-to-refresh, so
- * this would double up with it there.
- */
+/** Wraps scrollable content; only active in standalone/installed mode, where there's no native pull-to-refresh. */
 export function PullToRefresh({
   queryKeyPrefix,
   children,
@@ -28,10 +24,7 @@ export function PullToRefresh({
   const [refreshing, setRefreshing] = useState(false);
   const [dragging, setDragging] = useState(false);
 
-  // Gesture bookkeeping the handlers need moment-to-moment but that never
-  // drives what's rendered — kept in refs so the listeners can stay bound
-  // for the whole lifetime of `enabled` instead of rebinding on every touch
-  // event.
+  // Gesture bookkeeping kept in refs so listeners can stay bound for the whole lifetime of `enabled`.
   const startY = useRef<number | null>(null);
   const refreshingRef = useRef(false);
   const pullRef = useRef(0);
@@ -66,8 +59,7 @@ export function PullToRefresh({
         setPull(0);
         return;
       }
-      // Only take over the gesture once it's clearly a downward pull from
-      // the top — otherwise let normal scrolling behave normally.
+      // Only takes over the gesture once it's clearly a downward pull from the top; otherwise scrolling behaves normally.
       draggingRef.current = true;
       setDragging(true);
       const next = Math.min(delta * 0.5, MAX_PULL);
@@ -91,9 +83,7 @@ export function PullToRefresh({
           queryClient.invalidateQueries({ queryKey: queryKeyPrefix }),
           router.refresh(),
         ]);
-        // A brief hold so the spinner doesn't just flash on a fast refetch —
-        // matches how native pull-to-refresh feels rather than reading as a
-        // glitch.
+        // A brief hold before hiding the spinner so a fast refetch still feels like a real pull-to-refresh.
         await new Promise((resolve) => setTimeout(resolve, 400));
         refreshingRef.current = false;
         setRefreshing(false);
@@ -129,8 +119,7 @@ export function PullToRefresh({
       </div>
       <div
         className={cn("transition-transform", !dragging && !refreshing && "duration-200")}
-        // A permanent translateY(0) makes nested fixed action bars relative to
-        // this content wrapper instead of the viewport, even when not pulling.
+        // A permanent translateY(0) anchors nested fixed action bars to this wrapper instead of the viewport.
         style={{ transform: pull > 0 ? `translateY(${pull}px)` : undefined }}
       >
         {children}

@@ -21,12 +21,7 @@ type Row = {
 };
 type MarketAssociateTasks = { data: Row[]; total: number };
 
-/**
- * How long this task has been waiting. Replaces the old "Accept by HH:MM" /
- * "Acceptance overdue" label, which was driven by a hardcoded 15-minute
- * deadline stamped at creation and never recomputed — so a task assigned
- * overnight was always "overdue" regardless of anyone's response time.
- */
+/** Waiting time, replacing the old hardcoded 15-minute "overdue" label that never recomputed. */
 function ageLabel(value?: string) {
   if (!value) return undefined;
   const created = new Date(value).getTime();

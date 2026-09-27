@@ -26,10 +26,7 @@ export function toProof(value: ProofState): Proof {
   return value.method === "password" ? { email, password: value.password } : { email, code: value.code };
 }
 
-/**
- * Email plus either a password or, for accounts created with Google or Apple
- * (which have no password), a 6-digit code sent to that email.
- */
+/** Email plus a password or, for Google/Apple accounts with none, a 6-digit emailed code. */
 export function ProofFields({
   value,
   onChange,

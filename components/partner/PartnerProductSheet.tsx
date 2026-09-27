@@ -72,8 +72,7 @@ export function PartnerProductSheet({
 
   const product = query.data;
   const variants = useMemo(() => product?.variants || [], [product]);
-  // The choices come from the product's category (size and colour for shoes,
-  // capacity and colour for a powerbank). Single-valued axes choose themselves.
+  // Choices come from the product's category; single-valued axes choose themselves.
   const axes = useMemo(() => buildAxes(variants, product?.category?.attributes), [variants, product?.category?.attributes]);
   const activeSelection = useMemo(() => autoSelection(axes, selection), [axes, selection]);
   const missingAxis = nextMissingAxis(axes, activeSelection);
@@ -124,8 +123,7 @@ export function PartnerProductSheet({
         `/partner/messages/${created.negotiationId}?customerId=${encodeURIComponent(customerId)}`,
       );
     } catch (error) {
-      // ACTIVE_NEGOTIATION_EXISTS returns the live session as error details —
-      // resume it instead of surfacing an error.
+      // ACTIVE_NEGOTIATION_EXISTS returns the live session in error details, so resume it instead of showing an error.
       const failure = error as { code?: string; details?: { negotiationId?: string } };
       const existing = failure?.details?.negotiationId;
       if (failure?.code === "ACTIVE_NEGOTIATION_EXISTS" && existing) {

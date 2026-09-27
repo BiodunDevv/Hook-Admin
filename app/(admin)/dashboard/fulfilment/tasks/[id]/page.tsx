@@ -62,10 +62,7 @@ export default function FulfilmentTaskDetailPage({ params }: { params: Promise<{
   const detail = query.data;
   const task = detail?.task;
 
-  // Progress, not deadlines. Each step knows whether it is done, current or
-  // still upcoming; urgency is expressed as age. There is deliberately no
-  // "Completed" row — the backend never writes completedAt, so it could never
-  // be satisfied.
+  // Shows progress by state, not deadlines; there's no "Completed" row since completedAt is never written.
   const checkpoints = task ? buildCheckpoints(task) : [];
   const halted = isTaskHalted(task?.status);
   const age = taskAge(task?.createdAt);

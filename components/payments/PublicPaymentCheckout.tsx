@@ -61,12 +61,6 @@ function money(value: number) {
   return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(value / 100);
 }
 
-const PROVIDER_LABELS: Record<string, string> = { paystack: "Paystack", monnify: "Monnify" };
-
-function providerName(provider: "paystack" | "monnify") {
-  return PROVIDER_LABELS[provider] || provider;
-}
-
 function idempotencyKey() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
   if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
@@ -172,10 +166,10 @@ export function PublicPaymentCheckout({ token, processing = false }: { token: st
             <>
               <h2 className="font-bold text-zinc-950">Choose how to pay</h2>
               <div className="mt-3 space-y-2">
-                {detail.providers.map((provider) => (
+                {[...detail.providers].sort((a, b) => Number(b.isDefault) - Number(a.isDefault)).map((provider) => (
                   <button key={provider.provider} type="button" onClick={() => setSelected(provider.provider)} className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left transition ${selected === provider.provider ? "border-black bg-zinc-950 text-white" : "border-zinc-200 hover:border-zinc-400"}`}>
-                    <PaymentProviderMark provider={provider.provider} />
-                    <span className="min-w-0 flex-1"><span className="block font-semibold">{providerName(provider.provider)}</span><span className={`block text-xs ${selected === provider.provider ? "text-zinc-300" : "text-zinc-500"}`}>Secure hosted checkout</span></span>
+                    <PaymentProviderMark provider={provider.provider} size="lg" />
+                    <span className="min-w-0 flex-1"><span className={`block text-xs ${selected === provider.provider ? "text-zinc-300" : "text-zinc-500"}`}>Secure hosted checkout</span></span>
                     <ChevronRight size={18} />
                   </button>
                 ))}

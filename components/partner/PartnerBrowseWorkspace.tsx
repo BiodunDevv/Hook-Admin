@@ -205,9 +205,7 @@ export function PartnerBrowseWorkspace({
                 marketName={product.market?.name}
                 unavailable={product.isPurchasable === false}
                 negotiable={product.negotiationAvailable}
-                // Adding always opens the product sheet — every product now
-                // has at least one variant, and the partner must see and pick
-                // a size/colour there before it can be added to the cart.
+                // Adding always opens the product sheet, since every product needs a size/colour picked before it can be added.
                 onAdd={() => setOpenProductId(id)}
                 onOpen={() => setOpenProductId(id)}
               />

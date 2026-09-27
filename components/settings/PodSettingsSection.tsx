@@ -28,10 +28,7 @@ type PodConfig = {
 
 const naira = (minor: number) => `₦${Math.round(minor / 100).toLocaleString("en-NG")}`;
 
-/**
- * Pay on Delivery and VAT. The customer pays the delivery fee (plus the surcharge set here) online first and the rest
- * at the door. Everything here is audited with a reason and reaches the app instantly.
- */
+/** Pay on Delivery and VAT settings; changes here are audited with a reason and reach the app instantly. */
 export function PodSettingsSection() {
   const query = useApiQuery<PodConfig>(["commerce", "pod-config"], "/admin/commerce/pod-config");
   const [form, setForm] = useState<PodConfig | null>(null);

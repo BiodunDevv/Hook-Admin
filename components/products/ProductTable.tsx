@@ -48,10 +48,7 @@ function SortHead({ label, field, sort, dir, onSort, className }: { label: strin
   );
 }
 
-/**
- * A dense product table: one row per product, so a page of 50 or 100 fits on screen. The thumbnail carries a "+N"
- * count for extra pictures; columns can be hidden; rows can be selected for bulk actions.
- */
+/** A dense product table, one row per product, with a "+N" thumbnail count, hideable columns, and bulk-action selection. */
 export function ProductTable({
   products,
   columns,

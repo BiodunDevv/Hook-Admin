@@ -11,11 +11,7 @@ import { Input } from "@/components/ui/input";
 import { colorName, colorSwatch, sameColor } from "@/lib/color-name";
 import { cn } from "@/lib/utils";
 
-/**
- * Common market colours, named the way Market Associates and vendors actually describe
- * them. Value stored is the plain name (not a hex code) because the catalog
- * treats variant colour as human-readable text.
- */
+/** Common market colours named the way people describe them, stored as plain text rather than hex. */
 export const COLOR_OPTIONS: Array<{ name: string; swatch: string }> = [
   { name: "Black", swatch: "#111111" },
   { name: "White", swatch: "#FFFFFF" },
@@ -44,12 +40,7 @@ export function swatchFor(value: string) {
   return colorSwatch(value);
 }
 
-/**
- * Renders a stored variant colour for display. Submissions made through this
- * picker store a name ("Black"), but older, imported or admin-entered data can
- * carry a code such as "#111111". Codes are turned into everyday names
- * (see lib/color-name.ts) so nobody sees a bare hex value.
- */
+/** Renders a stored colour for display, turning older hex-coded data into an everyday name. */
 export function displayColorName(value?: string) {
   return colorName(value);
 }

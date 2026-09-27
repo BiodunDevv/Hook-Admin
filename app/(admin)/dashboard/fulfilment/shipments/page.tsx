@@ -110,8 +110,7 @@ export default function FulfilmentShipmentsPage() {
   const [confirming, setConfirming] = useState<{ shipment: Shipment; status: string }>();
   const [pending, setPending] = useState<string>();
   const [receiptOrder, setReceiptOrder] = useState<string>();
-  // Booking with a substitute (chosen courier unavailable) or switching a
-  // booked shipment both go through the same dialog.
+  // The same dialog handles booking a substitute courier and switching an already-booked shipment.
   const [switching, setSwitching] = useState<
     { kind: "book"; item: Consolidation } | { kind: "reassign"; shipment: Shipment }
   >();

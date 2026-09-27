@@ -1,6 +1,4 @@
-// Row shape shared by the product list. The table UI itself was replaced by
-// ProductGrid.tsx (card grid, matching the Markets page's visual language) —
-// this file now only keeps the type both ProductGrid and ProductCard import.
+// Row shape shared by the product list; the table UI itself moved to ProductGrid.tsx.
 export interface ProductRow {
   id: string;
   hookId?: string;

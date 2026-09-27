@@ -63,11 +63,7 @@ const summaryOf = (attribute: CategoryAttribute) => {
   return parts.join(" · ");
 };
 
-/**
- * What a product in this category asks for. Each row is one question, shown
- * collapsed as a one-line summary and opened to edit. A live preview shows
- * exactly what a Market Associate will see.
- */
+/** Each row is one question a product in this category asks for, collapsed to a summary with a live preview. */
 export function CategoryAttributeEditor({
   attributes,
   onChange,

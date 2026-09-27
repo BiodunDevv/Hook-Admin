@@ -19,8 +19,7 @@ function isRouteActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-// A parent route (/fulfilment) also matches its children (/fulfilment/hub), so
-// only the most specific matching item in the group counts as active.
+// Only the most specific matching item in a group counts as active, since a parent route also matches its children.
 function isItemActive(pathname: string, href: string, siblings: Array<{ href: string }>) {
   return (
     isRouteActive(pathname, href) &&
@@ -30,11 +29,7 @@ function isItemActive(pathname: string, href: string, siblings: Array<{ href: st
 
 const STORAGE_KEY = "hook.sidebar.collapsed-groups";
 
-/**
- * Per-browser convenience only, so a throwing or empty read is not an error.
- * Returns null when nothing has been stored yet, which is what lets a group
- * fall back to its `defaultCollapsed` rather than being forced open.
- */
+/** Per-browser read only; returns null on failure or when nothing's stored, so the group falls back to its default. */
 function readCollapsed(): string[] | null {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -50,8 +45,7 @@ function writeCollapsed(labels: string[]) {
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(labels));
   } catch {
-    // Private windows and blocked site data: the sidebar still works, it just
-    // will not remember the choice.
+    // Private windows or blocked site data just mean the choice isn't remembered; the sidebar still works.
   }
 }
 
@@ -60,29 +54,24 @@ export function NavGroup({ label, items, defaultCollapsed }: HookNavGroup) {
   const { isMobile, setOpenMobile, state } = useSidebar();
   const hasActiveItem = items.some((item) => isRouteActive(pathname, item.href));
 
-  // Server and first client render must agree, so start from the static
-  // default and adopt the stored preference after mount.
+  // Start from the static default and adopt the stored preference after mount, so server and client renders agree.
   const [collapsed, setCollapsed] = useState(Boolean(defaultCollapsed));
 
   useEffect(() => {
     const stored = readCollapsed();
-    // Once the user has toggled anything, that list is the whole truth: a
-    // group in it is closed, one absent from it is open. Before then, the
-    // group's own default applies.
+    // Once anything's been toggled, that list is the whole truth; before that, each group's own default applies.
     setCollapsed(stored ? stored.includes(label) : Boolean(defaultCollapsed));
   }, [label, defaultCollapsed]);
 
   function toggle() {
     const next = !collapsed;
     setCollapsed(next);
-    // Seed from the defaults on the very first toggle, otherwise collapsing
-    // one group would spring every default-collapsed group open.
+    // Seed from the defaults on the first toggle, so collapsing one group doesn't spring the rest open.
     const stored = (readCollapsed() ?? defaultCollapsedGroups).filter((value) => value !== label);
     writeCollapsed(next ? [...stored, label] : stored);
   }
 
-  // Never hide the section containing the current page, and never collapse
-  // when the rail is in icon mode — there is no header to click to reopen it.
+  // Never hide the section with the current page, and never collapse in icon mode since there's no header to reopen it.
   const iconMode = state === "collapsed" && !isMobile;
   const showItems = !collapsed || hasActiveItem || iconMode;
 

@@ -20,12 +20,7 @@ function isStandalone() {
   );
 }
 
-/**
- * Branded "Add to Home Screen" banner, mounted only from AppTabBarShell
- * (Market Associate / Partner) — never shown to Admin. Captures the
- * browser's own beforeinstallprompt event so we can trigger it from our own
- * UI instead of the raw browser popup, matching the app's Hook-gold styling.
- */
+/** Branded install banner shown only to Market Associate/Partner, wrapping the browser's own beforeinstallprompt event. */
 export function InstallPrompt() {
   const [deferredEvent, setDeferredEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(true);
@@ -33,10 +28,7 @@ export function InstallPrompt() {
   useEffect(() => {
     if (isStandalone()) return;
 
-    // beforeinstallprompt only ever fires asynchronously in response to the
-    // browser's own eligibility checks — never synchronously on mount — so
-    // reading the dismissal flag here, once the event actually arrives, is
-    // enough; there's no earlier render that needs it.
+    // beforeinstallprompt only fires asynchronously, so reading the dismissal flag once it arrives is enough.
     function onBeforeInstallPrompt(event: Event) {
       event.preventDefault();
       if (localStorage.getItem(DISMISSED_KEY) === "1") return;

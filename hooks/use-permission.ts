@@ -3,10 +3,7 @@
 import { useAdminSession } from "@/lib/query";
 import { hasPermission, isSuperAdmin, isAdmin, type Permission } from "@/lib/permissions";
 
-/**
- * Returns whether the current user has a given permission.
- * Permissions come from the backend's live Role evaluation.
- */
+/** Returns whether the current user has a given permission, per the backend's live Role evaluation. */
 export function usePermission(permission: Permission): boolean {
   const { data: session } = useAdminSession();
   return hasPermission(session, permission);

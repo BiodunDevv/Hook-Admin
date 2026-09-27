@@ -13,11 +13,7 @@ import { ISSUE_TYPES, cleanError } from "./types";
 
 const MIN_LENGTH = 5;
 
-/**
- * Report a blocker for one product (or the whole task). The idempotency key is
- * created once per open sheet and reused on retry, so a slow connection and a
- * second tap raise one issue, not two.
- */
+/** Report a blocker for one product or the task; the idempotency key is reused on retry to avoid duplicate issues. */
 export function IssueSheet({
   open,
   onOpenChange,
@@ -43,9 +39,12 @@ export function IssueSheet({
     if (!ready || pending) return;
     setPending(true);
     try {
+      // The per-item route already carries the item id in its path; the body schema there is strict and rejects it as a duplicate field.
       await apiPost(
         itemId ? `/market-associate/fulfilments/${taskRouteId}/items/${itemId}/issues` : `/market-associate/fulfilments/${taskRouteId}/issues`,
-        { summary: summary.trim(), type: itemId ? type : "ITEM_UNAVAILABLE", orderItemId: itemId, idempotencyKey: key.current },
+        itemId
+          ? { summary: summary.trim(), type, idempotencyKey: key.current }
+          : { summary: summary.trim(), type: "ITEM_UNAVAILABLE", orderItemId: itemId, idempotencyKey: key.current },
       );
       key.current = crypto.randomUUID();
       setSummary("");
