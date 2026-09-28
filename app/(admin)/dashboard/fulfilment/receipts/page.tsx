@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { FileDown, Printer, ReceiptText, Tags } from "lucide-react";
 import { CourierBadge, type CourierInfo } from "@/components/fulfilment/CourierBadge";
 import { ReceiptSheet } from "@/components/fulfilment/ReceiptSheet";
+import { FilterBar } from "@/components/shared/FilterBar";
 import { ListRow, initialsOf } from "@/components/shared/ListRow";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -11,7 +12,6 @@ import { QueryState } from "@/components/shared/QueryState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApiQuery } from "@/lib/query";
 
@@ -71,7 +71,7 @@ export default function ReceiptsPage() {
       />
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <MetricCard label="Sealed parcels" value={counts.all} icon={Tags} />
+        <MetricCard label="Sealed parcels" value={counts.all} icon={Tags} intent="info" />
         <MetricCard
           label="Not yet issued"
           value={counts.new}
@@ -82,21 +82,22 @@ export default function ReceiptsPage() {
         <MetricCard label="Issued" value={counts.issued} icon={Printer} intent="success" />
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Tabs value={filter} onValueChange={(value) => setFilter(value as Filter)}>
-          <TabsList>
-            <TabsTrigger value="all">All ({counts.all})</TabsTrigger>
-            <TabsTrigger value="new">Not issued ({counts.new})</TabsTrigger>
-            <TabsTrigger value="issued">Issued ({counts.issued})</TabsTrigger>
-          </TabsList>
-        </Tabs>
-        <Input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search order, parcel, hub, courier"
-          className="h-9 sm:w-[300px]"
-        />
-      </div>
+      <Tabs value={filter} onValueChange={(value) => setFilter(value as Filter)}>
+        <TabsList>
+          <TabsTrigger value="all">All ({counts.all})</TabsTrigger>
+          <TabsTrigger value="new">Not issued ({counts.new})</TabsTrigger>
+          <TabsTrigger value="issued">Issued ({counts.issued})</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      <FilterBar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search order, parcel, hub, courier"
+        active={Boolean(search)}
+        onClear={() => setSearch("")}
+        hint="Refine this list"
+      />
 
       <Card className="rounded-lg shadow-none">
         <CardHeader className="flex-row items-center justify-between space-y-0">

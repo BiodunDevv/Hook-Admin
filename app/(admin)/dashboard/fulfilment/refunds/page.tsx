@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { RotateCcw } from "lucide-react";
+import { CircleAlert, CircleCheck, RotateCcw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { FilterBar } from "@/components/shared/FilterBar";
+import { MetricCard } from "@/components/shared/MetricCard";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { QueryState } from "@/components/shared/QueryState";
 import { ListRow, initialsOf } from "@/components/shared/ListRow";
@@ -38,8 +40,20 @@ export default function FulfilmentRefundsPage() {
     "/admin/fulfilment/refunds?limit=100",
   );
   const [pending, setPending] = useState<string>();
-  const rows = query.data || [];
-  const outstanding = rows.filter((row) => ACTIONABLE.includes(row.status ?? "")).length;
+  const [search, setSearch] = useState("");
+  const allRows = query.data || [];
+  const outstanding = allRows.filter((row) => ACTIONABLE.includes(row.status ?? "")).length;
+  const failed = allRows.filter((row) => row.status === "FAILED").length;
+  const needle = search.trim().toLowerCase();
+  const rows = allRows.filter((row) => {
+    const id = row.publicId || row.id;
+    return (
+      !needle ||
+      [id, row.order?.publicId, row.orderId, row.reason, row.status].some((value) =>
+        value?.toLowerCase().includes(needle),
+      )
+    );
+  });
 
   async function process(item: Row) {
     const id = item.publicId || item.id;
@@ -68,6 +82,21 @@ export default function FulfilmentRefundsPage() {
         showBack={false}
         title="Refund processing"
         description="Refunds are executed against captured Paystack balances and retain provider evidence."
+      />
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <MetricCard label="Awaiting action" value={outstanding} icon={CircleAlert} intent={outstanding ? "warning" : "neutral"} />
+        <MetricCard label="Failed" value={failed} icon={CircleAlert} intent={failed ? "danger" : "neutral"} />
+        <MetricCard label="Total refunds" value={allRows.length} icon={CircleCheck} intent="info" />
+      </div>
+
+      <FilterBar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search refund, order, or reason"
+        active={Boolean(search)}
+        onClear={() => setSearch("")}
+        hint="Refine this list"
       />
 
       <Card className="rounded-lg shadow-none">

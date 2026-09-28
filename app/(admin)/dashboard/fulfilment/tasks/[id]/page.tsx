@@ -241,12 +241,7 @@ export default function FulfilmentTaskDetailPage({ params }: { params: Promise<{
               </div>
 
               <div className="space-y-4">
-                {/* A BLOCKED task carries the exception that halted it, but the
-                    page never showed it — leaving staff with no reason why. */}
-                {/* The reason now lives on the task. This panel used to name an
-                    exception id and tell staff to "resolve it from the control
-                    tower to release the task" — which never released anything,
-                    because resolving only marked a row. */}
+                {/* The reason a BLOCKED task halted, read straight off the task. */}
                 {halted && task?.issue ? (
                   <div className="rounded-lg border border-warning/25 bg-warning-soft p-4">
                     <div className="flex items-start gap-2.5">

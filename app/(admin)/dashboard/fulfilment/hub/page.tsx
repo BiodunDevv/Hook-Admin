@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { HANDOVER_CODE_LENGTH, HandoverCodeInput } from "@/components/fulfilment/HandoverCodeInput";
 import { HookLoader } from "@/components/shared/HookLoader";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { FilterBar } from "@/components/shared/FilterBar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PackageReviewSheet, type FailureDraft } from "@/components/fulfilment/PackageReviewSheet";
 import { ReceiptSheet } from "@/components/fulfilment/ReceiptSheet";
@@ -80,6 +81,7 @@ export default function FulfilmentHubPage() {
   // This filter only matters for staff who can see multiple hubs, to narrow the work list to one.
   const [hubId, setHubId] = useState<string>("all");
   const [stage, setStage] = useState<"inbound" | "qc" | "failed" | "consolidate">("inbound");
+  const [search, setSearch] = useState("");
   const hubsQuery = useApiQuery<{ data?: HubOption[] } | HubOption[]>(
     ["admin", "fulfilment", "hubs"],
     "/admin/fulfilment/hubs?limit=100",
@@ -270,8 +272,17 @@ export default function FulfilmentHubPage() {
   const reviewing = [...qcPackages, ...failedPackages].find((item) => (item.publicId || item.id || item._id) === reviewId);
 
   const data = query.data;
+  const term = search.trim().toLowerCase();
+  const matches = (...values: Array<string | undefined>) => !term || values.some((value) => value?.toLowerCase().includes(term));
+  const rowId = (item: { publicId?: string; id?: string; _id?: string }) => item.publicId || item.id || item._id;
   const inbound = data?.inbound || [];
   const consolidations = data?.consolidations || [];
+  // Counts above (StageStrip badges) stay against the unfiltered lists; only what's rendered narrows with search.
+  const inboundShown = inbound.filter((item) => matches(rowId(item), item.hub?.name, item.order?.publicId, item.orderId));
+  const consolidationsShown = consolidations.filter((item) => matches(rowId(item), item.hub?.name, item.order?.publicId, item.orderId));
+  const qcPackagesShown = qcPackages.filter((item) => matches(rowId(item), item.hub?.name, item.order?.publicId, item.orderId));
+  const failedPackagesShown = failedPackages.filter((item) => matches(rowId(item), item.hub?.name, item.order?.publicId, item.orderId));
+  const readyForConsolidationShown = readyForConsolidation.filter((item) => matches(item.hub?.name, item.order?.publicId, item.orderId));
   return (
     <div className="w-full space-y-5 px-4 py-5">
       <PageHeader
@@ -311,6 +322,15 @@ export default function FulfilmentHubPage() {
         ]}
       />
 
+      <FilterBar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search package, order, or hub"
+        active={Boolean(search)}
+        onClear={() => setSearch("")}
+        hint="Refine this list"
+      />
+
       {stage === "inbound" ? (
       <Card className="rounded-lg shadow-none">
         <CardHeader className="flex-row items-center justify-between gap-3">
@@ -324,7 +344,7 @@ export default function FulfilmentHubPage() {
           <QueryState
             loading={query.isLoading}
             error={query.error}
-            empty={inbound.length === 0}
+            empty={inboundShown.length === 0}
             loadingLabel="Loading Hub workspace"
             errorTitle="The Hub workspace could not be loaded"
             emptyTitle="Nothing awaiting receipt"
@@ -332,7 +352,7 @@ export default function FulfilmentHubPage() {
             emptyIcon={Truck}
             onRetry={() => query.refetch()}
           >
-            {inbound.map((item, index) => {
+            {inboundShown.map((item, index) => {
               const id = item.publicId || item.id || item._id || `inbound-${index}`;
               return (
                 <div key={id} className="border-t border-zinc-100 first:border-t-0">
@@ -395,7 +415,7 @@ export default function FulfilmentHubPage() {
           <QueryState
             loading={query.isLoading}
             error={query.error}
-            empty={qcPackages.length === 0}
+            empty={qcPackagesShown.length === 0}
             loadingLabel="Loading Hub workspace"
             errorTitle="The Hub workspace could not be loaded"
             emptyTitle="Nothing waiting for quality review"
@@ -403,7 +423,7 @@ export default function FulfilmentHubPage() {
             emptyIcon={PackageCheck}
             onRetry={() => query.refetch()}
           >
-            {qcPackages.map((item, index) => {
+            {qcPackagesShown.map((item, index) => {
               const id = item.publicId || item.id || item._id || `package-${index}`;
               const awaitingQc = item.status === "RECEIVED" || item.status === "QC_PENDING";
               const items = item.items || [];
@@ -450,7 +470,7 @@ export default function FulfilmentHubPage() {
             <QueryState
               loading={query.isLoading}
               error={query.error}
-              empty={failedPackages.length === 0}
+              empty={failedPackagesShown.length === 0}
               loadingLabel="Loading Hub workspace"
               errorTitle="The Hub workspace could not be loaded"
               emptyTitle="No failed packages"
@@ -458,7 +478,7 @@ export default function FulfilmentHubPage() {
               emptyIcon={ShieldCheck}
               onRetry={() => query.refetch()}
             >
-              {failedPackages.map((item, index) => {
+              {failedPackagesShown.map((item, index) => {
                 const id = item.publicId || item.id || item._id || `failed-${index}`;
                 const failed = (item.qualityChecks || []).filter((entry) => entry.result === "failed");
                 return (
@@ -501,7 +521,7 @@ export default function FulfilmentHubPage() {
           <QueryState
             loading={query.isLoading}
             error={query.error}
-            empty={readyForConsolidation.length === 0 && consolidations.length === 0}
+            empty={readyForConsolidationShown.length === 0 && consolidations.length === 0}
             loadingLabel="Loading Hub workspace"
             errorTitle="The Hub workspace could not be loaded"
             emptyTitle="Nothing ready to consolidate"
@@ -509,7 +529,7 @@ export default function FulfilmentHubPage() {
             emptyIcon={ShieldCheck}
             onRetry={() => query.refetch()}
           >
-            {readyForConsolidation.map((item, index) => {
+            {readyForConsolidationShown.map((item, index) => {
               const id = `${item.orderId}-${item.hubId || index}`;
               return (
                 <div key={id} className="border-t border-zinc-100 first:border-t-0">
@@ -544,12 +564,12 @@ export default function FulfilmentHubPage() {
                 </div>
               );
             })}
-            {consolidations.map((item, index) => {
+            {consolidationsShown.map((item, index) => {
               const id = item.publicId || item.id || item._id || `consolidation-${index}`;
               return (
                 <div key={id} className="border-t border-zinc-100 first:border-t-0">
                   <ListRow
-                    index={readyForConsolidation.length + index + 1}
+                    index={readyForConsolidationShown.length + index + 1}
                     initials={initialsOf(item.hub?.name || "hub")}
                     title={<span className="truncate text-sm font-semibold text-zinc-950">{id}</span>}
                     subject={item.order?.publicId || item.orderId || undefined}

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-/** Registers public/sw.js scoped to one portal path only, so it never controls Admin the way an unscoped register() would. */
+/** Registers public/sw.js scoped to one portal path only, so a portal's service worker never controls routes outside it. */
 export function ServiceWorkerRegistration({ scope }: { scope: string }) {
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;

@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { ColorPicker } from "@/components/mobile/ColorPicker";
 
 export type ItemResolutionView = {
   publicId?: string; id?: string; version: number; type: string; summary: string; status: string;
@@ -44,21 +45,64 @@ export function ItemResolutionCard({ issue, taskId }: { issue: ItemResolutionVie
     } finally { setPending(false); }
   }
 
-  return <div className="rounded-xl border border-amber-300 bg-amber-50/60 p-4">
-    <div className="flex items-start justify-between gap-3">
-      <div className="flex min-w-0 gap-2.5"><AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-700" /><div><p className="font-semibold">{original.title || "Order item"}</p><p className="mt-1 text-sm text-muted-foreground">{issue.summary}</p><p className="mt-1 text-xs font-medium uppercase tracking-wide text-amber-800">{issue.type.replaceAll("_", " ")}</p></div></div>
-      <StatusBadge status={issue.status} />
+  const canSubmit = !pending && title.trim() && color.trim() && size.trim() && quantity && price && reason.trim().length >= 3;
+
+  return <div className="overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-sm ring-1 ring-black/5">
+    <div className="flex items-start justify-between gap-3 bg-amber-50/70 px-4 py-3.5">
+      <div className="flex min-w-0 gap-2.5">
+        <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-amber-100"><AlertTriangle className="size-4 text-amber-700" /></span>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-zinc-950">{original.title || "Order item"}</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">{issue.summary}</p>
+          <span className="mt-1.5 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-800">{issue.type.replaceAll("_", " ")}</span>
+        </div>
+      </div>
+      <StatusBadge status={issue.status} className="shrink-0" />
     </div>
-    {canPropose && <Button className="mt-4" size="sm" onClick={() => setOpen((value) => !value)}>{open ? "Close" : "Propose replacement"}</Button>}
-    {open && <div className="mt-4 grid gap-3 border-t pt-4 sm:grid-cols-2">
-      <div className="sm:col-span-2"><Label>Replacement product</Label><Input value={title} onChange={(event) => setTitle(event.target.value)} /></div>
-      <div><Label>Colour</Label><Input value={color} onChange={(event) => setColor(event.target.value)} /></div>
-      <div><Label>Size</Label><Input value={size} onChange={(event) => setSize(event.target.value)} /></div>
-      <div><Label>Quantity</Label><Input inputMode="numeric" value={quantity} onChange={(event) => setQuantity(event.target.value.replace(/\D/g, ""))} /></div>
-      <div><Label>Unit price (NGN)</Label><Input inputMode="decimal" value={price} onChange={(event) => setPrice(event.target.value.replace(/[^0-9.]/g, ""))} /></div>
-      <div className="sm:col-span-2"><Label>Reason shown to customer</Label><Textarea value={reason} onChange={(event) => setReason(event.target.value)} /></div>
-      <Button className="sm:col-span-2" disabled={pending || !title || !color || !size || !quantity || !price || reason.trim().length < 3} onClick={() => void submit()}>{pending ? "Sending…" : "Send for customer approval"}</Button>
-    </div>}
-    {["PAYMENT_PENDING", "REFUND_PENDING"].includes(issue.status) && <div className="mt-4 rounded-lg border border-amber-200 bg-white/70 p-3 text-sm text-amber-950"><p className="font-semibold">{issue.status === "PAYMENT_PENDING" ? "Waiting for the customer’s secure Paystack top-up" : "Paystack refund is being verified"}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">This task resumes automatically after signed provider verification. No manual transaction reference is required.</p></div>}
+
+    {canPropose && (
+      <div className="px-4 py-3">
+        <Button size="sm" variant={open ? "outline" : "default"} onClick={() => setOpen((value) => !value)}>{open ? "Close" : "Propose replacement"}</Button>
+      </div>
+    )}
+
+    {open && (
+      <div className="space-y-4 border-t bg-zinc-50/60 px-4 py-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor={`${issue.publicId || issue.id}-title`}>Replacement product</Label>
+            <Input id={`${issue.publicId || issue.id}-title`} className="bg-white" value={title} onChange={(event) => setTitle(event.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor={`${issue.publicId || issue.id}-color`}>Colour</Label>
+            <ColorPicker value={color} onChange={setColor} className="bg-white" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor={`${issue.publicId || issue.id}-size`}>Size</Label>
+            <Input id={`${issue.publicId || issue.id}-size`} className="bg-white" value={size} onChange={(event) => setSize(event.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor={`${issue.publicId || issue.id}-qty`}>Quantity</Label>
+            <Input id={`${issue.publicId || issue.id}-qty`} className="bg-white" inputMode="numeric" value={quantity} onChange={(event) => setQuantity(event.target.value.replace(/\D/g, ""))} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor={`${issue.publicId || issue.id}-price`}>Unit price (NGN)</Label>
+            <Input id={`${issue.publicId || issue.id}-price`} className="bg-white" inputMode="decimal" value={price} onChange={(event) => setPrice(event.target.value.replace(/[^0-9.]/g, ""))} />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor={`${issue.publicId || issue.id}-reason`}>Reason shown to customer</Label>
+            <Textarea id={`${issue.publicId || issue.id}-reason`} className="min-h-24 bg-white" placeholder="Explain why this replacement is being offered" value={reason} onChange={(event) => setReason(event.target.value)} />
+          </div>
+        </div>
+        <Button className="w-full sm:w-auto" disabled={!canSubmit} onClick={() => void submit()}>{pending ? "Sending…" : "Send for customer approval"}</Button>
+      </div>
+    )}
+
+    {["PAYMENT_PENDING", "REFUND_PENDING"].includes(issue.status) && (
+      <div className="border-t bg-white px-4 py-3.5 text-sm text-zinc-800">
+        <p className="font-semibold">{issue.status === "PAYMENT_PENDING" ? "Waiting for the customer’s secure Paystack top-up" : "Paystack refund is being verified"}</p>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">This task resumes automatically after signed provider verification. No manual transaction reference is required.</p>
+      </div>
+    )}
   </div>;
 }

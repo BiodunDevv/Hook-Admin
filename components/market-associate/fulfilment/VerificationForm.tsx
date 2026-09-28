@@ -99,6 +99,7 @@ export function VerificationForm({
   });
   const [uploading, setUploading] = useState<ViewKey | null>(null);
   const [saving, setSaving] = useState(false);
+  const [extrasOpen, setExtrasOpen] = useState(false);
   const patch = (next: Partial<Draft>) => setDraft((current) => ({ ...current, ...next }));
 
   useEffect(() => {
@@ -231,21 +232,39 @@ export function VerificationForm({
           ))}
         </div>
         <div className="mt-4 border-t border-dashed pt-3">
-          <p className="mb-2 text-[12px] font-semibold text-[#6B6B6B]">More photos <span className="font-normal text-[#8F8F8F]">(optional, up to 4: labels, stitching, flaws)</span></p>
-          <div className="grid grid-cols-4 gap-2">
-            {EXTRA_VIEWS.map((view) => (
-              <PhotoSlot
-                key={view}
-                view={view}
-                optional
-                url={draft.photos[view]}
-                uploading={uploading === view}
-                disabled={saving || (uploading !== null && uploading !== view)}
-                onPick={(file) => void upload(file, view)}
-                onRemove={() => patch({ photos: { ...draft.photos, [view]: undefined } })}
-              />
-            ))}
-          </div>
+          {!extrasOpen && !EXTRA_VIEWS.some((view) => draft.photos[view]) ? (
+            <div className="flex items-center justify-between gap-3 rounded-[12px] border border-dashed border-[#E2E2E2] p-3">
+              <div className="min-w-0">
+                <p className="text-[13px] font-semibold text-black">Do you want to add more images?</p>
+                <p className="mt-0.5 text-[11px] leading-4 text-[#8F8F8F]">Optional close-ups of labels, stitching or flaws. Up to 4 more.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setExtrasOpen(true)}
+                className="flex shrink-0 items-center gap-1.5 rounded-full bg-black px-3.5 py-2 text-[12px] font-bold text-white transition active:scale-95"
+              >
+                <Plus className="size-3.5" /> Add images
+              </button>
+            </div>
+          ) : (
+            <>
+              <p className="mb-2 text-[12px] font-semibold text-[#6B6B6B]">More photos <span className="font-normal text-[#8F8F8F]">(optional, up to 4: labels, stitching, flaws)</span></p>
+              <div className="grid grid-cols-4 gap-2">
+                {EXTRA_VIEWS.map((view) => (
+                  <PhotoSlot
+                    key={view}
+                    view={view}
+                    optional
+                    url={draft.photos[view]}
+                    uploading={uploading === view}
+                    disabled={saving || (uploading !== null && uploading !== view)}
+                    onPick={(file) => void upload(file, view)}
+                    onRemove={() => patch({ photos: { ...draft.photos, [view]: undefined } })}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
         <p className="mt-2.5 text-[12px] leading-5 text-[#8F8F8F]">Front, side and back are required. Show the whole product in good light. Photos are shrunk automatically to save data.</p>
       </section>

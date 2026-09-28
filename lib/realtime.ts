@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { io, type Socket } from "socket.io-client";
+import { toast } from "sonner";
 import { getAccessToken } from "@/lib/api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000/api/v1";
@@ -70,6 +72,19 @@ function invalidateAll(
   for (const queryKey of keys) queryClient.invalidateQueries({ queryKey });
 }
 
+type RealtimePayload = { data?: { title?: string; body?: string; href?: string } };
+
+function notifyToast(event: string, payload: unknown, navigate: (href: string) => void) {
+  if (event !== "notification.created") return;
+  const data = (payload as RealtimePayload | undefined)?.data;
+  // A replay (idempotent re-run) carries no title/body — see commerce-notification.service.ts — so it silently skips the toast and only the cache invalidation below runs.
+  if (!data?.title) return;
+  toast(data.title, {
+    description: data.body,
+    action: data.href ? { label: "View", onClick: () => navigate(data.href!) } : undefined,
+  });
+}
+
 function invalidateForEvent(queryClient: QueryClient, event: string) {
   if (event === "realtime.connected") {
     // Resync every surface after a socket reconnect, rather than guessing which ones drifted.
@@ -102,6 +117,7 @@ function invalidateForEvent(queryClient: QueryClient, event: string) {
 
 export function AdminRealtimeBridge() {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   useEffect(() => {
     let socket: Socket | undefined;
@@ -123,7 +139,10 @@ export function AdminRealtimeBridge() {
           reconnectionDelayMax: 10_000,
           auth: { accessToken },
         });
-        socket.onAny((event) => invalidateForEvent(queryClient, event));
+        socket.onAny((event, payload) => {
+          invalidateForEvent(queryClient, event);
+          notifyToast(event, payload, (href) => router.push(href));
+        });
         socket.on("connect", () => {
           invalidateForEvent(queryClient, "realtime.connected");
         });
@@ -145,7 +164,7 @@ export function AdminRealtimeBridge() {
       window.removeEventListener("hook-auth-changed", onAuthChanged);
       socket?.disconnect();
     };
-  }, [queryClient]);
+  }, [queryClient, router]);
 
   return null;
 }

@@ -35,6 +35,7 @@ import {
 import { useApiQuery, useLogout } from "@/lib/query";
 import { PortalGuard } from "@/components/platform/PortalGuard";
 import { ServiceWorkerRegistration } from "@/components/platform/ServiceWorkerRegistration";
+import { PushPermissionBanner } from "@/components/platform/PushPermissionBanner";
 import { InstallPrompt } from "@/components/platform/InstallPrompt";
 import { PullToRefresh } from "@/components/platform/PullToRefresh";
 import { ChangesRequestedBanner, type WorkflowAlert } from "@/components/market-associate/ChangesRequestedBanner";
@@ -265,6 +266,10 @@ export function AppTabBarShell({
             </div>
           </div>
         </header>
+
+        <div className="mx-auto w-full max-w-2xl px-5 pt-3">
+          <PushPermissionBanner portal={type === "marketassociate" ? "market-associate" : "partner"} />
+        </div>
 
         <PullToRefresh queryKeyPrefix={[type === "marketassociate" ? "marketassociate" : "partner"]}>
           <main
