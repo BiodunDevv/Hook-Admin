@@ -2,12 +2,14 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Check, RotateCcw, X } from "lucide-react";
+import { Check, ClipboardList, RotateCcw, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { FilterBar } from "@/components/shared/FilterBar";
 import { HookLoader } from "@/components/shared/HookLoader";
+import { MetricCard } from "@/components/shared/MetricCard";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { QueryState } from "@/components/shared/QueryState";
 import { ListRow, initialsOf } from "@/components/shared/ListRow";
@@ -48,14 +50,26 @@ export default function FulfilmentReturnsPage() {
   const [pending, setPending] = useState<string>();
   // Defaults to the work that needs doing rather than the full history.
   const [view, setView] = useState("open");
+  const [search, setSearch] = useState("");
 
   const rows = useMemo(() => query.data || [], [query.data]);
   const openCount = useMemo(() => rows.filter(isOpen).length, [rows]);
-  const visible = useMemo(() => {
+  const decidedCount = rows.length - openCount;
+  const byView = useMemo(() => {
     if (view === "open") return rows.filter(isOpen);
     if (view === "decided") return rows.filter((row) => !isOpen(row));
     return rows;
   }, [rows, view]);
+  const needle = search.trim().toLowerCase();
+  const visible = byView.filter((row) => {
+    const id = row.publicId || row.id || row._id;
+    return (
+      !needle ||
+      [id, row.order?.publicId, row.orderId, row.reasonType, row.reason].some((value) =>
+        value?.toLowerCase().includes(needle),
+      )
+    );
+  });
 
   async function review(item: Row, decision: "APPROVED" | "REJECTED") {
     const id = item.publicId || item.id || item._id;
@@ -85,6 +99,21 @@ export default function FulfilmentReturnsPage() {
         showBack={false}
         title="Returns review"
         description="Review customer issues within the 24-hour delivery or collection policy window, with a recorded decision reason."
+      />
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <MetricCard label="Awaiting review" value={openCount} icon={ClipboardList} intent={openCount ? "warning" : "neutral"} />
+        <MetricCard label="Decided" value={decidedCount} icon={Check} intent="success" />
+        <MetricCard label="Total requests" value={rows.length} icon={RotateCcw} intent="info" />
+      </div>
+
+      <FilterBar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search request, order, or reason"
+        active={Boolean(search)}
+        onClear={() => setSearch("")}
+        hint="Refine this list"
       />
 
       <Card className="rounded-lg shadow-none">

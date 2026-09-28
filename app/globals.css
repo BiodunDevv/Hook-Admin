@@ -35,6 +35,12 @@
   --color-warning-soft: var(--warning-soft);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-violet: var(--violet);
+  --color-violet-soft: var(--violet-soft);
+  --color-teal: var(--teal);
+  --color-teal-soft: var(--teal-soft);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -89,6 +95,12 @@
   --warning-soft: oklch(0.975 0.045 85);
   --danger: oklch(0.56 0.2 27);
   --danger-soft: oklch(0.97 0.025 27);
+  --info: oklch(0.55 0.18 250);
+  --info-soft: oklch(0.97 0.03 250);
+  --violet: oklch(0.55 0.18 300);
+  --violet-soft: oklch(0.97 0.03 300);
+  --teal: oklch(0.55 0.1 195);
+  --teal-soft: oklch(0.97 0.03 195);
   --border: oklch(0.922 0.004 286);
   --input: oklch(0.922 0.004 286);
   --ring: oklch(0.708 0.01 286);
@@ -130,6 +142,12 @@
   --warning-soft: oklch(0.29 0.045 80);
   --danger: oklch(0.72 0.18 27);
   --danger-soft: oklch(0.28 0.05 27);
+  --info: oklch(0.75 0.15 250);
+  --info-soft: oklch(0.28 0.045 250);
+  --violet: oklch(0.75 0.15 300);
+  --violet-soft: oklch(0.28 0.045 300);
+  --teal: oklch(0.75 0.09 195);
+  --teal-soft: oklch(0.28 0.045 195);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);

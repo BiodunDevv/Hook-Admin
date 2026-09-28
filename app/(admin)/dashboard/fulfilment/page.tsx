@@ -2,14 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import {
-  AlertTriangle,
-  ArrowRight,
-  Box,
-  ClipboardCheck,
-  Truck,
-} from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { toast } from "sonner";
+import { Boxes, ClipboardCheck, PackageSearch, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -23,6 +18,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { HookLoader } from "@/components/shared/HookLoader";
 import { AdminWorkflowSheet } from "@/components/shared/AdminWorkflowSheet";
+import { FilterBar } from "@/components/shared/FilterBar";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { StageStrip } from "@/components/fulfilment/StageStrip";
 import { useRouter } from "next/navigation";
@@ -191,35 +187,17 @@ export default function FulfilmentControlTowerPage() {
     return blocked(left) - blocked(right);
   });
 
-  // Metrics describe where work actually sits, rather than counting rows.
-  const AT_HUB = ["HUB_RECEIVED", "QC_PASSED"];
-  const SOURCING = ["ALERTED", "ACCEPTED", "SOURCING", "PRODUCT_SECURED", "PACKING", "READY_FOR_HUB"];
-
-  const metrics = data
-    ? [
-        {
-          label: "Sourcing",
-          value: tasks.filter((task) => SOURCING.includes(String(task.status))).length,
-          icon: Box,
-        },
-        {
-          label: "Blocked",
-          value: blockedTaskCount,
-          icon: AlertTriangle,
-          intent: blockedTaskCount ? ("danger" as const) : ("neutral" as const),
-        },
-        {
-          label: "At hub",
-          value: tasks.filter((task) => AT_HUB.includes(String(task.status))).length,
-          icon: ClipboardCheck,
-        },
-        {
-          label: "In transit",
-          value: data.metrics.activeShipments,
-          icon: Truck,
-        },
-      ]
-    : [];
+  const [showAllTasks, setShowAllTasks] = useState(false);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const statusOptions = Array.from(new Set(tasks.map((task) => task.status).filter(Boolean))) as string[];
+  const term = search.trim().toLowerCase();
+  const filteredTasks = tasks.filter((task) => {
+    if (statusFilter !== "all" && task.status !== statusFilter) return false;
+    if (!term) return true;
+    return [task.market?.name, task.marketAssociate?.name, task.hub?.name, identifier(task)]
+      .some((value) => value?.toLowerCase().includes(term));
+  });
 
   return (
     <div className="w-full space-y-5 px-4 py-5">
@@ -241,27 +219,48 @@ export default function FulfilmentControlTowerPage() {
       >
         {data ? (
           <>
-            <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-              {metrics.map((metric) => (
-                <MetricCard key={metric.label} {...metric} />
-              ))}
-            </div>
+            {overview ? (
+              <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+                <MetricCard label="Sourcing" value={overview.sourcing} icon={PackageSearch} intent="info" />
+                <MetricCard label="At hub" value={overview.inbound} icon={Boxes} intent="violet" />
+                <MetricCard label="Ready to book" value={overview.readyToBook} icon={ClipboardCheck} intent={overview.readyToBook ? "warning" : "neutral"} />
+                <MetricCard label="Exceptions" value={overview.exceptions} icon={TriangleAlert} intent={overview.exceptions ? "danger" : "neutral"} />
+              </div>
+            ) : null}
 
             {overview ? (
               <StageStrip
                 onSelect={(key) => router.push(key === "sourcing" ? "/dashboard/fulfilment" : ["inbound", "qc", "failed", "consolidate"].includes(key) ? "/dashboard/fulfilment/hub" : "/dashboard/fulfilment/shipments")}
                 stages={[
-                  { key: "sourcing", label: "Sourcing", count: overview.sourcing, tone: overview.blocked ? "danger" : "default" },
-                  { key: "inbound", label: "At hub", count: overview.inbound },
-                  { key: "qc", label: "Quality check", count: overview.awaitingQc },
-                  { key: "failed", label: "QC failed", count: overview.failed ?? 0, tone: overview.failed ? "danger" : "default" },
-                  { key: "consolidate", label: "Consolidate", count: overview.readyToConsolidate + overview.consolidating },
-                  { key: "book", label: "Ready to book", count: overview.readyToBook, tone: overview.readyToBook ? "warning" : "default" },
-                  { key: "transit", label: "In transit", count: overview.inTransit },
-                  { key: "exceptions", label: "Exceptions", count: overview.exceptions, tone: overview.exceptions ? "danger" : "default" },
+                  { key: "sourcing", label: "Sourcing", count: overview.sourcing, tone: overview.blocked ? "danger" : "default", group: "Sourcing" },
+                  { key: "inbound", label: "At hub", count: overview.inbound, group: "Hub" },
+                  { key: "qc", label: "Quality check", count: overview.awaitingQc, group: "Hub" },
+                  { key: "failed", label: "QC failed", count: overview.failed ?? 0, tone: overview.failed ? "danger" : "default", group: "Hub" },
+                  { key: "consolidate", label: "Consolidate", count: overview.readyToConsolidate + overview.consolidating, group: "Hub" },
+                  { key: "book", label: "Ready to book", count: overview.readyToBook, tone: overview.readyToBook ? "warning" : "default", group: "Dispatch" },
+                  { key: "transit", label: "In transit", count: overview.inTransit, group: "Dispatch" },
+                  { key: "exceptions", label: "Exceptions", count: overview.exceptions, tone: overview.exceptions ? "danger" : "default", group: "Needs attention" },
                 ]}
               />
             ) : null}
+
+            <FilterBar
+              search={search}
+              onSearchChange={setSearch}
+              searchPlaceholder="Search market, associate, or hub"
+              active={Boolean(search) || statusFilter !== "all"}
+              onClear={() => { setSearch(""); setStatusFilter("all"); }}
+              hint="Refine the task list"
+              filters={
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="h-9 w-full sm:w-44"><SelectValue placeholder="All statuses" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All statuses</SelectItem>
+                    {statusOptions.map((status) => <SelectItem key={status} value={status}>{status.replaceAll("_", " ")}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              }
+            />
 
             <div className="grid gap-4">
               <Card className="gap-0 overflow-hidden rounded-lg py-0 shadow-card">
@@ -280,12 +279,12 @@ export default function FulfilmentControlTowerPage() {
                         {blockedTaskCount} blocked
                       </span>
                     ) : null}
-                    {tasks.length} active
+                    {filteredTasks.length} shown
                   </span>
                 </CardHeader>
                 <CardContent className="p-0">
-                  {tasks.length ? (
-                    tasks.slice(0, TASK_PREVIEW_LIMIT).map((task, index) => {
+                  {filteredTasks.length ? (
+                    (showAllTasks ? filteredTasks : filteredTasks.slice(0, TASK_PREVIEW_LIMIT)).map((task, index) => {
                       const taskId = identifier(task);
                       const canReassign = !["BLOCKED", "HUB_RECEIVED", "QC_PASSED"].includes(task.status || "");
                       const marketAssociateName = task.marketAssociate?.name;
@@ -351,14 +350,18 @@ export default function FulfilmentControlTowerPage() {
                   ) : (
                     <QueryState
                       empty
-                      emptyTitle="No active fulfilment tasks"
-                      emptyDescription="New approved orders will appear here automatically."
+                      emptyTitle={tasks.length ? "No tasks match your filters" : "No active fulfilment tasks"}
+                      emptyDescription={tasks.length ? "Try a different search or status." : "New approved orders will appear here automatically."}
                     />
                   )}
-                  {tasks.length > TASK_PREVIEW_LIMIT ? (
-                    <div className="border-t px-4 py-2.5 text-xs text-muted-foreground">
-                      Showing the {TASK_PREVIEW_LIMIT} most urgent of {tasks.length} tasks.
-                    </div>
+                  {!showAllTasks && filteredTasks.length > TASK_PREVIEW_LIMIT ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllTasks(true)}
+                      className="block w-full border-t px-4 py-2.5 text-left text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                    >
+                      Showing the {TASK_PREVIEW_LIMIT} most urgent of {filteredTasks.length} tasks — show all
+                    </button>
                   ) : null}
                 </CardContent>
               </Card>

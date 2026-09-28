@@ -24,12 +24,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ReceiptSheet } from "@/components/fulfilment/ReceiptSheet";
 import { CourierBadge, type CourierInfo } from "@/components/fulfilment/CourierBadge";
 import { CourierSwitchDialog } from "@/components/fulfilment/CourierSwitchDialog";
 import { Repeat } from "lucide-react";
+import { FilterBar } from "@/components/shared/FilterBar";
 import { HookLoader } from "@/components/shared/HookLoader";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -103,6 +103,11 @@ export default function FulfilmentShipmentsPage() {
     ["admin", "fulfilment", "sealed-consolidations"],
     "/admin/fulfilment/consolidations?status=SEALED&limit=100",
   );
+  const readinessQuery = useApiQuery<{ providers: Array<{ name: string; enabled: boolean }> }>(
+    ["admin", "fulfilment", "logistics-readiness"],
+    "/admin/fulfilment/logistics/readiness",
+  );
+  const fezEnabled = readinessQuery.data?.providers?.some((item) => item.name === "fez" && item.enabled) ?? false;
 
   const [tab, setTab] = useState<Tab>("ready");
   const [search, setSearch] = useState("");
@@ -153,20 +158,20 @@ export default function FulfilmentShipmentsPage() {
     void consolidationsQuery.refetch();
   }
 
-  async function book(item: Consolidation, substitute?: { code: string; reason: string }) {
+  async function book(item: Consolidation, substitute?: { code: string; reason: string }, provider: string = "manual") {
     if (!item.orderId || !item.hubId) return;
     const id = item.publicId || item.id || item._id;
     if (!id) return;
     setPending(`book-${id}`);
     try {
       await apiPost(`/admin/fulfilment/orders/${item.orderId}/shipments`, {
-        provider: "manual",
+        provider,
         courierCode: substitute?.code || item.chosenCourier?.code,
         ...(substitute ? { substitutionReason: substitute.reason } : {}),
         hubId: item.hubId,
         idempotencyKey: `shipment-${item.orderId}`,
       });
-      toast.success("Shipment booked.");
+      toast.success(provider === "fez" ? "Shipment booked with Fez." : "Shipment booked.");
       setSwitching(undefined);
       await Promise.all([shipmentsQuery.refetch(), consolidationsQuery.refetch()]);
     } catch (cause) {
@@ -230,7 +235,7 @@ export default function FulfilmentShipmentsPage() {
       />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard label="Ready to book" value={counts.ready} icon={Truck} />
+        <MetricCard label="Ready to book" value={counts.ready} icon={Truck} intent="info" />
         <MetricCard
           label="Courier unavailable"
           value={unavailableReady}
@@ -247,22 +252,23 @@ export default function FulfilmentShipmentsPage() {
         />
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Tabs value={tab} onValueChange={(value) => setTab(value as Tab)}>
-          <TabsList>
-            <TabsTrigger value="ready">Ready to book ({counts.ready})</TabsTrigger>
-            <TabsTrigger value="active">Active ({counts.active})</TabsTrigger>
-            <TabsTrigger value="exceptions">Exceptions ({counts.exceptions})</TabsTrigger>
-            <TabsTrigger value="all">All ({counts.all})</TabsTrigger>
-          </TabsList>
-        </Tabs>
-        <Input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search order, courier, tracking, hub"
-          className="h-9 sm:w-[300px]"
-        />
-      </div>
+      <Tabs value={tab} onValueChange={(value) => setTab(value as Tab)}>
+        <TabsList>
+          <TabsTrigger value="ready">Ready to book ({counts.ready})</TabsTrigger>
+          <TabsTrigger value="active">Active ({counts.active})</TabsTrigger>
+          <TabsTrigger value="exceptions">Exceptions ({counts.exceptions})</TabsTrigger>
+          <TabsTrigger value="all">All ({counts.all})</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      <FilterBar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search order, courier, tracking, hub"
+        active={Boolean(search)}
+        onClear={() => setSearch("")}
+        hint="Refine this list"
+      />
 
       <Card className="rounded-lg shadow-none">
         <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
@@ -330,6 +336,17 @@ export default function FulfilmentShipmentsPage() {
                                   </>
                                 )}
                               </Button>
+                              {fezEnabled && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => void book(item, undefined, "fez")}
+                                  disabled={pending === `book-${id}`}
+                                  title="Book this shipment with Fez instead of a manual courier"
+                                >
+                                  {pending === `book-${id}` ? <HookLoader size="button" /> : "Book with Fez"}
+                                </Button>
+                              )}
                             </>
                           )}
                         </PermissionGuard>
