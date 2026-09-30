@@ -1,6 +1,7 @@
 "use client";
 
 import { friendlyVariantValue } from "@/lib/color-name";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { ReceiptSheet } from "@/components/fulfilment/ReceiptSheet";
@@ -33,6 +34,7 @@ type OrderDetail = {
   channel?: string;
   sourceStateId?: string;
   sourceStateIds?: string[];
+  sourceStateNames?: string[];
   commerceStatus?: string;
   commercePaymentStatus?: string;
   commercePaymentMethod?: string;
@@ -89,6 +91,7 @@ type OrderDetail = {
   fulfilmentGroups?: Array<{
     publicId: string;
     sourceStateId: string;
+    sourceStateName?: string;
     subtotalMinor: number;
     deliveryFeeShareMinor: number;
     status: string;
@@ -112,6 +115,32 @@ const money = (value: unknown) =>
     maximumFractionDigits: 0,
   }).format(Number(value || 0) / 100);
 const text = (value: unknown) => String(value || "-");
+
+const POLICY_ROUTES: Record<string, string> = { terms: "/terms", privacy: "/privacy", returns: "/returns" };
+
+function PolicyVersions({ policyVersions }: { policyVersions?: Record<string, string> }) {
+  const entries = Object.entries(policyVersions || {});
+  if (!entries.length) return <>Not recorded</>;
+  return (
+    <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+      {entries.map(([key, value], index) => {
+        const href = POLICY_ROUTES[key.toLowerCase()];
+        return (
+          <span key={key} className="inline-flex items-center gap-1.5">
+            {index > 0 ? <span className="text-muted-foreground">·</span> : null}
+            {href ? (
+              <Link href={href} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-foreground">
+                {key} {value}
+              </Link>
+            ) : (
+              <span>{key} {value}</span>
+            )}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
 
 export default function OrderDetailPage() {
   const router = useRouter();
@@ -192,7 +221,7 @@ export default function OrderDetailPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <MetricCard icon={Package} label="Order status" value={text(order.commerceStatus).replaceAll("_", " ")} intent="warning" />
         <MetricCard icon={CreditCard} label="Payment status" value={text(order.commercePaymentStatus).replaceAll("_", " ")} intent="success" />
-        <MetricCard icon={MapPin} label="Source states" value={String(order.sourceStateIds?.length || (order.sourceStateId ? 1 : 0))} />
+        <MetricCard icon={MapPin} label="Source states" value={order.sourceStateNames?.length ? order.sourceStateNames.join(", ") : "-"} />
         <MetricCard icon={ShieldCheck} label="Order total" value={money(order.totalMinor)} />
         {hasMarginData ? <MetricCard icon={ShieldCheck} label="Order margin" value={money(totalMarginMinor)} intent={totalMarginMinor >= 0 ? "success" : "warning"} /> : null}
       </div>
@@ -206,7 +235,14 @@ export default function OrderDetailPage() {
                     <p className="font-semibold">Delivery {index + 1}</p>
                     <StatusBadge status={group.status} />
                   </div>
-                  <p className="mt-1 text-sm text-muted-foreground">{group.sourceStateId} · {group.publicId}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {group.sourceStateName || group.sourceStateId}
+                    {address.recipientName || address.name ? ` · ${text(address.recipientName || address.name)}` : ""}
+                  </p>
+                  {address.line1 || address.address ? (
+                    <p className="mt-0.5 text-sm text-muted-foreground">{text(address.line1 || address.address)}</p>
+                  ) : null}
+                  <p className="mt-1 text-xs text-muted-foreground/70">{group.publicId}</p>
                   {group.shipmentId ? <p className="mt-1 text-xs text-muted-foreground">Shipment {group.shipmentId}</p> : null}
                 </div>
                 <div className="text-left sm:text-right">
@@ -318,7 +354,7 @@ export default function OrderDetailPage() {
           </DetailSection>
         </div>
         <div className="space-y-5">
-          <DetailSection title="Customer & policies" description="Identity and accepted policy versions captured for this order." action={<ShieldCheck className="size-4 text-muted-foreground" />}><DefinitionGrid columns={1} items={[{ label: "Customer", value: text(customer.name) }, { label: "Email", value: text(customer.email) }, { label: "Phone", value: text(customer.phone) }, { label: "Policy versions", value: Object.entries(order.policyVersions || {}).map(([key, value]) => `${key} ${value}`).join(" · ") || "Not recorded" }]} /></DetailSection>
+          <DetailSection title="Customer & policies" description="Identity and accepted policy versions captured for this order." action={<ShieldCheck className="size-4 text-muted-foreground" />}><DefinitionGrid columns={1} items={[{ label: "Customer", value: text(customer.name) }, { label: "Email", value: text(customer.email) }, { label: "Phone", value: text(customer.phone) }, { label: "Policy versions", value: <PolicyVersions policyVersions={order.policyVersions} /> }]} /></DetailSection>
           <DetailSection title="Delivery snapshot" description="Immutable destination information used for fulfilment." action={<MapPin className="size-4 text-muted-foreground" />}><DefinitionGrid columns={1} items={[{ label: "Recipient", value: text(address.recipientName || address.name) }, { label: "Address", value: text(address.line1 || address.address) }, { label: "Phone", value: text(address.phone || (address.contact as Record<string, unknown> | undefined)?.phone) }]} /></DetailSection>
           <DetailSection title="Payment evidence" description="Provider-backed payment records. Multi-delivery Pay-at-Handover orders have one payment per delivery." action={<CreditCard className="size-4 text-muted-foreground" />} contentClassName="space-y-3">
             {(order.payments?.length ? order.payments : order.payment ? [order.payment] : []).map((payment, index) => (

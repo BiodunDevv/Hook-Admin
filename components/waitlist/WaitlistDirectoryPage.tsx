@@ -31,6 +31,9 @@ interface WaitlistEntry {
   publicId: string;
   email: string;
   name: string;
+  phone?: string;
+  city?: string;
+  itemInterest?: string;
   redeemedByUserId?: string;
   pendingCreditMinor?: number;
   creditGrantedAt?: string;
@@ -176,7 +179,7 @@ export function WaitlistDirectoryPage() {
         <CardContent className="p-3">
           <div className="relative max-w-md">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search email or name" className="h-9 pl-9" />
+            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search email, name, phone or city" className="h-9 pl-9" />
           </div>
         </CardContent>
       </Card>
@@ -200,6 +203,9 @@ export function WaitlistDirectoryPage() {
                   <th className="w-10 px-3 py-2.5"><Checkbox checked={entries.length > 0 && entries.every((entry) => selected.has(entry.publicId))} onCheckedChange={(value) => toggleAll(Boolean(value))} /></th>
                   <th className="px-3 py-2.5 font-medium">Email</th>
                   <th className="px-3 py-2.5 font-medium">Name</th>
+                  <th className="px-3 py-2.5 font-medium">Phone</th>
+                  <th className="px-3 py-2.5 font-medium">City</th>
+                  <th className="px-3 py-2.5 font-medium">Interested in</th>
                   <th className="px-3 py-2.5 font-medium">Status</th>
                   <th className="px-3 py-2.5 font-medium">Joined</th>
                   <th className="w-10 px-2 py-2.5" />
@@ -211,6 +217,9 @@ export function WaitlistDirectoryPage() {
                     <td className="px-3 py-2"><Checkbox checked={selected.has(entry.publicId)} onCheckedChange={() => toggle(entry.publicId)} /></td>
                     <td className="px-3 py-2 font-medium text-foreground">{entry.email}</td>
                     <td className="px-3 py-2 text-muted-foreground">{entry.name}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{entry.phone || "—"}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{entry.city || "—"}</td>
+                    <td className="max-w-56 truncate px-3 py-2 text-muted-foreground" title={entry.itemInterest}>{entry.itemInterest || "—"}</td>
                     <td className="px-3 py-2"><StatusBadge status={entryStatus(entry)} /></td>
                     <td className="px-3 py-2 text-xs text-muted-foreground">{new Date(entry.createdAt).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}</td>
                     <td className="px-2 py-2">
