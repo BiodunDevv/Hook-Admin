@@ -158,20 +158,30 @@ export default function FulfilmentShipmentsPage() {
     void consolidationsQuery.refetch();
   }
 
-  async function book(item: Consolidation, substitute?: { code: string; reason: string }, provider: string = "manual") {
+  async function book(item: Consolidation, substitute?: { code: string; reason: string }) {
     if (!item.orderId || !item.hubId) return;
     const id = item.publicId || item.id || item._id;
     if (!id) return;
+    const courierCode = substitute?.code || item.chosenCourier?.code;
+    // The provider is never a separate choice: it's how this specific courier actually gets
+    // booked. Fez-integrated couriers go through the live Fez API when that integration is
+    // enabled; every other courier — including Fez when the integration isn't configured —
+    // is recorded manually so booking never silently fails on a disabled integration.
+    const provider = courierCode?.toUpperCase() === "FEZ" && fezEnabled ? "fez" : "manual";
     setPending(`book-${id}`);
     try {
       await apiPost(`/admin/fulfilment/orders/${item.orderId}/shipments`, {
         provider,
-        courierCode: substitute?.code || item.chosenCourier?.code,
+        courierCode,
         ...(substitute ? { substitutionReason: substitute.reason } : {}),
         hubId: item.hubId,
-        idempotencyKey: `shipment-${item.orderId}`,
+        // A fresh key per attempt, not one static per order: the backend remembers a completed
+        // key for 24h and rejects any later request whose body differs at all (see
+        // Hook-Backend/src/middleware/idempotency.ts) — a static key made it impossible to ever
+        // book this order again with a different courier/provider without the key itself expiring.
+        idempotencyKey: crypto.randomUUID(),
       });
-      toast.success(provider === "fez" ? "Shipment booked with Fez." : "Shipment booked.");
+      toast.success("Shipment booked.");
       setSwitching(undefined);
       await Promise.all([shipmentsQuery.refetch(), consolidationsQuery.refetch()]);
     } catch (cause) {
@@ -332,21 +342,10 @@ export default function FulfilmentShipmentsPage() {
                                   <HookLoader size="button" />
                                 ) : (
                                   <>
-                                    <Truck /> Book shipment
+                                    <Truck /> Book now
                                   </>
                                 )}
                               </Button>
-                              {fezEnabled && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => void book(item, undefined, "fez")}
-                                  disabled={pending === `book-${id}`}
-                                  title="Book this shipment with Fez instead of a manual courier"
-                                >
-                                  {pending === `book-${id}` ? <HookLoader size="button" /> : "Book with Fez"}
-                                </Button>
-                              )}
                             </>
                           )}
                         </PermissionGuard>
@@ -360,6 +359,10 @@ export default function FulfilmentShipmentsPage() {
                   const selected = chosenStatus[id] || options[0] || "";
                   const orderRef = item.order?.publicId || item.orderId;
                   const canSwitch = PRE_PICKUP.includes(item.status || "");
+                  // A provider with real tracking reports its own status via webhook (see
+                  // logisticsWebhook in fulfilment.service.ts) — a manual override here would
+                  // just fight with whatever that provider reports next.
+                  const tracked = ["fez", "gig"].includes(item.provider || "");
                   return (
                     <ListRow
                       key={id}
@@ -397,7 +400,11 @@ export default function FulfilmentShipmentsPage() {
                                 <Repeat /> Switch courier
                               </Button>
                             ) : null}
-                            {options.length ? (
+                            {tracked ? (
+                              options.length ? (
+                                <span className="text-xs text-muted-foreground">Tracked automatically via {item.courierName || item.provider}</span>
+                              ) : null
+                            ) : options.length ? (
                               <>
                                 <Select
                                   value={selected}
