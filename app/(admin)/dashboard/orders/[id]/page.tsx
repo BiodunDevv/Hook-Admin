@@ -104,7 +104,6 @@ type OrderDetail = {
     actorType?: string;
     reason?: string;
   }>;
-  podReview?: Record<string, unknown>;
   policyVersions?: Record<string, string>;
 };
 
@@ -181,7 +180,7 @@ export default function OrderDetailPage() {
     return sum + (hookPriceMinor - marketPriceMinor) * item.quantity;
   }, 0);
   const hasMarginData = (order.items || []).some((item) => item.product?.basePriceMinor != null);
-  // Only CONFIRMED payments are refundable; sum them since Pay-at-Handover may include unpaid deliveries.
+  // Only CONFIRMED payments are refundable; sum them, as pending or failed attempts are not refundable.
   const capturedMinor = (order.payments?.length ? order.payments : order.payment ? [order.payment] : [])
     .filter((payment) => String(payment.commerceStatus || "").toUpperCase() === "CONFIRMED")
     .reduce((sum, payment) => sum + Number(payment.amountMinor || 0), 0);
@@ -356,7 +355,7 @@ export default function OrderDetailPage() {
         <div className="space-y-5">
           <DetailSection title="Customer & policies" description="Identity and accepted policy versions captured for this order." action={<ShieldCheck className="size-4 text-muted-foreground" />}><DefinitionGrid columns={1} items={[{ label: "Customer", value: text(customer.name) }, { label: "Email", value: text(customer.email) }, { label: "Phone", value: text(customer.phone) }, { label: "Policy versions", value: <PolicyVersions policyVersions={order.policyVersions} /> }]} /></DetailSection>
           <DetailSection title="Delivery snapshot" description="Immutable destination information used for fulfilment." action={<MapPin className="size-4 text-muted-foreground" />}><DefinitionGrid columns={1} items={[{ label: "Recipient", value: text(address.recipientName || address.name) }, { label: "Address", value: text(address.line1 || address.address) }, { label: "Phone", value: text(address.phone || (address.contact as Record<string, unknown> | undefined)?.phone) }]} /></DetailSection>
-          <DetailSection title="Payment evidence" description="Provider-backed payment records. Multi-delivery Pay-at-Handover orders have one payment per delivery." action={<CreditCard className="size-4 text-muted-foreground" />} contentClassName="space-y-3">
+          <DetailSection title="Payment evidence" description="Provider-backed payment records." action={<CreditCard className="size-4 text-muted-foreground" />} contentClassName="space-y-3">
             {(order.payments?.length ? order.payments : order.payment ? [order.payment] : []).map((payment, index) => (
               <div key={payment.publicId || payment.transactionRef || index} className="rounded-md border p-3">
                 <div className="flex items-center justify-between gap-3"><p className="font-medium">{payment.fulfilmentGroupId ? `Delivery payment` : "Order payment"}</p><StatusBadge status={payment.commerceStatus || "PENDING"} /></div>

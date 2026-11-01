@@ -25,8 +25,12 @@ function groupByDay(events: AuditLogEvent[]) {
   return [...groups.entries()];
 }
 
-export function AuditLogTimeline({ events, onSelect }: { events: AuditLogEvent[]; onSelect: (event: AuditLogEvent) => void }) {
-  if (!events.length) return <EmptyState icon={ClipboardList} title="No audit events found" description="Adjust the filters or check back after the next operational change." />;
+export function AuditLogTimeline({ events, onSelect, filtered = false }: { events: AuditLogEvent[]; onSelect: (event: AuditLogEvent) => void; filtered?: boolean }) {
+  if (!events.length) {
+    return filtered
+      ? <EmptyState icon={ClipboardList} title="No matching events" description="Nothing matches these filters. Try a wider date range or clear the filters." />
+      : <EmptyState icon={ClipboardList} title="No activity recorded yet" description="Staff sign-ins and every audited change, such as settings, catalogue and delivery updates, will appear here as they happen." />;
+  }
   const groups = groupByDay(events);
   return (
     <div className="space-y-7">

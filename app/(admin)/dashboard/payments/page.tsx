@@ -22,7 +22,6 @@ const STATUS_OPTIONS = [
   { label: "Confirmed", value: "CONFIRMED" },
   { label: "Pending", value: "PENDING" },
   { label: "Processing", value: "PROCESSING" },
-  { label: "Due at handover", value: "DUE_AT_HANDOVER" },
   { label: "Failed", value: "FAILED" },
   { label: "Refunded", value: "REFUNDED" },
 ];

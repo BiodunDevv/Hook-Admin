@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { Building2, Coins, CreditCard, CalendarClock, FileText, Mail, Boxes, Smartphone, ShoppingCart, Megaphone, Truck } from "lucide-react";
+import { Building2, Coins, CreditCard, CalendarClock, FileText, Mail, Boxes, Smartphone, ShoppingCart, Megaphone, Receipt } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { cn } from "@/lib/utils";
 import { SettingsSection } from "@/components/settings/SettingsSection";
@@ -11,7 +11,7 @@ import { EmailConfigurationSection } from "@/components/settings/EmailConfigurat
 import { HookCreditSection } from "@/components/settings/HookCreditSection";
 import { InventorySettingsSection } from "@/components/settings/InventorySettingsSection";
 import { LegalContentSection } from "@/components/settings/LegalContentSection";
-import { PodSettingsSection } from "@/components/settings/PodSettingsSection";
+import { PricingSettingsSection } from "@/components/settings/PricingSettingsSection";
 import { CheckoutSettingsSection } from "@/components/settings/CheckoutSettingsSection";
 import { BannersSection } from "@/components/settings/BannersSection";
 import { AppUpdatesSection } from "@/components/settings/AppUpdatesSection";
@@ -32,7 +32,7 @@ const settingsGroups = [
     label: "Commerce",
     items: [
       { slug: "checkout", name: "Checkout", description: "Minimum order value", icon: ShoppingCart },
-      { slug: "pay-on-delivery", name: "Pay on Delivery & VAT", description: "Fee, surcharge, limits, VAT", icon: Truck },
+      { slug: "pricing", name: "VAT & delivery pricing", description: "VAT and default delivery fee", icon: Receipt },
       { slug: "payment-providers", name: "Payments", description: "Providers and defaults", icon: CreditCard },
       { slug: "hook-credit", name: "Hook credit", description: "Earning, spending, referrals", icon: Coins },
     ],
@@ -59,7 +59,7 @@ const DEFAULT_SECTION = settingsMenu[0].slug;
 /** Panels with a dedicated section; anything else falls back to SettingsSection. */
 const SETTINGS_PANELS: Record<string, () => React.ReactElement> = {
   checkout: () => <CheckoutSettingsSection />,
-  "pay-on-delivery": () => <PodSettingsSection />,
+  pricing: () => <PricingSettingsSection />,
   banners: () => <BannersSection />,
   "catalog-availability": () => <CatalogAvailabilitySection />,
   inventory: () => <InventorySettingsSection />,

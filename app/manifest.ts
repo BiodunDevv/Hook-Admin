@@ -6,8 +6,8 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Hook — Market Operations",
     short_name: "Hook",
     description: "Capture, confirm, and fulfil for Hook — for Market Associates and Partners.",
-    // The manifest's single start_url is /launch, which then routes to the right dashboard by session.
-    start_url: "/launch",
+    // The start URL routes to the right dashboard by session.
+    start_url: "/",
     scope: "/",
     display: "standalone",
     orientation: "portrait",

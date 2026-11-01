@@ -14,7 +14,6 @@ export type ReceiptData = {
   parcel?: { reference?: string; sealReference?: string; weightGrams?: number; dimensions?: { lengthCm: number; widthCm: number; heightCm: number }; sealedAt?: string; parcels?: number };
   items: Array<{ reference?: string; title?: string; quantity?: number; color?: string; size?: string }>;
   courier?: { code?: string; name?: string; trackingNumber?: string };
-  payment?: { method?: string; collectMinor?: number };
   qr: string;
   printCount?: number;
   trackingSig?: string;
@@ -37,9 +36,8 @@ function Field({ label, children }: { label: string; children?: React.ReactNode 
 
 /** Print-ready Hook parcel receipt. Sized by its container (A6, A4 or thermal). */
 export function HookReceipt({ data, scanUrl }: { data: ReceiptData; scanUrl?: string }) {
-  const { recipient: to, parcel, payment } = data;
+  const { recipient: to, parcel } = data;
   const address = [to.line1, to.line2, to.landmark, to.city, to.state, to.postalCode].filter(Boolean).join(", ");
-  const collect = Number(payment?.collectMinor || 0);
   const totalUnits = data.items.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
   const reprint = Number(data.printCount || 0) > 0;
 
@@ -72,13 +70,6 @@ export function HookReceipt({ data, scanUrl }: { data: ReceiptData; scanUrl?: st
             <p className="mt-1 text-[7px] font-semibold uppercase tracking-wider text-zinc-500">Scan to verify</p>
           </div>
         </section>
-
-        {collect > 0 ? (
-          <div className="rounded bg-zinc-950 px-3 py-2 text-center text-white">
-            <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-brand-gold">Pay at handover</p>
-            <p className="text-lg font-black">Collect {money(collect)}</p>
-          </div>
-        ) : null}
 
         <section className="rounded border-2 border-zinc-950 p-2.5">
           <p className="text-[8px] font-bold uppercase tracking-[0.12em] text-zinc-500">Deliver to</p>

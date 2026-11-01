@@ -104,11 +104,6 @@ export function StatusChart({ data }: { data: Overview["statuses"] }) {
   return <Panel title="Order status" description="Every order placed in this period"><Donut data={rows} empty="No orders in this period" /></Panel>;
 }
 
-export function PaymentChart({ data }: { data: Overview["paymentMethods"] }) {
-  const rows = data.map((row, index) => ({ name: row.method === "PAY_AT_HANDOVER" ? "Pay at handover" : "Prepaid", value: row.count, fill: PALETTE[index % 2 === 0 ? 0 : 1] }));
-  return <Panel title="Payment method" description="Share of paid orders"><Donut data={rows} empty="No paid orders in this period" /></Panel>;
-}
-
 /** Where orders currently sit, stage by stage. */
 export function PipelineChart({ pipeline }: { pipeline: Overview["pipeline"] }) {
   const rows = [
