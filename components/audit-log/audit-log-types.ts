@@ -29,3 +29,9 @@ export interface AuditLogListResponse {
   limit: number;
   totalPages: number;
 }
+
+export interface AuditLogFacets {
+  total: number;
+  today: number;
+  entityTypes: Array<{ value: string; count: number }>;
+}

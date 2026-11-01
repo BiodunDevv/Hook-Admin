@@ -18,9 +18,8 @@ function Stat({ icon: Icon, label, value, tone }: { icon: typeof ClipboardList; 
   );
 }
 
-export function AuditLogOverview({ events, total }: { events: AuditLogEvent[]; total: number }) {
-  const today = new Date().toDateString();
-  const todayCount = events.filter((event) => event.createdAt && new Date(event.createdAt).toDateString() === today).length;
+export function AuditLogOverview({ events, total, today }: { events: AuditLogEvent[]; total: number; today: number }) {
+  const todayCount = today;
   const uniqueActors = new Set(events.map((event) => event.actorId).filter(Boolean)).size;
   const uniqueEntities = new Set(events.map((event) => event.entityType).filter(Boolean)).size;
 

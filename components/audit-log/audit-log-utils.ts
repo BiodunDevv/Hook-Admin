@@ -1,12 +1,18 @@
 import {
+  Banknote,
   Boxes,
   Building2,
   ClipboardList,
+  KeyRound,
   Landmark,
   MapPin,
+  Megaphone,
   Package,
+  Settings,
   Shield,
+  ShoppingCart,
   Store,
+  Tag,
   UserCog,
   Users,
   type LucideIcon,
@@ -48,6 +54,16 @@ const entityMeta: Record<string, { icon: LucideIcon; label: string }> = {
   market: { icon: Store, label: "Market" },
   product: { icon: Package, label: "Product" },
   public_id_counter: { icon: ClipboardList, label: "ID Counter" },
+  account: { icon: KeyRound, label: "Account" },
+  order: { icon: ShoppingCart, label: "Order" },
+  payment: { icon: Banknote, label: "Payment" },
+  refund_request: { icon: Banknote, label: "Refund" },
+  category: { icon: Tag, label: "Category" },
+  coupon: { icon: Tag, label: "Coupon" },
+  banner: { icon: Megaphone, label: "Banner" },
+  broadcast: { icon: Megaphone, label: "Broadcast" },
+  commerce_settings: { icon: Settings, label: "Commerce Settings" },
+  operation_state: { icon: Landmark, label: "Operation State" },
 };
 
 export function entityMetaFor(entityType: string) {
@@ -56,8 +72,27 @@ export function entityMetaFor(entityType: string) {
 
 export function actionIntent(action: string): "success" | "warning" | "danger" | "neutral" {
   const value = action.toLowerCase();
-  if (value.includes("created") || value.includes("active") || value.includes("resent") || value.includes("restored")) return "success";
-  if (value.includes("suspended") || value.includes("cancelled") || value.includes("archived") || value.includes("rejected") || value.includes("ended") || value.includes("disabled")) return "danger";
-  if (value.includes("updated") || value.includes("paused") || value.includes("repaired")) return "warning";
+  if (/(failed|suspend|cancel|archiv|reject|ended|disabled|delete|remov|revoke|declin)/.test(value)) return "danger";
+  if (/(creat|activ|resent|restor|approv|sign_in|enabled|publish|confirm)/.test(value)) return "success";
+  if (/(updat|paus|repair|chang|edit|reorder|assign)/.test(value)) return "warning";
   return "neutral";
+}
+
+export const RANGE_OPTIONS = [
+  { value: "all", label: "All time" },
+  { value: "today", label: "Today" },
+  { value: "7d", label: "Last 7 days" },
+  { value: "30d", label: "Last 30 days" },
+] as const;
+
+export type AuditRange = (typeof RANGE_OPTIONS)[number]["value"];
+
+/** ISO start of the chosen range, or undefined for "all time". */
+export function rangeStart(range: AuditRange): string | undefined {
+  if (range === "all") return undefined;
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  if (range === "7d") start.setDate(start.getDate() - 6);
+  if (range === "30d") start.setDate(start.getDate() - 29);
+  return start.toISOString();
 }

@@ -67,12 +67,6 @@ export const navGroups: NavGroup[] = [
         permission: "orders.view",
       },
       {
-        label: "POD Verification",
-        href: "/dashboard/orders/pod",
-        icon: BadgeCheck,
-        permission: "commerce.pod.review",
-      },
-      {
         label: "Payments",
         href: "/dashboard/payments",
         icon: CreditCard,

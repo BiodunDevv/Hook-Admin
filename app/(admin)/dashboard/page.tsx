@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, BadgeDollarSign, CheckCircle2, CircleCheck, Package, RefreshCw, ShoppingBag, Truck, UserPlus, Wallet } from "lucide-react";
 import {
-  PaymentChart, PipelineChart, RevenueChart, StatusChart, TopStatesChart, naira, type Overview,
+  PipelineChart, RevenueChart, StatusChart, TopStatesChart, naira, type Overview,
 } from "@/components/dashboard/OverviewCharts";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -109,10 +109,9 @@ export default function DashboardPage() {
               </Card>
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-4 lg:grid-cols-2">
               <PipelineChart pipeline={data.pipeline} />
               <StatusChart data={data.statuses} />
-              <PaymentChart data={data.paymentMethods} />
             </div>
 
             <div className="grid gap-4 xl:grid-cols-3">

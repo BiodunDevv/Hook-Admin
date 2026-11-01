@@ -72,9 +72,6 @@ export default function ParcelScanPage({ params }: { params: Promise<{ receipt: 
                   <div><dt className="text-xs text-muted-foreground">Tracking</dt><dd className="font-medium">{data.courier?.trackingNumber || "—"}</dd></div>
                   <div><dt className="text-xs text-muted-foreground">Seal</dt><dd className="font-medium">{data.parcel?.sealReference || "—"}</dd></div>
                 </dl>
-                {(data.payment?.collectMinor || 0) > 0 ? (
-                  <p className="rounded-md bg-zinc-950 px-3 py-2 text-center font-semibold text-white">Pay at handover: collect the amount printed on the receipt</p>
-                ) : null}
                 {step ? (
                   <PermissionGuard permission="logistics.manage">
                     <Button className="w-full" onClick={() => void advance()} disabled={pending}>
